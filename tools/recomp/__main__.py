@@ -287,6 +287,10 @@ def main():
               f"{stats['total_lines']} lines of C, "
               f"{stats['num_chunks']} source files",
               file=sys.stderr)
+        if stats.get("unresolved_stubs"):
+            print(f"{stats['unresolved_stubs']} unresolved call targets stubbed "
+                  f"(addresses called but not detected as functions)",
+                  file=sys.stderr)
         for f_path in stats.get("files", []):
             print(f"  {f_path}", file=sys.stderr)
     else:

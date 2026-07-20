@@ -657,16 +657,29 @@ class Lifter:
         self._fp_top = 0  # FPU stack top index
         self.func_start = 0  # Set per-function by translator
         self.func_end = 0
+        # Every direct call target we emit a name for, as {addr: name}. The
+        # batch translator diffs this against the functions it actually defined
+        # so it can stub out the remainder (see translate_batch_split).
+        self.referenced_calls = {}
 
     def _call_target_name(self, addr):
-        """Get the name for a call target address."""
-        if addr in self.label_db:
-            return self.label_db[addr]
+        """Get the name for a call target address.
+
+        func_db wins over label_db. The function definition is emitted from
+        func_db, so consulting labels first meant a renamed function was
+        *defined* as cseries__sub_0008DB80 but *called* as sub_0008DB80 -- the
+        disassembler's generic auto-label -- and the link failed on every
+        function any naming pass had touched. Labels still cover call targets
+        that are not known function starts.
+        """
         if addr in self.func_db:
-            info = self.func_db[addr]
-            name = info.get("name", f"sub_{addr:08X}")
-            return name
-        return f"sub_{addr:08X}"
+            name = self.func_db[addr].get("name", f"sub_{addr:08X}")
+        elif addr in self.label_db:
+            name = self.label_db[addr]
+        else:
+            name = f"sub_{addr:08X}"
+        self.referenced_calls[addr] = name
+        return name
 
     def lift_instruction(self, insn):
         """
