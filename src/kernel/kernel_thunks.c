@@ -109,6 +109,7 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case   4: return (ULONG_PTR)xbox_AvSetSavedDataAddress;
 
     /* ---- Debug ---- */
+    case   5: return (ULONG_PTR)xbox_DbgBreakPoint;
     case   8: return (ULONG_PTR)xbox_Unknown_8;  /* DbgPrint */
 
     /* ---- Executive / pool ---- */
@@ -124,30 +125,41 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case   9: return (ULONG_PTR)xbox_HalReadSMCTrayState;
     case  38: return (ULONG_PTR)xbox_HalClearSoftwareInterrupt;
     case  39: return (ULONG_PTR)xbox_HalDisableSystemInterrupt;
-    case  42: return (ULONG_PTR)xbox_Unknown_42;  /* HalDiskSerialNumber */
+    case  40: return (ULONG_PTR)&xbox_HalDiskCachePartitionCount;
+    case  41: return (ULONG_PTR)&xbox_HalDiskModelNumber;
+    case  42: return (ULONG_PTR)&xbox_HalDiskSerialNumber;
     case  44: return (ULONG_PTR)xbox_HalGetInterruptVector;
     case  45: return (ULONG_PTR)xbox_HalReadSMBusValue;
     case  46: return (ULONG_PTR)xbox_HalReadWritePCISpace;
+    case  47: return (ULONG_PTR)xbox_HalRegisterShutdownNotification;
     case  48: return (ULONG_PTR)xbox_HalRequestSoftwareInterrupt;
     case  49: return (ULONG_PTR)xbox_HalReturnToFirmware;
     case  50: return (ULONG_PTR)xbox_HalWriteSMBusValue;
+    case 356: return (ULONG_PTR)&xbox_HalBootSMCVideoMode;
     case 358: return (ULONG_PTR)xbox_HalIsResetOrShutdownPending;
     case 360: return (ULONG_PTR)xbox_HalInitiateShutdown;
 
     /* ---- I/O manager ---- */
     case  61: return (ULONG_PTR)xbox_IoBuildDeviceIoControlRequest;
+    case  62: return (ULONG_PTR)xbox_IoBuildSynchronousFsdRequest;
     case  64: return (ULONG_PTR)&xbox_IoCompletionObjectType;
     case  65: return (ULONG_PTR)xbox_IoCreateDevice;
     case  66: return (ULONG_PTR)xbox_IoCreateFile;
+    case  67: return (ULONG_PTR)xbox_IoCreateSymbolicLink;
     case  68: return (ULONG_PTR)xbox_IoDeleteDevice;
+    case  69: return (ULONG_PTR)xbox_IoDeleteSymbolicLink;
     case  70: return (ULONG_PTR)&xbox_IoDeviceObjectType;
+    case  71: return (ULONG_PTR)xbox_IoFileObjectType;
     case  73: return (ULONG_PTR)xbox_IoInitializeIrp;
+    case  74: return (ULONG_PTR)xbox_IoInvalidDeviceRequest;
     case  79: return (ULONG_PTR)xbox_IoSetIoCompletion;
     case  81: return (ULONG_PTR)xbox_IoStartNextPacket;
     case  82: return (ULONG_PTR)xbox_IoStartNextPacketByKey;
     case  83: return (ULONG_PTR)xbox_IoStartPacket;
     case  84: return (ULONG_PTR)xbox_IoSynchronousDeviceIoControlRequest;
     case  85: return (ULONG_PTR)xbox_IoSynchronousFsdRequest;
+    case  86: return (ULONG_PTR)xbox_IofCallDriver;
+    case  87: return (ULONG_PTR)xbox_IofCompleteRequest;
     case 359: return (ULONG_PTR)xbox_IoMarkIrpMustComplete;
 
     /* ---- Kernel core ---- */
@@ -157,11 +169,13 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case  97: return (ULONG_PTR)xbox_KeCancelTimer;
     case  98: return (ULONG_PTR)xbox_KeConnectInterrupt;
     case  99: return (ULONG_PTR)xbox_KeDelayExecutionThread;
+    case 100: return (ULONG_PTR)xbox_KeDisconnectInterrupt;
     case 107: return (ULONG_PTR)xbox_KeInitializeDpc;
     case 109: return (ULONG_PTR)xbox_KeInitializeInterrupt;
     case 113: return (ULONG_PTR)xbox_KeInitializeTimerEx;
     case 119: return (ULONG_PTR)xbox_KeInsertQueueDpc;
     case 124: return (ULONG_PTR)xbox_KeQueryBasePriorityThread;
+    case 125: return (ULONG_PTR)xbox_KeQueryInterruptTime;
     case 126: return (ULONG_PTR)xbox_KeQueryPerformanceCounter;
     case 127: return (ULONG_PTR)xbox_KeQueryPerformanceFrequency;
     case 128: return (ULONG_PTR)xbox_KeQuerySystemTime;
@@ -203,9 +217,11 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
 
     /* ---- Native API ---- */
     case 184: return (ULONG_PTR)xbox_NtAllocateVirtualMemory;
+    case 186: return (ULONG_PTR)xbox_NtClearEvent;
     case 187: return (ULONG_PTR)xbox_NtClose;
     case 189: return (ULONG_PTR)xbox_NtCreateEvent;
     case 190: return (ULONG_PTR)xbox_NtCreateFile;
+    case 192: return (ULONG_PTR)xbox_NtCreateMutant;
     case 193: return (ULONG_PTR)xbox_NtCreateSemaphore;
     case 195: return (ULONG_PTR)xbox_NtDeleteFile;
     case 196: return (ULONG_PTR)xbox_NtDeviceIoControlFile;
@@ -222,11 +238,15 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case 217: return (ULONG_PTR)xbox_NtQueryVirtualMemory;
     case 218: return (ULONG_PTR)xbox_NtQueryVolumeInformationFile;
     case 219: return (ULONG_PTR)xbox_NtReadFile;
+    case 221: return (ULONG_PTR)xbox_NtReleaseMutant;
     case 222: return (ULONG_PTR)xbox_NtReleaseSemaphore;
+    case 224: return (ULONG_PTR)xbox_NtResumeThread;
     case 225: return (ULONG_PTR)xbox_NtSetEvent;
     case 226: return (ULONG_PTR)xbox_NtSetInformationFile;
     case 228: return (ULONG_PTR)xbox_NtSetSystemTime;
+    case 231: return (ULONG_PTR)xbox_NtSuspendThread;
     case 233: return (ULONG_PTR)xbox_NtWaitForSingleObject;
+    case 234: return (ULONG_PTR)xbox_NtWaitForSingleObjectEx;
     case 235: return (ULONG_PTR)xbox_NtWaitForMultipleObjectsEx;
     case 236: return (ULONG_PTR)xbox_NtWriteFile;
     case 238: return (ULONG_PTR)xbox_NtYieldExecution;
@@ -268,6 +288,7 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case 253: return (ULONG_PTR)xbox_PhyInitialize;
     case 333: return (ULONG_PTR)xbox_WRITE_PORT_BUFFER_USHORT;
     case 334: return (ULONG_PTR)xbox_WRITE_PORT_BUFFER_ULONG;
+    case 357: return (ULONG_PTR)xbox_IdexChannelObject;
 
     /* ---- Crypto ---- */
     case 335: return (ULONG_PTR)xbox_XcSHAInit;
@@ -301,6 +322,7 @@ ULONG_PTR xbox_resolve_ordinal(ULONG ordinal)
     case 324: return (ULONG_PTR)&xbox_KrnlVersion;
     case 325: return (ULONG_PTR)xbox_SignatureKey;
     case 353: return (ULONG_PTR)xbox_LANKey;
+    case 354: return (ULONG_PTR)xbox_AlternateSignatureKeys;
 
     /* ---- Unclassified ---- */
     case 164: return (ULONG_PTR)&xbox_LaunchDataPage;

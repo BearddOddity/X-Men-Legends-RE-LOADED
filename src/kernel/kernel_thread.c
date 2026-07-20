@@ -342,3 +342,54 @@ NTSTATUS __stdcall xbox_NtDuplicateObject(
 
     return STATUS_SUCCESS;
 }
+
+NTSTATUS __stdcall xbox_NtSuspendThread(
+    HANDLE ThreadHandle,
+    PULONG PreviousSuspendCount)
+{
+    DWORD prev;
+
+    /*
+     * SuspendThread returns the previous suspend count, or (DWORD)-1 on
+     * failure. The Xbox call reports that count through an out-parameter, so
+     * the two are not interchangeable: -1 must become an error status rather
+     * than a suspend count of 0xFFFFFFFF.
+     */
+    prev = SuspendThread(ThreadHandle);
+    if (prev == (DWORD)-1) {
+        xbox_log(XBOX_LOG_ERROR, XBOX_LOG_THREAD,
+            "NtSuspendThread: SuspendThread failed (error %u)", GetLastError());
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    if (PreviousSuspendCount)
+        *PreviousSuspendCount = (ULONG)prev;
+
+    xbox_log(XBOX_LOG_DEBUG, XBOX_LOG_THREAD,
+        "NtSuspendThread: thread=%p previous_count=%u", ThreadHandle, prev);
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS __stdcall xbox_NtResumeThread(
+    HANDLE ThreadHandle,
+    PULONG PreviousSuspendCount)
+{
+    DWORD prev;
+
+    /* Mirror of NtSuspendThread: (DWORD)-1 is failure, not a count. */
+    prev = ResumeThread(ThreadHandle);
+    if (prev == (DWORD)-1) {
+        xbox_log(XBOX_LOG_ERROR, XBOX_LOG_THREAD,
+            "NtResumeThread: ResumeThread failed (error %u)", GetLastError());
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    if (PreviousSuspendCount)
+        *PreviousSuspendCount = (ULONG)prev;
+
+    xbox_log(XBOX_LOG_DEBUG, XBOX_LOG_THREAD,
+        "NtResumeThread: thread=%p previous_count=%u", ThreadHandle, prev);
+
+    return STATUS_SUCCESS;
+}
