@@ -14,7 +14,9 @@ Produces compilable C code using recomp_types.h macros.
 import json
 import os
 
-from .config import va_to_file_offset, is_code_address, TEXT_VA_START, TEXT_VA_END
+# Import the functions, not the VA constants: configure_from_xbe() rebinds those
+# at startup, so a by-value import would freeze the fallback layout.
+from .config import va_to_file_offset, is_code_address
 from .disasm import Disassembler
 from .lifter import Lifter, lift_basic_block
 

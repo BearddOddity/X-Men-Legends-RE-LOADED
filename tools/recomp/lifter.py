@@ -17,7 +17,7 @@ Memory model:
 import struct
 
 from .disasm import Instruction, Operand
-from .config import is_code_address, is_data_address, va_to_file_offset, KERNEL_THUNK_ADDR
+from .config import is_code_address, is_data_address, va_to_file_offset
 
 
 # ── Operand formatting ──────────────────────────────────────
