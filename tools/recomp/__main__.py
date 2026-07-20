@@ -150,6 +150,10 @@ def main():
                         help="Path to abi_functions.json (overrides --abi-dir)")
     parser.add_argument("--skip-binary-check", action="store_true",
                         help="Allow disassembly recorded for a different binary")
+    parser.add_argument("--seh-prolog", metavar="ADDR",
+                        help="Address of __SEH_prolog (hex). Auto-detected if omitted")
+    parser.add_argument("--seh-epilog", metavar="ADDR",
+                        help="Address of __SEH_epilog (hex). Auto-detected if omitted")
 
     args = parser.parse_args()
 
@@ -198,6 +202,8 @@ def main():
         identified_json_path=data_files.get("identified"),
         abi_json_path=data_files.get("abi"),
         output_dir=args.output_dir,
+        seh_prolog=int(args.seh_prolog, 16) if args.seh_prolog else None,
+        seh_epilog=int(args.seh_epilog, 16) if args.seh_epilog else None,
     )
 
     t_load = time.time() - t0
