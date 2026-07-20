@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from tools.debug_symbols.recover import (  # noqa: E402
     _compile_pattern,
     _extract_path,
+    _module_name,
     _strip_common_root,
     _FunctionIndex,
     run,
@@ -60,6 +61,17 @@ def test_strip_common_root():
     same_dir = _strip_common_root(["c:/g/SOURCE/ai/a.c", "c:/g/SOURCE/ai/b.c"])
     assert same_dir["c:/g/SOURCE/ai/a.c"] == "ai/a.c"
     print("ok  strip_common_root")
+
+
+def test_module_name_is_a_valid_c_identifier():
+    assert _module_name("ai/actor_combat.c") == "actor_combat"
+    # Halo ships bungie_net/common/64bit_math.c -- a leading digit does not
+    # compile, and the generated header is where it shows up.
+    assert _module_name("bungie_net/common/64bit_math.c") == "_64bit_math"
+    # Anything else non-identifier gets folded to underscores.
+    assert _module_name("saved games/game-state.c") == "game_state"
+    assert _module_name("a/b c+d.cpp") == "b_c_d"
+    print("ok  module_name_is_a_valid_c_identifier")
 
 
 def _fn(start, end, section=".text"):
@@ -148,6 +160,7 @@ def test_apply_preserves_existing_names():
 if __name__ == "__main__":
     test_extract_path()
     test_strip_common_root()
+    test_module_name_is_a_valid_c_identifier()
     test_function_index()
     test_end_to_end()
     test_apply_preserves_existing_names()

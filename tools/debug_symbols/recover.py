@@ -79,8 +79,17 @@ def _strip_common_root(paths):
 
 
 def _module_name(rel_path):
-    """'ai/actor_combat.c' -> 'actor_combat'"""
-    return os.path.splitext(os.path.basename(rel_path))[0]
+    """'ai/actor_combat.c' -> 'actor_combat', as a valid C identifier.
+
+    Source filenames are not required to be identifier-safe: Halo alone ships
+    bungie_net/common/64bit_math.c, and a name starting with a digit does not
+    compile.
+    """
+    stem = os.path.splitext(os.path.basename(rel_path))[0]
+    stem = re.sub(r"[^A-Za-z0-9_]", "_", stem)
+    if not stem or stem[0].isdigit():
+        stem = "_" + stem
+    return stem
 
 
 class _FunctionIndex:
