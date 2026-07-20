@@ -36,6 +36,7 @@ class Instruction:
     call_target: Optional[int] = None     # For direct calls
     jump_target: Optional[int] = None     # For direct jumps
     memory_ref: Optional[int] = None      # For [addr] references
+    imm_ref: Optional[int] = None         # For `push offset x` / `mov reg, offset x`
 
     @property
     def is_branch(self) -> bool:
@@ -63,6 +64,8 @@ class Instruction:
             d["jump_target"] = f"0x{self.jump_target:08X}"
         if self.memory_ref is not None:
             d["memory_ref"] = f"0x{self.memory_ref:08X}"
+        if self.imm_ref is not None:
+            d["imm_ref"] = f"0x{self.imm_ref:08X}"
         return d
 
 
@@ -134,6 +137,21 @@ class DisasmEngine:
                                 self.image.base_address + self.image.image_size):
                             insn.memory_ref = addr
                             break
+
+            # Immediate operands that are addresses, e.g. `push offset str` or
+            # `mov reg, offset table`. These are how string literals and static
+            # data are almost always referenced, and they are NOT memory
+            # operands, so the memory_ref scan above never sees them. On calls
+            # and branches the immediate is the target, handled above.
+            if not (insn.is_call or insn.is_branch):
+                for operand in operands:
+                    if operand.type != CS_OP_IMM:
+                        continue
+                    addr = operand.imm & 0xFFFFFFFF
+                    if self.image.base_address <= addr < (
+                            self.image.base_address + self.image.image_size):
+                        insn.imm_ref = addr
+                        break
 
         return insn
 
