@@ -178,6 +178,37 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     return (recomp_func_t)0;
 }
 
+/*
+ * sub_001A016A: direct-call replacement (not a recomp_lookup_manual
+ * override - sub_00345ACC calls it with a plain C call). Real logic
+ * disabled in recomp_0011.c (#if 0). See DEBUGGING_NOTES.md.
+ *
+ * Queries a flag byte at [ptr-0xB] on what looks like a per-thread C++
+ * exception-state object. Crashes when that pointer is NULL - i.e. when
+ * no C++ exception has ever been thrown on this thread, so no state was
+ * ever allocated. Real CRT startup guarantees this state exists before
+ * any code can reach this query; we skip full CRT startup, so the
+ * guarantee doesn't hold. Treat "no state" the same as "flag bit 0 is
+ * clear" (the existing failure path already handles that correctly via
+ * the real generated sub_001A017A/sub_001A0196), rather than crashing.
+ */
+extern void sub_001A017A(void);
+extern void sub_001A0196(void);
+
+void sub_001A016A(void)
+{
+    g_ecx = MEM32(g_esp + 0xC);
+    if (g_ecx == 0) {
+        g_eax = 0xFFFFFFFFu;
+        g_esp += 16;  /* matches sub_001A0196's own cleanup (ret 12 + retaddr) */
+        return;
+    }
+    g_eax = MEM8(g_ecx - 11);
+    if (g_eax & 1) { sub_001A017A(); return; }
+    g_eax = 0xFFFFFFFFu;
+    sub_001A0196();
+}
+
 /* ── ICALL failure logging ─────────────────────────────────── */
 
 /*

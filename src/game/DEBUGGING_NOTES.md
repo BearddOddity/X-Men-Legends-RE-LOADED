@@ -250,44 +250,69 @@ If a crash looks like unbounded recursion (steadily shrinking/growing
 
 Remove the diagnostic after use (not currently in the tree).
 
-## Open: access violation in C++ exception-handling / `operator new` failure path
+## Fixed (game-specific): null-pointer query crash (`sub_001A016A`)
 
-After all fixes above, the game runs 24+ kernel calls with genuine
-multi-lock critical-section usage (confirms the lock bootstrap fix is
-correct - no more recursion), then crashes:
+Access violation reading Xbox VA `0xFFFFFFF5` (`ecx - 0xB` with `ecx == 0`).
+Traced the argument back to `sub_00345ACC`'s own incoming parameter
+(passed down from its caller, `sub_00340D06`) rather than anything
+computed locally - `sub_001A016A` reads a flag byte at `[ptr-0xB]` to
+answer what looks like a "does state X exist yet" query (possibly C++
+exception/per-thread state - the negative-offset flag-byte pattern is
+consistent with that), and the real x86 code has no null check because
+real CRT startup guarantees the state exists by the time anything can
+reach this call. We skip full CRT startup, so that guarantee doesn't
+hold, and the very first query crashes instead of getting a normal "not
+set" answer.
+
+Fix: **not** full C++ exception-handling support (that would be a much
+bigger undertaking) - just a null guard. `sub_001A016A`'s generated body
+is disabled via `#if 0` in `src/recomp/gen/recomp_0011.c` (**not tracked
+by git - reapply this disable if the pipeline ever regenerates that
+file**), replaced by a manual implementation in `recomp_manual.c` that
+checks `ecx == 0` first and returns the same "not set" answer the real
+code's own failure path already provides (via the untouched, still-real
+`sub_001A017A`/`sub_001A0196`) - it just skips the crash to get there.
+This is a **direct-call replacement**, not a `recomp_lookup_manual`
+override, since `sub_00345ACC` calls it with a plain C function call.
+
+Result: 24 → 28 kernel calls before the next crash.
+
+## Open: access violation in the heap manager's large-block allocation path
+
+New crash after the fix above, in `sub_0019F765` (called from
+`sub_001A02B7`, called from `sub_001A0B0C` - our own heap allocator):
 
 ```
-[CRASH] Access violation at fault addr Xbox VA 0xFFFFFFF5 (read)
-  ecx=0x00000000
+[CRASH] Access violation, fault addr Xbox VA 0xD8042464 (read)
+  eax=0x00002000 (8192 - an allocation size)  ecx=0  esi=0xD804245C (garbage)
 ```
 
-Traced to `sub_001A016A` (called from `sub_00345ACC`, which also calls the
-heap descriptor getter `sub_0019ED75` and `_lock` `sub_00345674` - looks
-like a generic allocation-failure/error path, possibly `operator new`'s
-failure handling or a `std::bad_alloc`-style throw):
+`sub_001A02B7` walks a **64-entry bucket array at `heap_struct+0x60`**
+(indexed by size class, `i*4+0x60`) looking for a bucket whose size range
+covers the requested allocation (`eax=0x2000` suggests this is the first
+*large* allocation attempted - previous allocations all stayed in the
+small-block `FreeLists[]` path already fixed earlier this session). For a
+non-null bucket entry, it calls `sub_0019F765(bucket_ptr, ...)`, which
+walks a linked list starting at `bucket_ptr+0x38` - and that list head is
+garbage, not a valid pointer or a clean `NULL`.
 
-```asm
-mov ecx, [esp+0xc]
-mov al, [ecx - 0xb]   ; <-- crashes: ecx is NULL, reads Xbox VA -11
-test al, 1
-jne ...
-```
+This is very likely **the same family of bug as the `RtlCreateHeap`
+epilogue fix** (`sub_001A0A97` - see above): a heap-header field that
+should have been written during heap creation but wasn't, because it's
+outside the specific fields we identified and hand-translated at the
+time (we covered `+0x1c/0x20/0x24/0x28/0x2c/0x34/0x50/0x54/0x584`, not
+the `+0x60`-based bucket array or whatever governs each bucket's `+0x38`
+sub-list head). Since `sub_001A0A97` is now a real generated function
+again (not a manual override - see the "third instance" fix above), this
+is probably a **gap in what that function actually initializes**, not a
+translation bug - worth re-reading its full generated code (not just the
+subset we manually translated by hand before it was properly seeded) to
+see whether it touches `+0x60`/bucket-related fields at all, and if not,
+finding whatever *should* initialize them (possibly another lazily-run,
+first-large-allocation setup step, matching the pattern of every fix in
+this document).
 
-`ecx` (some object pointer - the offset pattern, reading a flag byte at
-`-0xB` from the pointer, is consistent with MSVC's C++ exception-object
-or RTTI header layout) is null when this runs. This is a **different,
-harder problem than everything fixed so far** - it's not another
-undetected-function case, it's the actual C++ exception-handling ABI
-(frame-based SEH unwinding, scope tables, possibly `operator new`'s
-new-handler chain) that our runtime doesn't implement at all. Full support
-would be a substantial undertaking; a narrower fix (make `sub_001A016A`
-handle `ecx == 0` gracefully, or find why `ecx` is null one level up in
-`sub_00345ACC`) is more tractable but not yet investigated.
-
-Not yet done: trace `sub_00345ACC` far enough to find why it passes a null
-object pointer forward - could be as simple as another lazily-initialized
-global (matching the pattern of every fix in this document so far) rather
-than genuinely needing full C++ EH support.
+Not yet investigated further.
 
 ## Environment notes for future sessions
 
