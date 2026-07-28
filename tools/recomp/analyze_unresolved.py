@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, bisect, os
+import json, bisect, os, sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
@@ -8,25 +8,29 @@ UNRESOLVED_PATH = os.path.join(SCRIPT_DIR, 'output', 'unresolved_symbols.txt')
 FUNCTIONS_PATH = os.path.join(REPO_ROOT, 'tools', 'disasm', 'output', 'functions.json')
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, 'output', 'missing_functions.json')
 
-SECTIONS = [
-    {'name': '.text', 'va': 0x00011000, 'size': 2863616},
-    {'name': 'XMV', 'va': 0x002CC200, 'size': 163124},
-    {'name': 'DSOUND', 'va': 0x002F3F40, 'size': 52668},
-    {'name': 'WMADEC', 'va': 0x00300D00, 'size': 105828},
-    {'name': 'XONLINE', 'va': 0x0031AA80, 'size': 124764},
-    {'name': 'XNET', 'va': 0x003391E0, 'size': 78056},
-    {'name': 'D3D', 'va': 0x0034C2E0, 'size': 83828},
-    {'name': 'XGRPH', 'va': 0x00360A60, 'size': 8300},
-    {'name': 'XPP', 'va': 0x00362AE0, 'size': 36052},
-    {'name': '.rdata', 'va': 0x0036B7C0, 'size': 289684},
-    {'name': '.data', 'va': 0x003B2360, 'size': 3904988},
-    {'name': 'DOLBY', 'va': 0x0076B940, 'size': 29056},
-    {'name': 'XON_RD', 'va': 0x00772AC0, 'size': 5416},
-    {'name': '.data1', 'va': 0x00774000, 'size': 224},
-]
+# SECTIONS/TEXT_START/TEXT_END are populated per-run in main() from the
+# target XBE's own section table (via --xbe-json), never hardcoded here.
+# A previous version hardcoded one game's layout (sizes/section names like
+# XMV/XONLINE/XNET), which silently misclassified every other game's real
+# .text addresses as fake "library sections" and dropped them from the
+# gap/continuation seed candidates - see DEBUGGING_NOTES.md in xmen-legends.
+SECTIONS = []
+TEXT_START = None
+TEXT_END = None
 
-TEXT_START = 0x00011000
-TEXT_END = 0x00011000 + 2863616
+
+def _load_sections(xbe_json_path):
+    with open(xbe_json_path) as f:
+        xbe = json.load(f)
+    sections = []
+    for s in xbe['sections']:
+        sections.append({
+            'name': s['name'],
+            'va': int(s['virtual_addr'], 16),
+            'size': s['virtual_size'],
+        })
+    return sections
+
 
 def find_section(addr):
     for s in SECTIONS:
@@ -36,6 +40,21 @@ def find_section(addr):
 
 
 def main():
+    global SECTIONS, TEXT_START, TEXT_END
+
+    if len(sys.argv) < 2:
+        print('Usage: python -m tools.recomp.analyze_unresolved <xbe_analysis.json>', file=sys.stderr)
+        print('  <xbe_analysis.json> is the --json output of tools.xbe_parser for the target XBE.', file=sys.stderr)
+        sys.exit(1)
+
+    SECTIONS = _load_sections(sys.argv[1])
+    text = next(s for s in SECTIONS if s['name'] == '.text')
+    TEXT_START = text['va']
+    TEXT_END = text['va'] + text['size']
+    print(f"Loaded {len(SECTIONS)} sections from {sys.argv[1]}")
+    print(f"  .text: 0x{TEXT_START:08X} - 0x{TEXT_END:08X}")
+    print()
+
     print('Loading function database...')
     with open(FUNCTIONS_PATH) as f:
         raw_funcs = json.load(f)

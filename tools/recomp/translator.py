@@ -216,22 +216,34 @@ class FunctionTranslator:
         if any(insn.mnemonic == "leave" for insn in instructions):
             used_regs.add("ebp")
 
-        # Ensure ebp tracked if function has tail jumps (lifter emits
-        # g_seh_ebp = ebp before external jmp and indirect jmp).
-        has_tail_jump = any(
-            insn.mnemonic == "jmp" and (
-                (insn.jump_target and not (start <= insn.jump_target < end))
-                or not insn.jump_target  # indirect jmp
-            )
-            for insn in instructions
-        )
+        # Ensure ebp tracked if function has tail jumps or tail-calling
+        # conditional jumps (lifter emits g_seh_ebp = ebp before external
+        # jmp, indirect jmp, AND external jcc/jecxz/jcxz - a conditional
+        # branch to an out-of-range address is just as much a tail call
+        # as an unconditional one).
+        def _is_tail_call_insn(insn):
+            if insn.mnemonic == "jmp":
+                if not insn.jump_target:
+                    return True  # indirect jmp
+                return not (start <= insn.jump_target < end)
+            if insn.is_cond_jump or insn.mnemonic in ("jecxz", "jcxz"):
+                return bool(insn.jump_target) and not (start <= insn.jump_target < end)
+            return False
+
+        has_tail_jump = any(_is_tail_call_insn(insn) for insn in instructions)
         if has_tail_jump:
             used_regs.add("ebp")
 
         # Ensure ebp tracked if function calls __SEH_prolog or __SEH_epilog
         # (lifter emits ebp = g_seh_ebp readback after these calls).
-        SEH_FUNCS = {0x00244784, 0x002447BF}
-        if any(insn.call_target in SEH_FUNCS for insn in instructions):
+        # Uses the auto-detected/overridden addresses for THIS binary
+        # (self.seh_prolog/self.seh_epilog) - a hardcoded address pair here
+        # would silently miss every SEH call in any binary where the CRT
+        # placed these helpers elsewhere (previously hardcoded to one
+        # specific game's addresses, causing undeclared-'ebp' compile
+        # errors once a wider function set was translated).
+        seh_funcs = {a for a in (self.lifter.SEH_PROLOG, self.lifter.SEH_EPILOG) if a is not None}
+        if seh_funcs and any(insn.call_target in seh_funcs for insn in instructions):
             used_regs.add("ebp")
 
         # Build call targets list
