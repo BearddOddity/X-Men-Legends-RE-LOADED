@@ -444,20 +444,74 @@ the constructing code is unresolved and its target VA falls at or above
 the fix is a native override in `recomp_manual.c` that fakes a plausible
 result (like `sub_001F8890` above), not a deeper trace into D3D internals.
 
+## sub_001F84D0 (fixed)
+
+Root cause confirmed by temporarily printing both globals at the read site:
+`MEM32(0x5BC538)` and `MEM32(0x5BC53C)` are both always 0 - same D3D-null
+pattern as `sub_001F8890`. Traced the constructor (`sub_001F6FD1`,
+`recomp_0014.c`): both only get a real value if an ICALL through a device
+object at `0x5BC508` succeeds; since D3D isn't recompiled it fails
+silently and they stay 0 forever.
+
+Fixed by copying the generated function into `recomp_manual.c` near-
+verbatim (register names prefixed `g_`, since this file isn't compiled
+with `RECOMP_GENERATED_CODE` register aliasing - watch for macros like
+`RECOMP_ICALL_SAFE` that assume the alias internally; wrap the call site
+in a local `#define eax g_eax` / `#undef eax` if you hit an "undeclared
+identifier" for a bare register name) plus one added guard: if the
+selected table pointer is 0, take the function's own existing "nothing to
+render" early-out (tail-call to `sub_001F853F`) instead of walking a null
+table. Chose to preserve the original stack-cleanup code exactly rather
+than reimplement from scratch - this function's `esp` bookkeeping is
+entangled with `sub_001F853F`/`sub_001F8545` (no explicit cleanup before
+the tail call; relies on whatever eventually calls into this three-
+function unit), and re-deriving that by hand is easy to get subtly wrong.
+
+## Systemic fix attempted and reverted: dummy object for all failed ICALLs
+
+After hitting a **third** D3D-null crash (`sub_002235D0`, 600+ bytes, many
+ICALLs through what looks like a caller-supplied resource-descriptor
+callback table - much bigger/riskier to hand-patch than the previous two),
+tried a systemic fix instead of another individual guard: changed the
+`RECOMP_ICALL`/`RECOMP_ICALL_SAFE` failure fallback (both copies of
+`recomp_types.h`) to return a pointer to a shared, lazily-allocated,
+zeroed 4KB scratch buffer (`recomp_icall_dummy_object()` in
+`recomp_manual.c`) instead of 0. Idea: downstream code expecting "got an
+object back" would take its normal path with inert dummy data instead of
+null-crashing, potentially resolving many D3D-dependent crashes at once
+rather than one at a time.
+
+**Result: regression, reverted.** `smoke_test.ps1` dropped from 35 to 31
+kernel calls, with a *new, earlier* crash (`eax=0xFF000000`, fault at
+`0xFF000078` - looks like a bad shift/enum-default computation, consistent
+with code that reads a capability/format field from what it assumes is a
+real, correctly-shaped D3D object and gets zeroed dummy data instead).
+Confirms the risk flagged when this approach was chosen: a zeroed dummy
+object isn't validly-shaped for every D3D interface, and "looks like an
+object" can be worse than "obviously null" when the consumer doesn't
+null-check but does trust specific field values.
+
+**Verdict**: stick with per-crash guards (`sub_001F8890`, `sub_001F84D0`
+above) unless a future attempt at the dummy-object idea makes the buffer
+smarter (e.g. pre-fill specific known offsets with sane defaults for the
+specific interfaces actually consulted, rather than one generic zeroed
+blob for every failure site). Reverting is a pure revert of
+`recomp_types.h`/`templates/runtime/recomp_types.h` to their prior
+committed content plus deleting `recomp_icall_dummy_object()` from
+`recomp_manual.c` - nothing else depends on it.
+
 ## Current crash (not yet fixed)
 
 ```
-[CRASH] Access violation at RIP=..., RVA=0xB5813B -> sub_001F84D0+0xBB
-Xbox regs: eax=0 ecx=0x786F6278 ("xbo" as ASCII) edx=0x003C806C
-           esi=0x003C806C edi=0x003C806D esp=0x00F7FD1C
-Xbox VA of fault: 0x786F6280 (read)
+sub_002235D0 (recomp_0016.c) - 610 bytes / 200 insns, much larger than
+the previous two fixes. Reads MEM32(0x5BC544) (another D3D-null global,
+confirmed 0 via temporary debug print) and MEM32(0x5BBAB4) (also 0),
+then walks through many indirect calls - some through a caller-supplied
+.rdata resource-descriptor struct (ebx_arg, a real valid pointer) that
+itself contains embedded callback function pointers (MEM32(esp+0x124),
++0x128, +0x138) that are presumably ALSO D3D-related and fail. Crashes
+deep inside (RVA+0x527), past everything traced so far. Not yet
+root-caused to the exact faulting line - next step is more targeted debug
+prints further into the function (past `loc_00223698`) to narrow it down,
+following the same per-crash-guard pattern as the two fixes above.
 ```
-
-`sub_001F84D0` reads one of two global pointers (`MEM32(0x5BC53C)` or
-`MEM32(0x5BC538)`, selected by a flag byte at `ebp+7` - looks like an
-ANSI/Unicode or two-font-table selector) and walks through it: `edx =
-MEM32(ecx); eax = MEM32(edx + eax*4); edx = MEM32(eax); ICALL(MEM32(edx +
-0xCC))`. `ecx` ends up holding literal string bytes ("xbox...") instead of
-a pointer, meaning one of those two globals (or something it points to) is
-uninitialized/wrong - not yet determined whether this is another
-D3D-owned object or a genuine unrelated bug. Not yet root-caused.
