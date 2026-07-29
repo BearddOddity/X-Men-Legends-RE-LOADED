@@ -500,18 +500,64 @@ blob for every failure site). Reverting is a pure revert of
 committed content plus deleting `recomp_icall_dummy_object()` from
 `recomp_manual.c` - nothing else depends on it.
 
+## sub_002235D0 (fixed) - NOT the D3D-null pattern, a different bug
+
+This one turned out to be unrelated to the D3D-null-global pattern above,
+despite living in the same font/resource-registration area. At
+`loc_0022360D` the function checks whether a caller-supplied slot
+(`MEM32(esp+0x120)`, called `ebx` below) is already non-zero ("already
+cached, reuse it") before falling through to a fresh-allocate path.
+
+Dumped the raw bytes at that exact Xbox VA from `default.xbe` directly
+(`.rdata` file offset = `raw_addr + (va - virtual_addr)` from
+`xmen_analysis.json`'s section table) and found it's literally the ASCII
+string **`"igStringObj\0..."`** - a type-name string constant, not a
+pointer-sized cache slot at all. Its first 4 bytes (`0x74536769`) get
+read as if they were a real cached object pointer, pass the `!= 0` check,
+and the function walks it as an object several calls later - crash.
+
+Root cause not fully understood (likely a caller argument-offset
+mismatch upstream - which of ~11 pushed constants lands at `esp+0x120`
+for this particular call site doesn't match my by-hand stack accounting,
+and re-deriving it exactly for an 11-argument call into a 200-instruction
+function was higher-risk than just guarding the symptom). Fixed with a
+plausible-VA range check on the "already cached" branch condition itself
+(same range convention as `sub_0019F765`'s list-walk guard: valid Xbox
+heap/data VAs are `0x00010000` to under `0x02000000`) - if the "cached"
+value doesn't look like a real pointer, treat the slot as empty and take
+the normal fresh-allocate path instead.
+
+**Applied directly in `recomp_0016.c` (gitignored, not `recomp_manual.c`)
+- unlike the previous two fixes, this one is NOT preserved across
+regeneration.** At 610 bytes/200 insns this function was large enough
+that hand-transcribing it into `recomp_manual.c` (register-name prefixing,
+re-deriving every stack offset by hand) carried real risk of introducing
+a *new* bug while chasing this one, so the smaller, lower-risk patch was
+applied in place instead. **If the disasm/recomp pipeline is ever rerun
+for this game, this fix is lost and must be reapplied**: in
+`sub_002235D0`, change the `loc_0022360D` branch from `if
+(MEM32(ebx) != 0) goto loc_00223698;` to also require `MEM32(ebx) >=
+0x00010000u && MEM32(ebx) < 0x02000000u`.
+
+Verified via `smoke_test.ps1`: 35 -> 39 kernel calls, no regression.
+
 ## Current crash (not yet fixed)
 
+Boot now reaches kernel call #39 (up from 35) before a new, different
+crash:
+
 ```
-sub_002235D0 (recomp_0016.c) - 610 bytes / 200 insns, much larger than
-the previous two fixes. Reads MEM32(0x5BC544) (another D3D-null global,
-confirmed 0 via temporary debug print) and MEM32(0x5BBAB4) (also 0),
-then walks through many indirect calls - some through a caller-supplied
-.rdata resource-descriptor struct (ebx_arg, a real valid pointer) that
-itself contains embedded callback function pointers (MEM32(esp+0x124),
-+0x128, +0x138) that are presumably ALSO D3D-related and fail. Crashes
-deep inside (RVA+0x527), past everything traced so far. Not yet
-root-caused to the exact faulting line - next step is more targeted debug
-prints further into the function (past `loc_00223698`) to narrow it down,
-following the same per-crash-guard pattern as the two fixes above.
+[CRASH] Access violation at RIP=..., RVA=0xBB5976, fault addr write to
+Xbox VA 0xFFFFFFFC
+Xbox regs: eax=0xFFFFFFFF ecx=0 edx=0x00F81388 esi=0x00F81388 edi=0
+ebx=0xFFFFFFFF esp=0x00F7FBA0
 ```
+
+`eax`/`ebx` both `0xFFFFFFFF` (-1) and a write to VA `0xFFFFFFFC` (-4)
+looks like a `-1`/"not found" sentinel used as an array index or byte
+offset without a bounds check (`array[-1]` or similar), a different bug
+class than the D3D-null pattern above - not yet root-caused. Native call
+stack RVAs resolved against `build/*.map`:
+`0xC5DB6F -> 0xC80DA6 -> 0xC9F12D -> 0xCC62DD -> 0xCE811B -> sub_00239E50
++0x...` (needs re-resolving against the current build's map, symbol names
+for the first 5 frames not yet looked up).
