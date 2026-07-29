@@ -1150,6 +1150,64 @@ truncated ICALL block) before assuming it needs a bespoke guard -
 apply the same raw-disassembly-first discipline that worked for
 `sub_0020E547`.
 
+## sub_0013AE50 edx guard (fixed) - reached genuine new territory (60, 61)
+
+Following the plan above: `sub_0013AE50` at `loc_0013AFEA` had the same
+"garbage data read through an already-valid pointer" shape as
+`sub_001E8E20`/`sub_00200B18`/`sub_0020E547` - `edx = MEM32(eax)` (eax
+itself fine, the data at it garbage: observed `0xBF800000` = **-1.0f**,
+traced to `sub_0012FAF0`, a legitimate matrix/transform-init function
+that writes `-1.0f`/`1.0f` alternating into a range of fields - some
+*other* code is misreading one of those float fields as a vtable
+pointer). Guarded the same way as the others. **Worked cleanly**: no
+regression, and confirmed via kernel-call log that execution now
+genuinely reaches calls **#60 and #61** (both new - the process was
+never observed reaching that far before, in any prior run this
+session), before hitting a new crash. This is real forward progress
+even though `smoke_test.ps1`'s "61 kernel calls" number looks identical
+to the pre-50-fix baseline - the *path* getting there is now different
+and goes further before the next wall.
+
+## Current crash: sub_0020E520 "this" pointer is the same -1.0f value
+
+```
+[CRASH] fault addr read Xbox VA 0xBF80003C (ecx/esi + 0x3C)
+Xbox regs: eax=0 ecx=0xBF800000 edx=4 esi=0xBF800000 esp=0x005027B8
+ebx=1 edi=0
+```
+
+Same `0xBF800000` (-1.0f) value, now arriving as the **"this" pointer**
+(`ecx`, then copied to `esi`) of `sub_0020E520` - a completely different
+manifestation of the same root value being misused, several calls
+downstream from where it first appeared as a matrix field.
+
+**Tried a guard at `sub_0020E520`'s own entry** (validate `esi` before
+`MEM32(esi + 0x3C)`, redirecting to the function's genuine clean exit
+since the "obvious" redirect target - `loc_0020E53B` - ALSO
+dereferences `esi` unsafely). **Regressed badly (61 -> 44) and was
+reverted.** `sub_0020E520` has **465 call sites** across the codebase
+(`grep -rn "sub_0020E520()" src/recomp/gen/*.c | wc -l`) - a generic
+entry guard rejects some *legitimate* "this" pointer shape used by
+other, unrelated, much-earlier-executing callers (almost certainly
+objects living outside the `0x00880000`-`0x04000000` heap range by
+design, e.g. `.data`-resident singletons - this function is far too
+widely shared for a blanket range check).
+
+**Not yet found**: the *specific* caller (one of 465) that passes this
+particular `-1.0f` value as `sub_0020E520`'s "this" argument. `grep`
+alone doesn't scope it down; would need either (a) a temporary counter/
+breakpoint in `sub_0020E520` itself that captures a stack trace on the
+*first* call where `ecx` fails a plausibility check (matching the
+`recomp_icall_fail_log` Nth-failure technique used earlier in the
+session, adapted to a direct-call site instead of an ICALL), or (b)
+tracing forward from `sub_0012FAF0` (the matrix-init function) to find
+which object type gets both matrix-initialized AND later passed to
+`sub_0020E520`, narrowing the caller by object type rather than by
+brute-force search. Left as the next lead - **do not add another
+generic guard to `sub_0020E520` itself**, that call site count is a
+hard warning sign per the narrow-vs-wide-scope lesson from earlier in
+this document.
+
 ## Technique: raw x86 disassembly for ambiguous lifted-C cases
 
 When the lifted C's control flow or calling convention is genuinely
