@@ -543,21 +543,76 @@ Verified via `smoke_test.ps1`: 35 -> 39 kernel calls, no regression.
 
 ## Current crash (not yet fixed)
 
-Boot now reaches kernel call #39 (up from 35) before a new, different
-crash:
+## sub_002085CA, sub_00200B18, sub_001186A0 (fixed) - three more instances
 
-```
-[CRASH] Access violation at RIP=..., RVA=0xBB5976, fault addr write to
-Xbox VA 0xFFFFFFFC
-Xbox regs: eax=0xFFFFFFFF ecx=0 edx=0x00F81388 esi=0x00F81388 edi=0
-ebx=0xFFFFFFFF esp=0x00F7FBA0
-```
+All three trace back to the same D3D-null allocator family, each a
+different failure shape:
 
-`eax`/`ebx` both `0xFFFFFFFF` (-1) and a write to VA `0xFFFFFFFC` (-4)
-looks like a `-1`/"not found" sentinel used as an array index or byte
-offset without a bounds check (`array[-1]` or similar), a different bug
-class than the D3D-null pattern above - not yet root-caused. Native call
-stack RVAs resolved against `build/*.map`:
-`0xC5DB6F -> 0xC80DA6 -> 0xC9F12D -> 0xCC62DD -> 0xCE811B -> sub_00239E50
-+0x...` (needs re-resolving against the current build's map, symbol names
-for the first 5 frames not yet looked up).
+- **`sub_002085CA`** (append-to-dynamic-array): writes into a buffer
+  (`MEM32(esi+8)`) without checking it's non-null. Growth
+  (`sub_00202B60`) routes through the D3D-null allocator so the buffer
+  never gets allocated. Fixed in `recomp_manual.c` (only one call site,
+  simple contract - see the source comment there for the exact reasoning
+  matching `sub_001F84D0`'s "kept near-verbatim" approach).
+
+- **`sub_00200B18`** (`recomp_0015.c`, gitignored): a value fetched via a
+  D3D/font-dependent ICALL (through a different object's vtable, not
+  0x5BC53C/0x5BC538 directly, but downstream of the same broken font
+  system) comes back 0 and gets used as a **divisor** with no zero-check
+  → `EXCEPTION_INT_DIVIDE_BY_ZERO` (0xC0000094). Note: the VEH handler in
+  `main.c` had no case for this exception code at all, so it crashed with
+  no diagnostic output - added a case there (mirrors the access-violation
+  one: RIP/RVA, Xbox regs, native stack) before this could even be
+  diagnosed. Fixed with a one-line guard (`if (ecx == 0) ecx = 1;`) right
+  before the division - the quotient feeds rendering geometry that's
+  irrelevant without real D3D anyway.
+
+- **`sub_001186A0`** (`recomp_0007.c`, gitignored) - **a genuine infinite
+  loop, not a crash.** A 16-byte-node tree/tree-pool walk (`0x3FFFFFFF` =
+  null-child sentinel) through a pool base that was never allocated (same
+  root cause, yet again). Reading zeroed memory forms a spurious cycle
+  the walk never escapes - no crash because our zero-mapped low memory
+  just returns 0 without faulting. Diagnosed via the watchdog's
+  `SuspendThread`+`GetThreadContext` path (see below). Fixed with an
+  iteration cap (100,000 - well beyond any real tree depth) that forces
+  the "not found" exit (`eax = 0x3FFFFFFF`) instead of spinning forever.
+  **Important: the counter must be a per-call local (`uint32_t
+  _guard_iter = 0;` declared at the top of the function), not `static`** -
+  this function is called repeatedly during normal operation for
+  legitimate searches, so a persistent counter would eventually misfire
+  during genuine gameplay after enough cumulative iterations.
+
+`recomp_0015.c` and `recomp_0007.c` fixes are gitignored, same caveat as
+`sub_002235D0`: **lost if the disasm/recomp pipeline is ever rerun**,
+must be reapplied by hand (search this file's git history / the commit
+that references this section for exact diffs if needed).
+
+Verified via `smoke_test.ps1`: 39 -> 41 kernel calls, no regression, and
+the hang is gone (replaced by a new, later crash - see below).
+
+## Watchdog SuspendThread path: confirmed unreliable (second data point)
+
+Re-enabled the previously-disabled `SuspendThread`+`GetThreadContext`
+diagnostic path in the watchdog specifically to catch `sub_001186A0`'s
+infinite loop (which makes no ICALLs, so the always-safe ICALL-trace
+dump had nothing useful to show). It worked well enough to get a valid
+RIP and stack scan (`sub_001186A0` and its callers, all clustered in a
+tight address range - consistent with a loop) - **but then caused a
+second, distinct access violation immediately after**, reading from a
+wildly out-of-range fake "Xbox VA" (`0x32990000`) with a native RSP that
+also looked wrong (`0xFE3299FBA8`, not a normal thread stack address).
+This is the second time this exact path has caused a secondary crash
+(first time noted earlier in this document), so the "possibly a
+SuspendThread race" theory looks right rather than being caused by a bug
+this session has since fixed. **Re-disabled (wrapped in `#if 0` again)
+in `main.c`.** Diagnostics print before the secondary crash, so it's
+still usable for one-shot investigation if needed again - just expect
+the process to crash a second time right after, harmlessly (the
+watchdog's job is already done at that point).
+
+## Current crash (not yet fixed)
+
+Boot now reaches kernel call #41 (up from 39, previously hung
+indefinitely at this point via `sub_001186A0`'s infinite loop) before a
+new crash. Not yet investigated - next step is resolving its RVA against
+`build/*.map` the same way as every fix above.
