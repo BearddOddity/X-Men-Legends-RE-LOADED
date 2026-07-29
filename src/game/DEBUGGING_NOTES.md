@@ -1023,11 +1023,91 @@ plausible for *this specific* crash. Left as an open question rather
 than pushed further tonight - both the literal value and the crash
 itself are documented for a fresh look.
 
-**Not yet tried**: instrumenting the actual `PUSH32`/`POP32` call
-counts within the `sub_0020E547`/`sub_00234DF0`/... chain to find
-exactly which function's pushes and pops don't match (a per-call
-push/pop counter assertion would catch it directly, rather than
-inferring from esp's absolute value trend).
+**Found the actual leak via raw disassembly, not instrumentation.**
+Reading `sub_0011EAAC` in full (it's the memory-pool-registration
+function from the earlier investigation, called from `sub_0011E980`
+which is called from `sub_0011EBB0`) found the lifter's generated C
+function **ends mid-sequence**:
+
+```c
+loc_0011EB63: ;
+    PUSH32(esp, 4);
+    PUSH32(esp, 0xA4000);
+
+}   // <-- function just ends here, no call, no tail-call
+```
+
+Every one of the ~12 pool registrations before this one follows the
+identical shape: `push 4; push <size>; push <index>; mov ecx,esi; push 0
+(retaddr); call sub_0011E7A0` (5 pushes + call). This 13th one is
+missing the index push and the call - and `sub_0011EB6A` (the very next
+function in the file) starts with **exactly the missing continuation**:
+`PUSH32(esp, 0xD); ecx = esi; PUSH32(esp, 0); sub_0011E7A0();`. High
+confidence this is a genuine lifter bug (dropped the tail-call/
+fallthrough at this specific mid-function split), not a D3D-null
+pattern - and it leaks exactly 2 simulated-stack dwords (8 bytes) every
+time `sub_0011EAAC` is called, since the function returns without ever
+undoing these 2 pushes.
+
+**Fix validated but NOT currently active** (see below for why):
+```c
+sub_0011EB6A(); return;   // added right before the closing brace, no
+                          // g_seh_ebp reassignment needed - both
+                          // functions are headless continuations that
+                          // never declared their own ebp
+```
+
+**Applying it alone regressed (61 -> 57)** - not because the fix is
+wrong, but because completing this dropped call means `sub_0011E7A0`
+actually runs a 13th time with real arguments, executing more game code
+than ever ran before and reaching a **different, previously-unreached**
+bug sooner: `sub_00200B18` (the divide-by-zero function from earlier)
+reads a global (`MEM32(0x5BB894)`) that's garbage (`0x80000000`) and
+dereferences it directly. Added a guard there (validated, safe -
+confirmed harmless in isolation via `smoke_test.ps1` at the current 61
+baseline with the `sub_0011EAAC` fix reverted). Combining both fixes
+progressed further (57 -> 59) but hit *another* instance of the same
+esp-corruption symptom one level deeper, still below the 61 baseline.
+
+**Current state**: `sub_0011EAAC`'s fix is written and correct but
+commented out / reverted (search `recomp_0007.c` for `loc_0011EB63` -
+currently ends with the bare `PUSH32(esp, 0xA4000);` followed directly
+by `}`; the fix is documented here verbatim to reapply). The
+`sub_00200B18` guards (both the `eax` validation before
+`MEM16(eax+0x12)` and the chain of validations at `loc_00200B2D`) are
+**kept active** since they're harmless on the current path and will be
+needed once the deeper chain is resolved.
+
+**Real next step**: this needs the push/pop-count instrumentation
+originally planned, but applied to `sub_0011E7A0`'s 13th invocation
+specifically.
+
+**Searched for how widespread this bug class is - it's not isolated.**
+Grepped every generated file for the exact shape (a bare `PUSH32(esp,
+...)` as a function's last statement, with the closing `}` immediately
+after - no call, no tail-call, no `return`):
+
+```python
+pattern = re.compile(r"    PUSH32\(esp, [^;]+\);\n\n\}\n")
+```
+
+**50 matches across 21 files.** This strongly suggests a systematic
+lifter/disassembler bug (likely in how mid-function boundaries get
+detected when a `PUSH`-heavy argument-setup sequence straddles a
+function split point our disassembler treats as a new function start),
+not a one-off transcription error in this specific spot. This is a
+genuine toolkit-level fix candidate - fixing it in `lifter.py`/
+`translator.py` (following the same precedent as the earlier
+`g_seh_ebp` propagation fix from the very start of this session) would
+be far more valuable than patching each of the 50 sites individually,
+and would likely resolve a cluster of not-yet-encountered crashes at
+once, the same way the 60-site output-slot fix did. **Not investigated
+further tonight** - the list of 50 sites hasn't been extracted or
+reviewed individually; this is a strong lead for a dedicated future
+session, not a "these 50 are all confirmed bugs" claim (some of the 50
+may have legitimate reasons to end this way, e.g. genuine unreachable/
+dead code after a `goto` elsewhere - would need per-site verification
+before mass-fixing).
 
 ## Technique: raw x86 disassembly for ambiguous lifted-C cases
 
