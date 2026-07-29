@@ -284,6 +284,83 @@ void sub_001F8890(void)
     g_esp = entry_esp + 16;  /* ret 12 */
 }
 
+extern void sub_001F853F(void);
+extern void sub_001F8545(void);
+
+/*
+ * sub_001F84D0 - font/glyph table lookup. Identical to the generated
+ * version (see the #if 0 block in recomp_0014.c) except for one added
+ * guard: the table pointer it reads from a D3D-owned global (0x5BC538 /
+ * 0x5BC53C, selected by a flag byte) is never initialized since D3D isn't
+ * recompiled (see DEBUGGING_NOTES.md), and walking a null table through
+ * the vtable dispatch below eventually reads out of bounds and crashes.
+ * On real hardware that pointer is never null; take the same "nothing to
+ * render" early-out the function already uses for esi==0 / ebx==0.
+ *
+ * Kept as a near-verbatim copy (not reimplemented from scratch) because
+ * the stack bookkeeping here is entangled with sub_001F853F/sub_001F8545
+ * (shared-epilogue-style tail calls, no explicit esp cleanup in this
+ * function) - safer to preserve exactly and only add the one guard.
+ */
+void sub_001F84D0(void)
+{
+    uint32_t ebp;
+    ebp = g_seh_ebp;
+
+    PUSH32(g_esp, g_ecx);
+    PUSH32(g_esp, g_ebx);
+    PUSH32(g_esp, ebp);
+    PUSH32(g_esp, g_esi);
+    g_esi = MEM32(g_esp + 0x14);
+    ebp = g_ecx;
+    g_ecx = MEM32(ebp + 8);
+    g_eax = 0;
+    MEM32(g_esp + 0xC) = g_ecx;
+    if (CMP_EQ(g_esi, g_eax)) { g_seh_ebp = ebp; sub_001F853F(); return; }
+
+    g_ebx = MEM32(g_esp + 0x18);
+    if (CMP_EQ(g_ebx, g_eax)) { g_seh_ebp = ebp; sub_001F853F(); return; }
+
+    g_eax = ZX8(MEM8(ebp + 7));
+    g_ecx = MEM32(0x5BC53C);
+    if (!TEST_NZ(LO8(g_eax), 1)) g_ecx = MEM32(0x5BC538);
+
+    if (g_ecx == 0) { g_seh_ebp = ebp; sub_001F853F(); return; }
+
+    g_edx = MEM32(g_ecx);
+    g_eax = (uint32_t)((int32_t)g_eax >> 1);
+    g_eax = MEM32(g_edx + g_eax * 4);
+    g_edx = MEM32(g_eax);
+    { uint32_t _icall_esp = g_esp;
+    PUSH32(g_esp, g_edi);
+    g_ecx = g_ebx + 1;
+    PUSH32(g_esp, g_ecx);
+    g_ecx = g_eax;
+    PUSH32(g_esp, 0);
+#define eax g_eax /* RECOMP_ICALL_SAFE assumes the generated-code register aliases */
+    RECOMP_ICALL_SAFE(MEM32(g_edx + 0xCC), _icall_esp);
+#undef eax
+    }
+
+    g_ecx = g_ebx;
+    g_edx = g_ecx;
+    g_ecx = g_ecx >> 2;
+    MEM32(ebp + 8) = g_eax;
+    g_edi = g_eax;
+    memcpy((void*)XBOX_PTR(g_edi), (void*)XBOX_PTR(g_esi), g_ecx * 4);
+    g_esi += g_ecx * 4; g_edi += g_ecx * 4; g_ecx = 0;
+    g_ecx = g_edx;
+    g_ecx = g_ecx & 3;
+    memcpy((void*)XBOX_PTR(g_edi), (void*)XBOX_PTR(g_esi), g_ecx);
+    g_esi += g_ecx; g_edi += g_ecx; g_ecx = 0;
+    g_eax = MEM32(ebp + 8);
+    g_ecx = MEM32(g_esp + 0x10);
+    MEM8(g_ebx + g_eax) = 0;
+    MEM32(ebp + 0xC) = g_ebx;
+    POP32(g_esp, g_edi);
+    g_seh_ebp = ebp; sub_001F8545(); return;
+}
+
 /* ── ICALL failure logging ─────────────────────────────────── */
 
 /*
