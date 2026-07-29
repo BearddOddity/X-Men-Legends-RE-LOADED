@@ -141,7 +141,7 @@ ptrdiff_t xbox_GetMemoryOffset(void);
  * ================================================================ */
 
 /** Base VA of the dynamic heap area (above stack). */
-#define XBOX_HEAP_BASE      (XBOX_STACK_BASE + XBOX_STACK_SIZE)  /* 0x00880000 */
+#define XBOX_HEAP_BASE      (XBOX_STACK_BASE + XBOX_STACK_SIZE)  /* 0x00F80000 */
 
 /** Size of the dynamic heap.
  *  Xbox has 64 MB total RAM. The total mapped region (data + stack + heap)
