@@ -93,6 +93,14 @@ if(MSVC)
     target_link_options(${PROJECT_NAME} PRIVATE
         /LARGEADDRESSAWARE
         /MAP
+        # Recompiled code has much deeper native call chains than the
+        # original x86 (register-simulation macros, PUSH32/POP32 helpers,
+        # etc. all add native stack frames per logical "level"). Some
+        # legitimately deep-but-finite recursive work (e.g. game-side
+        # memory pool registration cascading through construct-dispatch
+        # helpers) can exhaust the default 1MB stack even though it
+        # would never come close on real hardware. See DEBUGGING_NOTES.md.
+        /STACK:16777216
     )
     # The generated code files can be very large. Increase object file section limit.
     target_compile_options(${PROJECT_NAME} PRIVATE /bigobj)
