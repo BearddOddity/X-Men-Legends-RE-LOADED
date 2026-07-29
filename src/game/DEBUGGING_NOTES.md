@@ -788,11 +788,33 @@ progress - most of this round's fixes landed within the same burst of
 code between kernel calls, same caveat as the previous round). Baseline
 updated to 58.
 
+## Two more instances (fixed) - one new function, pattern still holding
+
+- **`sub_00200B18`** (the divide-by-zero function from earlier):
+  `edx = MEM32(ebx)` is the same "data read through an already-valid
+  pointer can still be garbage" case as `sub_001E8E20` - guarded the
+  ICALL through it (`MEM32(edx + 0x50)`), replicating
+  `RECOMP_ICALL_SAFE`'s own fallback (`eax = 0`, `esp` restored to the
+  pre-push checkpoint) in the guard's else-branch since the macro itself
+  can't be reached safely. **Watch for this exact trap when editing
+  push/reassign pairs**: the original code interleaves `PUSH32(esp, X)`
+  then `X = new_value` - pushing the *old* value before overwriting it.
+  An earlier draft of this fix reordered them (reassign then push),
+  which pushes the wrong value and breaks whatever pops it later. Keep
+  push/reassign pairs in their original relative order even when adding
+  a guard around them.
+- **`sub_00259CC0`** (`recomp_0018.c`, gitignored, first fix outside the
+  `sub_0013Axxx`/`sub_0013Bxxx` family) - `MEM32(ecx + 0x1C)` should be
+  null or a valid pointer, holds garbage instead. Guarded by treating an
+  implausible value the same as the existing null check.
+
+Verified via `smoke_test.ps1` after each: 58 kernel calls held, no
+regression.
+
 ## Current crash (not yet fixed)
 
-Not yet investigated - next step is resolving its RVA against
-`build/*.map` the same way as every fix above. Expect it to likely be
-yet another instance in the same `sub_0013AE50`/`sub_0013B0E0`/sibling
-family given how many are packed into this one code area; consider
-whether a more systematic sweep of this specific function (rather than
-one-crash-at-a-time) would be more efficient at this point.
+Back in `sub_0013AE50` (RVA `0x6D05F2`) - not yet individually
+root-caused. This function has now yielded well over a dozen individual
+guard sites; if more keep surfacing, consider a full read-through of the
+function to guard every `MEM32(edi+N)`/`MEM32(esi+N)`-style dereference
+in one pass rather than continuing purely crash-driven, one at a time.
