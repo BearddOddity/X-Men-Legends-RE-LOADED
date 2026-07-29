@@ -209,6 +209,57 @@ void sub_001A016A(void)
     sub_001A0196();
 }
 
+/*
+ * sub_0019F765: direct-call replacement (not a recomp_lookup_manual
+ * override - sub_001A02B7 calls it with a plain C call). Real logic
+ * disabled in recomp_0011.c (#if 0). See DEBUGGING_NOTES.md ("heap
+ * manager's large-block allocation path").
+ *
+ * Walks a linked list of range entries starting at [bucket_ptr+0x38],
+ * used by the heap allocator's size-class bucket search. On real
+ * hardware the list is either NULL-terminated or fully populated; in
+ * our environment a not-yet-found gap in heap segment/UCR bookkeeping
+ * means the list can start with a non-null but invalid pointer (garbage,
+ * not a real Xbox VA) instead. This adds a plausible-Xbox-VA bounds
+ * check before each dereference, treating an invalid pointer the same
+ * as a clean NULL (end of list) instead of crashing. This masks the
+ * underlying gap rather than fixing it - the allocation this protects
+ * may return an unexpected block or fail where it should succeed.
+ * Revisit if that turns out to matter once further along.
+ */
+extern void sub_0019F7AB(void);
+
+void sub_0019F765(void)
+{
+    uint32_t entry_esp = g_esp;
+    uint32_t bucket_ptr = MEM32(entry_esp + 8);
+    uint32_t key1_ptr = MEM32(entry_esp + 0xC);
+    uint32_t key2 = MEM32(entry_esp + 0x10);
+    uint32_t key1 = MEM32(key1_ptr);
+    uint32_t list_ptr = MEM32(bucket_ptr + 0x38);
+
+    while (list_ptr != 0) {
+        if (list_ptr < 0x00010000u || list_ptr >= 0x74000000u) {
+            break;  /* garbage, not a real Xbox VA - treat as end of list */
+        }
+        if (MEM32(list_ptr + 8) >= key1) {
+            if (key2 == 0 || MEM32(list_ptr + 4) == key2) {
+                /* Found - tail into sub_0019F7AB sharing this frame, matching
+                 * the original's plain jmp (it reads g_esi and [ebp+8], and
+                 * reuses the [ebp+0xC] slot as scratch - don't touch g_esp). */
+                g_esi = list_ptr;
+                g_seh_ebp = entry_esp - 4;
+                sub_0019F7AB();
+                return;
+            }
+        }
+        list_ptr = MEM32(list_ptr);
+    }
+
+    g_eax = 0;
+    g_esp = entry_esp + 20;  /* ret 0x10 */
+}
+
 /* ── ICALL failure logging ─────────────────────────────────── */
 
 /*

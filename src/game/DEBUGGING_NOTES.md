@@ -277,9 +277,9 @@ override, since `sub_00345ACC` calls it with a plain C function call.
 
 Result: 24 → 28 kernel calls before the next crash.
 
-## Open: access violation in the heap manager's large-block allocation path
+## Worked around (game-specific): heap manager large-block allocation crash
 
-New crash after the fix above, in `sub_0019F765` (called from
+Crash after the `sub_001A016A` fix, in `sub_0019F765` (called from
 `sub_001A02B7`, called from `sub_001A0B0C` - our own heap allocator):
 
 ```
@@ -287,32 +287,69 @@ New crash after the fix above, in `sub_0019F765` (called from
   eax=0x00002000 (8192 - an allocation size)  ecx=0  esi=0xD804245C (garbage)
 ```
 
-`sub_001A02B7` walks a **64-entry bucket array at `heap_struct+0x60`**
-(indexed by size class, `i*4+0x60`) looking for a bucket whose size range
-covers the requested allocation (`eax=0x2000` suggests this is the first
-*large* allocation attempted - previous allocations all stayed in the
-small-block `FreeLists[]` path already fixed earlier this session). For a
-non-null bucket entry, it calls `sub_0019F765(bucket_ptr, ...)`, which
-walks a linked list starting at `bucket_ptr+0x38` - and that list head is
-garbage, not a valid pointer or a clean `NULL`.
+Traced via targeted `fprintf` diagnostics added directly to the generated
+code (not the guard-page technique - simpler for this, since the values
+needed were already local variables, not memory writes to watch):
 
-This is very likely **the same family of bug as the `RtlCreateHeap`
-epilogue fix** (`sub_001A0A97` - see above): a heap-header field that
-should have been written during heap creation but wasn't, because it's
-outside the specific fields we identified and hand-translated at the
-time (we covered `+0x1c/0x20/0x24/0x28/0x2c/0x34/0x50/0x54/0x584`, not
-the `+0x60`-based bucket array or whatever governs each bucket's `+0x38`
-sub-list head). Since `sub_001A0A97` is now a real generated function
-again (not a manual override - see the "third instance" fix above), this
-is probably a **gap in what that function actually initializes**, not a
-translation bug - worth re-reading its full generated code (not just the
-subset we manually translated by hand before it was properly seeded) to
-see whether it touches `+0x60`/bucket-related fields at all, and if not,
-finding whatever *should* initialize them (possibly another lazily-run,
-first-large-allocation setup step, matching the pattern of every fix in
-this document).
+- `sub_001A02B7` walks a **64-entry bucket array at `heap_struct+0x60`**
+  (matches Windows NT heap manager's well-known `Segments[HEAP_MAXIMUM_SEGMENTS]`,
+  `HEAP_MAXIMUM_SEGMENTS = 64`), indexed by size class, looking for a
+  bucket covering the requested allocation size (`eax=0x2000` - the first
+  *large* allocation attempted; previous ones all stayed in the
+  small-block `FreeLists[]` path already fixed earlier this session).
+- The search is **hierarchical/recursive**: the first lookup (in the
+  main heap struct at `0x00F81000`) succeeds and returns a pointer
+  (`0x00F81630` - confirmed to be just offset `0x630` into the *same*
+  heap block, not a separate allocation - close to a `0x60C` offset
+  constant seen deep in `sub_001A06E8`'s body that was never fully
+  traced). `sub_001A02B7` is then called *again* using that pointer as
+  its own "structure" argument, searching *its* bucket array - and slot 8
+  of that nested table holds `0x0003003B`, neither zero nor a valid
+  heap pointer.
+- This is a materially deeper layer of NT heap-manager segment/UCR
+  (uncommitted-range) bookkeeping than the `FreeLists[]`/epilogue fixes
+  above, and appears to involve engine-specific or otherwise
+  undocumented structure layout that wasn't fully traced (see the
+  `0x60C` lead above for a next-session starting point).
 
-Not yet investigated further.
+**Workaround applied** (not a root-cause fix): `sub_0019F765`'s generated
+body is disabled via `#if 0` in `src/recomp/gen/recomp_0011.c` (**not
+tracked by git - reapply if that file ever regenerates**), replaced by a
+direct-call-replacement in `recomp_manual.c` that adds a
+plausible-Xbox-VA bounds check (`0x00010000` to `0x74000000`, our mapped
+mirror ceiling) before each list-node dereference, treating an
+out-of-range pointer as "end of list" instead of crashing. This may
+cause the large-block allocator to fail/fall back where it should
+succeed, rather than fixing the underlying segment-table gap - flagged
+in the code for revisit if that turns out to matter.
+
+Result: 28 → 35+ kernel calls before the next issue (below) - confirmed
+via direct testing, not yet baselined (see next section).
+
+## Open: silent infinite loop (no crash, no kernel calls) after ~35 kernel calls
+
+After the workaround above, the process no longer crashes - instead it
+hangs, burning CPU (confirmed via `Get-Process`: ~1 second of CPU time
+per second of wall time, i.e. a genuine busy-spin, not an idle wait) with
+**zero new log output** after kernel call #35. Killed manually via
+`Stop-Process -Force` after ~70 seconds with no progress.
+
+This is a different diagnostic problem than everything above: the
+stack-trace-on-a-call-counter technique (used for the lock-bootstrap
+recursion) only works because that bug hit a *kernel bridge function*
+repeatedly, giving a natural hook point to count from. A loop entirely
+within recompiled game/CRT code that never calls into the kernel bridge
+has no such hook.
+
+**Next step, not yet done**: a timer/watchdog-based stack sample instead
+- e.g. a second thread (or a Windows timer callback) that, after a
+fixed delay (say 5-10 seconds) with no forward progress, suspends the
+main thread via `SuspendThread`, captures its context/stack via
+`GetThreadContext`/`RtlCaptureStackBackTrace` from *outside* the running
+thread, and resolves the addresses against `build/*.map` the same way as
+every other technique in this document. This is the standard way to
+diagnose a hang with no natural instrumentation point, and hasn't been
+built yet this session.
 
 ## Environment notes for future sessions
 
