@@ -357,13 +357,107 @@ built yet this session.
   Studio\18\BuildTools`), bundled CMake and Ninja under
   `Common7\IDE\CommonExtensions\Microsoft\CMake\`.
 - Build/run via `.bat` files in `src/game/` (`build_configure.bat`,
-  `build_compile.bat`, `run.bat`) invoked through `cmd //c` (double slash -
-  git-bash mangles a single `/c` into a Windows path otherwise) with
-  `< /dev/null` to avoid hanging on stdin, always via the Bash tool's
-  `run_in_background: true` for anything that takes more than a few
-  seconds.
+  `build_compile.bat`, `run.bat`), invoked **directly** from git-bash as
+  `./build_compile.bat` / `./run.bat` (not `cmd //c "build_compile.bat"` -
+  that form started failing with "not recognized as an internal or
+  external command" partway through this session for unclear reasons;
+  direct invocation works reliably), with `< /dev/null` to avoid hanging
+  on stdin, always via the Bash tool's `run_in_background: true` for
+  anything that takes more than a few seconds.
 - The game data folder (`src/game/game/`) is a Windows directory junction
   to the extracted XISO folder, not a copy - avoids duplicating ~2.4GB.
 - `origin` remote was intentionally removed from this repo per user
   request - nothing should ever be pushed to `sp00nznet/xboxrecomp`. If
   you need version control, ask the user for a remote to point at first.
+
+## Root cause of the "silent infinite loop" hang: two bugs, not one
+
+The hang described above (zero log output after kernel call #35, busy-spin)
+turned out to be two separate bugs, found by adding a watchdog thread (see
+`main.c`, `watchdog_arm()` - spawns a thread that sleeps 8s then dumps the
+ICALL trace ring buffer and terminates the process; safe because it never
+touches the suspended main thread, unlike the `SuspendThread`+
+`GetThreadContext` approach mentioned above, which caused a secondary
+crash once and was abandoned).
+
+**Bug 1 - `NtFreeVirtualMemory` incompatible with the bump allocator.**
+`xbox_NtFreeVirtualMemory` (`src/kernel/kernel_memory.c`) called the real
+Win32 `VirtualFree()` on a pointer that came from `xbox_HeapAlloc`'s bump
+allocator (a slice of one big pre-mapped region), not from an individual
+`VirtualAlloc`. `VirtualFree()` is guaranteed to fail in that situation,
+so `NtFreeVirtualMemory` returned `STATUS_UNSUCCESSFUL` where real
+hardware would return `STATUS_SUCCESS`, and the game's error-handling
+path for that failure called through a never-initialized null function
+pointer in a tight loop (487M+ ICALL dispatches in 8 seconds, all
+targeting VA 0). Fixed in `bridge_NtFreeVirtualMemory`
+(`src/kernel/kernel_bridge.c`) by making it a no-op, matching
+`xbox_HeapFree`'s existing "No-op for bump allocator" design - do **not**
+"fix" `xbox_NtFreeVirtualMemory` itself, the bridge is the active path.
+
+**Bug 2 - `sub_001F8890` (string/name pool allocator) walks a linked list
+through a null "this" pointer.** Diagnosed via a new `recomp_icall_fail_log`
+probe: a counter that fires a `CaptureStackBackTrace` dump on the *Nth
+total* ICALL failure regardless of address (bypasses the existing
+per-address dedup, which would otherwise silence a spin loop re-failing on
+an already-seen address). RVAs resolved against `build/*.map` pointed at
+`sub_001F8890`; a temporary `fprintf` inserted directly into the generated
+function (`src/recomp/gen/recomp_0014.c`, reverted after use - this file
+is gitignored/regenerated) confirmed `ecx` ("this") was exactly 0 on every
+call. Root cause: whatever constructs this pool is D3D-related, and
+**D3D isn't implemented at all** - see the "D3D question" section below.
+sub_001F8890 was overridden in `recomp_manual.c` (generated version
+disabled via `#if 0` in `recomp_0014.c`, same "direct-call replacement"
+pattern as `sub_0019F765`) to just hand back a fresh buffer from the bump
+allocator - the caller (`recomp_0015.c`, `sub_0020DA95`) doesn't null-check
+the return value and immediately `memcpy`s a string into it, so returning
+0 would just move the crash one instruction later.
+
+With both fixed, boot reaches kernel call #35 plus several real heap
+allocations (previously hung indefinitely after call #31) before hitting
+a new, later crash - see below.
+
+## The D3D question (decision point, resolved)
+
+Running `py -3 -m tools.recomp.analyze_unresolved src/game/game/xmen_analysis.json`
+showed **103 functions in XDK library sections** (D3D: 60 fns/83KB, DSOUND:
+28 fns/48KB, XGRPH, XPP, D3DX, WMADEC) that were never disassembled - only
+`.text` (game code) was. The game's boot sequence tries to create a D3D
+device; since none of that code exists in the recompiled build, every call
+into it silently no-ops, leaving D3D-owned objects (like the pool behind
+Bug 2 above) permanently null.
+
+Two options were considered: (a) extend the disassembly pipeline to cover
+the library sections too (the toolkit already supports this via
+`tools.disasm --extra-sections`), or (b) skip recompiling Microsoft's own
+D3D8 code and instead hand-write native shims for the specific D3D8 API
+entry points the game calls during boot. **User chose (b)** - reasoning:
+D3D8 on Xbox pokes real GPU hardware registers directly, so even a
+faithful recompile of the library code would just hit a second wall
+needing NV2A hardware emulation (which doesn't exist in this toolkit).
+A native shim is much less work and doubles as the seed for the
+modern-graphics replacement planned after the game boots successfully.
+
+**Implication for future fixes**: when a crash traces back to an
+uninitialized/null object that turns out to be D3D-owned (check whether
+the constructing code is unresolved and its target VA falls at or above
+`0x0035ADA0`, the D3D section's `virtual_addr` per `xmen_analysis.json`),
+the fix is a native override in `recomp_manual.c` that fakes a plausible
+result (like `sub_001F8890` above), not a deeper trace into D3D internals.
+
+## Current crash (not yet fixed)
+
+```
+[CRASH] Access violation at RIP=..., RVA=0xB5813B -> sub_001F84D0+0xBB
+Xbox regs: eax=0 ecx=0x786F6278 ("xbo" as ASCII) edx=0x003C806C
+           esi=0x003C806C edi=0x003C806D esp=0x00F7FD1C
+Xbox VA of fault: 0x786F6280 (read)
+```
+
+`sub_001F84D0` reads one of two global pointers (`MEM32(0x5BC53C)` or
+`MEM32(0x5BC538)`, selected by a flag byte at `ebp+7` - looks like an
+ANSI/Unicode or two-font-table selector) and walks through it: `edx =
+MEM32(ecx); eax = MEM32(edx + eax*4); edx = MEM32(eax); ICALL(MEM32(edx +
+0xCC))`. `ecx` ends up holding literal string bytes ("xbox...") instead of
+a pointer, meaning one of those two globals (or something it points to) is
+uninitialized/wrong - not yet determined whether this is another
+D3D-owned object or a genuine unrelated bug. Not yet root-caused.

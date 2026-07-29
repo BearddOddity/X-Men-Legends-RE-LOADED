@@ -1,6 +1,6 @@
 {
-    "max_breakpoint_repeats":  5,
-    "recorded_utc":  "2026-07-28T23:47:00.4652288Z",
-    "min_kernel_calls":  28,
-    "note":  "Update only after confirming this run genuinely reaches further than before - never lower these to make a regression pass."
+  "min_kernel_calls": 35.0,
+  "recorded_utc": "2026-07-29T00:57:39.9601372Z",
+  "max_breakpoint_repeats": 5,
+  "note": "Update only after confirming this run genuinely reaches further than before - never lower these to make a regression pass."
 }
