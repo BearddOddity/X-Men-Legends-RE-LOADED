@@ -714,14 +714,50 @@ point reached before - the recursion was consuming stack, not blocking
 forward progress once it started, so fixing it revealed the *next*
 crash rather than advancing further). Baseline updated to 57.
 
+## Three more instances (fixed) - all in the same dispatch-function family
+
+All three of these are in `recomp_0008.c` (gitignored - same reapply
+caveat as everything else in this file), inside members of the
+"get-or-construct dependency by type id" family from the recursion fix
+above (`sub_0013AE50`, `sub_0013B0E0` - two of the original 7 functions
+in the recursion cycle). Each is the same "an object pointer field is
+garbage instead of null/valid, and code writes through it unconditionally"
+pattern, just in different fields:
+
+- **`sub_0013AE50`**: `MEM32(edi+0x14)` is supposed to hold a
+  bounding-box object pointer; instead held a leftover float bit pattern
+  (`0xC3480000` = -200.0f) and got written through while initializing
+  default AABB min/max bounds. A second, adjacent block does the same
+  thing via `MEM32(esi)`. Guarded both with the standard heap-range check
+  (`0x00880000`-`0x08000000`).
+- **`sub_0013B0E0`**: a *different* shape - not a null/garbage pointer,
+  but a loop index (`ecx = MEM32(esi+0x104)`) that should be bounded to
+  `0..0x3F` (the loop's own 64-iteration cap) holding a garbage value
+  (`0x3F800000` = 1.0f as a float bit pattern) instead, turning `esi +
+  ecx*4` into a wild address. Guarded with a bounds check (`ecx < 0x40`)
+  matching the loop's own existing invariant, rather than the heap-range
+  convention (this field isn't a pointer, it's an index).
+
+Verified via `smoke_test.ps1` after each: 57 kernel calls held (no
+regression) with the crash location moving forward each time, confirming
+each fix was real progress even though the kernel-call count itself
+didn't increase (these three crashes all happen within the same burst of
+code between kernel call #57 and whatever comes next, so kernel-call
+count isn't a reliable progress signal at this granularity - watch the
+crash RVA moving to new functions instead).
+
 ## Current crash (not yet fixed)
 
 ```
-[CRASH] Access violation at RIP=..., fault addr write to Xbox VA 0x80000000
-Xbox regs: eax=1 ecx=0x80000000 edx=0 esi=1 edi=0 esp=0x00F7FA1C
+[CRASH] Access violation at RIP=0x...+0x6D0DE4 (sub_0013B0E0 family area),
+fault addr read Xbox VA 0xFFFFFF04
+Xbox regs: eax=0 ecx=0xFFFFFF04 edx=0x003E0AB4 esi=0x00F7FAD0 (stack)
+ebx=1 edi=0 esp=0x00F7FAB4
 ```
 
-`ecx = 0x80000000` is exactly `1 << 31` (`eax = 1` at the crash). Looks
-like a bit-flag/shift computation whose result got used directly as a
-write address instead of a bitmask - not yet root-caused or traced to a
-specific function.
+`ecx = 0xFFFFFF04` looks like a small negative number (`-252` as
+`int32_t`) rather than a valid pointer - possibly another unbounded
+index/offset issue similar to `sub_0013B0E0`'s fix above, or a `-N`
+sentinel used as an offset without a range check. Native call stack
+(`sub_0013AE50` area again, RVAs `0x6CEF40/0x6D031E/0x6D179C/0x6D1C64`)
+not yet individually resolved/read. Not yet root-caused.
