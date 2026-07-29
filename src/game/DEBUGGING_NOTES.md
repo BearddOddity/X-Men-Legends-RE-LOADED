@@ -891,7 +891,7 @@ resolved multiple different-looking consumer crashes at once, unlike
 the earlier failed attempt to guard 7 different *consumer* sites
 speculatively in one batch.
 
-## sub_0020E547 - tricky, two failed attempts, not yet fixed
+## sub_0020E547 - root-caused via raw disassembly, still not fixed (3 attempts)
 
 ```
 [CRASH] fault addr read Xbox VA 0xFFFFFFFF (MEM32(eax) where eax=-1)
@@ -899,30 +899,79 @@ Xbox regs: eax=0xFFFFFFFF ecx=0 edx=0x624F203A esp=0x0047C43C
 ebx=0x003E3374 esi=0 edi=0
 ```
 
-`eax = MEM32(esp + 8)` (a caller-supplied argument) is `-1` instead of
-0 or a real pointer; the original code only checks `!= 0` before later
-dereferencing it as `MEM32(eax)`.
-
 **Attempt 1**: redirect to the function's existing alternate lookup path
-(the same one used for the `eax == 0` case) when `eax` isn't a plausible
-heap pointer. **Regressed** - caused a NEW stack overflow (different
-recursion than the CRT lock-bootstrap one). Reverted.
+when `eax` isn't a plausible heap pointer. Regressed (new stack
+overflow). Reverted.
 
-**Not yet tried**: an early-return instead of redirecting to the
-alternate path. Blocked on a genuine ambiguity: this function's epilogue
-pops `edi`/`ebx`/`esi` (`POP32(esp, edi); POP32(esp, ebx); POP32(esp,
-esi); esp += 8; return;`) but **there's no corresponding push visible
-anywhere in this function** - no SEH prologue, no explicit `PUSH32(esp,
-esi)` etc. at the top (unlike every other function fixed this session).
-This strongly suggests the disassembler split one original x86 function
-across a call boundary here (this C function is a continuation/tail
-target that inherits its caller's already-pushed register state), which
-means constructing a safe early-return requires understanding what the
-*caller* already pushed - not safe to guess without reading that caller
-carefully first. Left unfixed rather than risk a third regression;
-revisit with the caller's context in hand next time.
+**Root-caused via raw disassembly** (see "Technique: raw x86
+disassembly" below for the reusable method) rather than guessing from
+the lifted C a third time. Findings:
 
-Baseline unaffected (still 61) - this crash was never actually reached
-in a regression-free build, so there's nothing to lose by leaving it for
-next session, but also no progress past kernel call 61 until it's
-resolved (this is the current forward blocker as of this note).
+- `sub_0020E520` and `sub_0020E547` are **one logical x86 function**,
+  not two - `0x0020E53F: jne 0x20e547` jumps directly into what our
+  lifter split off as a separate C function (mid-function boundary
+  split, same general class of issue as the earlier-fixed lifter/
+  translator `g_seh_ebp` propagation bug, but this specific instance
+  wasn't caught by that fix since it's a plain conditional jump, not a
+  tail-call-shaped one).
+- The real function's signature takes **one stack argument** - both
+  exits are `ret 4`, not `ret 0`. Our toolkit's function-signature
+  detection decided this function takes 0 stack params, so **every call
+  site** (there are ~300+ across the codebase) pushes only the dummy
+  return address, never the real argument. `MEM32(esp+8)` at
+  `loc_0020E547` is reading **genuinely uninitialized caller-stack
+  memory by construction** - not a D3D-null-pattern value, a toolkit
+  signature-detection bug. (Not investigated further: whether this
+  false-0-params pattern affects other functions site-wide, or is
+  specific to this one - worth a systematic check if this keeps coming
+  up.)
+
+**Attempt 2**: same redirect-to-fallback fix as attempt 1, now confident
+it's the right shape given the disassembly confirms "treat as if the
+missing argument were 0". **Regressed again**, same stack-overflow
+symptom - but this time diagnosed fully instead of just reverting:
+
+The fallback path (`loc_0020E54F` onward) eventually reaches
+`sub_002096B0()`, which chains into an 8-function recursive cycle:
+`sub_001E8E20 -> sub_002096B0 -> sub_0020E547 -> sub_00234DF0 ->
+sub_0011DFE0 -> sub_0011E7A0 -> sub_0011EAAC -> sub_0011EBB0`. Unlike
+the tight infinite loops fixed earlier (millions of iterations/sec,
+target VA usually constant), this one does **real, varying work per
+iteration** (708,367 total calls before overflow, ICALL targets
+decrementing through memory in a structured way - looks like a genuine
+large-collection walk, e.g. enumerating hundreds/thousands of font
+glyphs) - it's not a bug *in* the fallback path being wrong so much as
+this whole subsystem being a much larger, still-unmapped piece of
+functionality than anything fixed so far this session. Reverted again;
+resolving this needs its own dedicated investigation starting with
+`sub_002096B0` and `sub_00234DF0`, which haven't been read yet.
+
+Baseline unaffected (still 61) - not lost ground, but this remains the
+forward blocker.
+
+## Technique: raw x86 disassembly for ambiguous lifted-C cases
+
+When the lifted C's control flow or calling convention is genuinely
+unclear (mid-function splits, uncertain stack-argument counts) - as
+opposed to the "garbage pointer vs. null" cases every other fix this
+session has been - don't keep guessing from the C. Disassemble the raw
+bytes directly:
+
+```python
+import capstone
+XBE = r"D:\My Games\Xbox Recomp\src\game\game\default.xbe"
+TEXT_VA, TEXT_RAW, TEXT_SIZE = 0x00011000, 0x00001000, 3448212  # from xmen_analysis.json's .text section
+def va_to_file_off(va): return TEXT_RAW + (va - TEXT_VA)
+with open(XBE, "rb") as f:
+    f.seek(va_to_file_off(start_va)); data = f.read(end_va - start_va)
+md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+for insn in md.disasm(data, start_va):
+    print(f"0x{insn.address:08X}:  {insn.mnemonic} {insn.op_str}")
+```
+
+This is faster and far more reliable than re-deriving control flow from
+the generated C by eye - it immediately showed the `jne` jumping into
+the "separate" function and the `ret 4` signature mismatch, both of
+which would have taken many more failed guesses to find otherwise. Worth
+reaching for this earlier whenever a fix attempt regresses more than
+once on the same site.
