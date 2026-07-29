@@ -811,10 +811,48 @@ updated to 58.
 Verified via `smoke_test.ps1` after each: 58 kernel calls held, no
 regression.
 
+## Attempted: full-function sweep of sub_0013AE50 - reverted, regression
+
+Tried the "guard everything in one pass" idea from the note above:
+read through the whole function and found 7 ref-count increment/decrement
+sites following the pattern `if (X == 0) goto skip; ... MEM32(X+4)
++= or -= 1;` that only checked for exact-zero, not garbage-but-nonzero
+- extended each to also treat an implausible pointer as the skip
+condition, plus one more `MEM32(ecx+0x20)` dereference guard. 8 guards
+total, applied in one batch.
+
+**Result: regression (58 -> 57), reverted.** The new failure was a
+different shape - deep recursion again (a "Spin-loop probe" fired, `esp`
+dropped to `0x006FB654` vs. the normal `~0x00F7Fxxx`, meaning real stack
+depth this time, not the tight-loop kind). Root cause not fully
+diagnosed before reverting, but the likely explanation: at least one of
+those 7 fields is a legitimate ref-counted pointer in the surviving code
+paths (unlike the D3D-null fields fixed elsewhere), and one of these
+particular objects' construction genuinely depends on *this* function's
+own earlier calls succeeding (`sub_0013AC10`/`sub_0013AC60`/etc.) rather
+than being permanently D3D-blocked - so treating "doesn't look like a
+heap pointer yet" as "skip forever" broke a legitimate not-yet-
+constructed-but-will-be-shortly case, causing something to retry/recurse
+instead of proceeding normally.
+
+**Reverted via a scripted reverse of the exact 8 replacements** (kept a
+record of old/new text pairs from the apply script, ran the same
+substitution backwards) rather than manually re-deriving the original
+code - much lower risk of a transcription slip. Confirmed back to 58 via
+`smoke_test.ps1` before moving on.
+
+**Lesson - retract the earlier "consider a full sweep" advice**: for
+this specific pattern (ref-count touch on a possibly-shared object,
+as opposed to a clearly-always-null-until-D3D-works field like a bbox or
+font table), the crash-driven one-at-a-time approach is safer despite
+being slower, because it only touches fields actually proven to crash on
+the CURRENT execution path with the CURRENT set of upstream fixes - a
+speculative broad sweep guards fields that might be legitimately
+populated by a code path this session hasn't reached yet, and "fixing"
+those preemptively can silently break correct behavior instead.
+
 ## Current crash (not yet fixed)
 
-Back in `sub_0013AE50` (RVA `0x6D05F2`) - not yet individually
-root-caused. This function has now yielded well over a dozen individual
-guard sites; if more keep surfacing, consider a full read-through of the
-function to guard every `MEM32(edi+N)`/`MEM32(esi+N)`-style dereference
-in one pass rather than continuing purely crash-driven, one at a time.
+Back in `sub_0013AE50` (RVA `0x6D05F2`, same as before the reverted
+sweep attempt) - not yet individually root-caused. Continue the
+one-crash-at-a-time approach per the lesson above.
