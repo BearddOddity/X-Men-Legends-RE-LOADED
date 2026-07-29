@@ -616,3 +616,80 @@ Boot now reaches kernel call #41 (up from 39, previously hung
 indefinitely at this point via `sub_001186A0`'s infinite loop) before a
 new crash. Not yet investigated - next step is resolving its RVA against
 `build/*.map` the same way as every fix above.
+
+## sub_0011E7A0, sub_001E8E20 (fixed) - two more instances, then a range-guard lesson
+
+- **`sub_0011E7A0`** (`recomp_0007.c`, gitignored, 23 call sites - a
+  generic tree/map container's find-or-insert): `sub_001186A0`'s fix
+  above (always report "not found" when the tree pool is broken) has a
+  side effect here - every call that would normally be a cache **hit**
+  now takes the **insert** path instead, since nothing is ever "found".
+  Insert allocates from a fixed-capacity bitmap-indexed pool embedded in
+  the container object itself; called repeatedly without ever reusing
+  existing entries, the pool's "count" field grows without bound across
+  the 23 call sites until the computed node address runs off into
+  unrelated memory and crashes. Guarded: cap the count at 4096 (far
+  above any plausible legitimate small-object-cache size) and jump to
+  the function's own existing clean-exit label (`loc_0011E8D2`, already
+  used by its other early-exit paths) instead of computing a wild
+  address. **Confirms this session's guard-based fixes can shift load
+  onto adjacent shared code** - worth watching for as more of these land.
+
+- **`sub_001E8E20`** (`recomp_0014.c`, gitignored - the free-list search
+  from the divide-by-zero investigation): walks a free-list array whose
+  slots can hold either 0, a real cached-object pointer, or leftover
+  garbage that happens to look like a pointer (the same misread-as-
+  pointer pattern as `sub_002235D0`'s "igStringObj" string). First fix
+  used a "plausible Xbox VA" range guard (`0x00010000`-`0x02000000`,
+  matching `sub_0019F765`'s convention) - **this was too permissive**: it
+  passed a garbage value because that range covers all of `.text` plus
+  every unrecompiled XDK library section (D3D, DSOUND, etc.), and a
+  pointer into DSOUND's code happened to look "plausible" while still
+  being nonsense as an object pointer. **Tightened to the actual heap
+  range** (`XBOX_HEAP_BASE` = `0x00880000` from `xbox_memory_layout.h`,
+  through `0x08000000`) instead, which correctly excludes `.text`,
+  `.rdata`, `.data`, and every library section at once - only genuine
+  heap allocations pass. **Lesson for future range guards in this
+  codebase: prefer the heap-range bound over the broader
+  `0x00010000`-`0x02000000` one** unless there's a specific reason a
+  static/`.rdata` pointer is legitimately expected.
+
+Verified via `smoke_test.ps1`: 41 -> 43 kernel calls with the first pass
+of these two fixes, then **41 -> 57** once the guard was tightened to the
+heap range - a large jump, confirming the untightened guard had been
+silently letting bad pointers through into other nearby code paths that
+happened not to crash (yet).
+
+## Current issue: genuine multi-function recursion (not yet fixed)
+
+At kernel call #57 the process now hits a **stack overflow**
+(`STATUS_STACK_OVERFLOW`, `0xC00000FD`) instead of a clean crash -
+`smoke_test.ps1` flags this by signature regardless of how far kernel
+calls got, since it's the same exception code as the earlier (already
+fixed) CRT lock-bootstrap recursion bug. **This is a different bug that
+happens to produce the same exception code**, not a regression of the
+old one - the call chain is entirely different code.
+
+ICALL trace immediately before the crash shows repeated `[ICALL] Failed
+to resolve VA 0xFFFFFFFF` (a `-1`/"not found" sentinel being called as
+if it were a function pointer) with an **identical repeating call chain**
+across consecutive failures:
+
+```
+sub_0013A6A0 -> sub_0013AC10 -> sub_0013AE50 -> sub_0013B0E0 ->
+sub_0013B220 -> sub_00145E60 -> sub_001463F0 -> (back into sub_0013A6A0)
+```
+
+This is genuine **mutual recursion across 7 functions**, not simple
+self-recursion like the earlier lock-bootstrap bug - a different, harder
+class of problem (no single obvious "always acquire this before creating
+it" fix; likely a tree/graph traversal that revisits a node it should
+have already marked visited, or a terminator condition that depends on
+another D3D-null value). Not yet root-caused. The spin-loop probe
+technique (recomp_icall_fail_log's Nth-failure stack trace, already
+built) caught this cleanly; next step is resolving why VA `0xFFFFFFFF`
+specifically is being called (probably a `-1` "not found" return value
+from something upstream being used as a function pointer without a
+sentinel check, similar in spirit to the `sub_0011E7A0` fix above but in
+a different subsystem) and finding where the cycle should have
+terminated but doesn't.
