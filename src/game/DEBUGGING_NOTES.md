@@ -891,7 +891,38 @@ resolved multiple different-looking consumer crashes at once, unlike
 the earlier failed attempt to guard 7 different *consumer* sites
 speculatively in one batch.
 
-## Current crash (not yet fixed)
+## sub_0020E547 - tricky, two failed attempts, not yet fixed
 
-Not yet investigated - next step is resolving its RVA against
-`build/*.map` the same way as every fix above.
+```
+[CRASH] fault addr read Xbox VA 0xFFFFFFFF (MEM32(eax) where eax=-1)
+Xbox regs: eax=0xFFFFFFFF ecx=0 edx=0x624F203A esp=0x0047C43C
+ebx=0x003E3374 esi=0 edi=0
+```
+
+`eax = MEM32(esp + 8)` (a caller-supplied argument) is `-1` instead of
+0 or a real pointer; the original code only checks `!= 0` before later
+dereferencing it as `MEM32(eax)`.
+
+**Attempt 1**: redirect to the function's existing alternate lookup path
+(the same one used for the `eax == 0` case) when `eax` isn't a plausible
+heap pointer. **Regressed** - caused a NEW stack overflow (different
+recursion than the CRT lock-bootstrap one). Reverted.
+
+**Not yet tried**: an early-return instead of redirecting to the
+alternate path. Blocked on a genuine ambiguity: this function's epilogue
+pops `edi`/`ebx`/`esi` (`POP32(esp, edi); POP32(esp, ebx); POP32(esp,
+esi); esp += 8; return;`) but **there's no corresponding push visible
+anywhere in this function** - no SEH prologue, no explicit `PUSH32(esp,
+esi)` etc. at the top (unlike every other function fixed this session).
+This strongly suggests the disassembler split one original x86 function
+across a call boundary here (this C function is a continuation/tail
+target that inherits its caller's already-pushed register state), which
+means constructing a safe early-return requires understanding what the
+*caller* already pushed - not safe to guess without reading that caller
+carefully first. Left unfixed rather than risk a third regression;
+revisit with the caller's context in hand next time.
+
+Baseline unaffected (still 61) - this crash was never actually reached
+in a regression-free build, so there's nothing to lose by leaving it for
+next session, but also no progress past kernel call 61 until it's
+resolved (this is the current forward blocker as of this note).
