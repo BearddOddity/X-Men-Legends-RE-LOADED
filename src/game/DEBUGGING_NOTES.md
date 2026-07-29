@@ -746,18 +746,53 @@ code between kernel call #57 and whatever comes next, so kernel-call
 count isn't a reliable progress signal at this granularity - watch the
 crash RVA moving to new functions instead).
 
+## More dispatch-family instances, plus two important guard-convention fixes
+
+Continued whack-a-mole through `sub_0013AE50`/`sub_0013B0E0` (both in the
+original recursion cycle's function family, `recomp_0008.c`, gitignored):
+four more `edi+4`/`edi+8`/`edx` pointer fields guarded with the same
+heap-range check, one more loop-index guard on `ebx`. Same pattern every
+time: an object pointer field holds garbage instead of null/valid, code
+dereferences it unconditionally.
+
+Two lessons worth keeping in mind for any future guard in this codebase:
+
+1. **The heap-range upper bound was wrong.** Every guard so far used
+   `0x00880000`-`0x08000000` (128MB), copied from an earlier one without
+   checking - but `XBOX_TOTAL_RAM` (`xbox_memory_layout.h`) is **64MB**
+   (`0x04000000`), the real address space ceiling. `0x08000000` let
+   through addresses in the upper 64MB that were never actually mapped.
+   **Fixed globally**: every existing `0x08000000u` guard bound across
+   `recomp_0008.c`/`recomp_0014.c`/`recomp_0015.c` replaced with
+   `0x04000000u` via a find-and-replace (11 occurrences, verified by
+   count before/after). Use `0x00880000u`/`0x04000000u` for all future
+   heap-range guards in this codebase.
+
+2. **A pointer passing the range check isn't enough - the DATA it points
+   to can still be garbage.** In `sub_001E8E20`, `esi` (a free-list
+   pointer) legitimately passed the heap-range guard (it was
+   `0x01000000`, a numerically valid-looking address) - but the memory
+   *at* that address hadn't been genuinely allocated by our bump
+   allocator, so `eax = MEM32(esi)` returned unrelated garbage
+   (`0xFF000000`), and `RECOMP_ICALL_SAFE(MEM32(eax + 0x78), ...)`
+   crashed *before its own internal bounds check could even run* -
+   `MEM32(eax + 0x78)` is evaluated as the macro's argument, and that
+   read faults natively on genuinely out-of-bounds memory regardless of
+   what the macro does with the value afterward. **The fix must validate
+   every pointer you're about to dereference, not just the first one in
+   a chain** - added a second guard on `eax` (the value read *through*
+   `esi`) before using it, at both symmetric call sites in this function.
+
+Verified via `smoke_test.ps1`: 57 -> 58 kernel calls (small but real
+progress - most of this round's fixes landed within the same burst of
+code between kernel calls, same caveat as the previous round). Baseline
+updated to 58.
+
 ## Current crash (not yet fixed)
 
-```
-[CRASH] Access violation at RIP=0x...+0x6D0DE4 (sub_0013B0E0 family area),
-fault addr read Xbox VA 0xFFFFFF04
-Xbox regs: eax=0 ecx=0xFFFFFF04 edx=0x003E0AB4 esi=0x00F7FAD0 (stack)
-ebx=1 edi=0 esp=0x00F7FAB4
-```
-
-`ecx = 0xFFFFFF04` looks like a small negative number (`-252` as
-`int32_t`) rather than a valid pointer - possibly another unbounded
-index/offset issue similar to `sub_0013B0E0`'s fix above, or a `-N`
-sentinel used as an offset without a range check. Native call stack
-(`sub_0013AE50` area again, RVAs `0x6CEF40/0x6D031E/0x6D179C/0x6D1C64`)
-not yet individually resolved/read. Not yet root-caused.
+Not yet investigated - next step is resolving its RVA against
+`build/*.map` the same way as every fix above. Expect it to likely be
+yet another instance in the same `sub_0013AE50`/`sub_0013B0E0`/sibling
+family given how many are packed into this one code area; consider
+whether a more systematic sweep of this specific function (rather than
+one-crash-at-a-time) would be more efficient at this point.
