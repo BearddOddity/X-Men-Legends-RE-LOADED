@@ -991,13 +991,43 @@ ebx=0 esi=0x00F803A8 edi=0x00309736
 depth mismatch somewhere, not the usual garbage-pointer pattern. Crash
 is inside `sub_002235D0` (the "igStringObj" function fixed earlier this
 session for an unrelated bug), reached via `sub_0020E547 ->
-sub_00234DF0 -> ...`. Not yet determined whether this is a fresh bug
-only reachable now that we've gotten further, or a latent stack-balance
-issue in one of tonight's `sub_0020E547` edits that only manifests a few
-calls later. Worth re-checking the two `sub_0020E547` guards' stack
-math carefully (using the raw-disassembly technique on the actual
-active call site, not just the generic shape) before assuming it's
-unrelated - next session's starting point.
+sub_00234DF0 -> ...`.
+
+**Diagnosed with a targeted debug print** at `sub_002235D0`'s entry
+(before its own `esp -= 0x108` local-frame allocation): across 5 calls,
+`g_esp` at entry was `0x00F7FCC4` (first, normal), then
+`0x00502744 -> 0x005025DC -> 0x00502474 -> 0x0050230C` (steadily
+*decreasing* by roughly `0x16C` per call, but not yet corrupted at entry
+for the calls captured). Confirms the corruption *accumulates* across
+many calls rather than happening in one bad step - consistent with
+either a genuine deep-nesting depth issue or a slow per-call leak, not a
+single wrong `PUSH`/`POP`.
+
+**Found something real while investigating, but it didn't fix this
+crash**: several guards added this session used `0x00880000u` as the
+heap lower bound, copied from a comment on `XBOX_HEAP_BASE` in
+`xbox_memory_layout.h`. That comment was **stale** - correct for the
+original 1MB stack size, never updated when the stack grew to 8MB (see
+the comment directly above it explaining that increase). The actual
+computed value is `0x00F80000`, not `0x00880000` - meaning every one of
+those guards has been accepting addresses in the `0x00880000`-`0x00F80000`
+range (which is actually *inside the live stack region*) as if they were
+valid heap pointers. Fixed the comment (harmless, correct now). **Tried
+correcting all 18 guard literals to the real boundary - regressed
+further (61 -> 59), reverted.** So the wider, technically-wrong bound is
+currently load-bearing: some legitimate value at least once falls in
+that stack-region range and the guards need to keep accepting it, even
+though the theory (stack-region addresses accepted as heap pointers
+could explain corruption if something writes through one) remains
+plausible for *this specific* crash. Left as an open question rather
+than pushed further tonight - both the literal value and the crash
+itself are documented for a fresh look.
+
+**Not yet tried**: instrumenting the actual `PUSH32`/`POP32` call
+counts within the `sub_0020E547`/`sub_00234DF0`/... chain to find
+exactly which function's pushes and pops don't match (a per-call
+push/pop counter assertion would catch it directly, rather than
+inferring from esp's absolute value trend).
 
 ## Technique: raw x86 disassembly for ambiguous lifted-C cases
 
