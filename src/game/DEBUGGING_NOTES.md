@@ -851,8 +851,47 @@ speculative broad sweep guards fields that might be legitimately
 populated by a code path this session hasn't reached yet, and "fixing"
 those preemptively can silently break correct behavior instead.
 
+## The actual root cause of the recurring sub_0013AE50 crashes (fixed)
+
+Two individual guard attempts at `sub_0013AE50`'s `loc_0013AED6`
+(`ecx = MEM32(MEM32(ebp) + 0x20)`) both regressed when tried in
+isolation (58 -> 57 each time, reverted both). That forced a rethink
+instead of a third guess.
+
+**The real root cause**: the 60-site "get-or-construct dependency by
+type id" family (the recursion fix from earlier) skips the construct
+call when the type-id lookup fails - correct, stops the recursion - but
+never writes anything to the **output slot** in that case. The slot
+(a field inside the caller's own object, e.g. `edi+0x10`) is left
+holding whatever was there *before* this object's own allocation -
+uninitialized garbage, not 0. Every consumer that later reads that slot
+(`sub_0013AE50`'s `loc_0013AED6` among others) assumes "0 (not
+constructed) or a real pointer" and breaks on "garbage that's neither."
+
+This is exactly why the individual guards at the *consumer* end kept
+being fragile: they were patching the symptom at one read site while
+the actual bug (an uninitialized write) could still corrupt whatever
+*other* code reads that same slot next. **Fixed at the source instead**:
+extended the same 60-site scripted transform from the recursion fix to
+add an `else { MEM32(esi) = 0; }` branch - when construction is skipped,
+explicitly zero the output slot, matching what every consumer already
+assumes "not constructed" looks like.
+
+Verified via `smoke_test.ps1`: 58 -> 61 kernel calls, no regression -
+and this fixed `sub_0013AE50`'s recurring crash without touching
+`sub_0013AE50` at all, confirming the diagnosis. Baseline updated to 61.
+
+**Lesson**: when the same handful of functions keep needing new guards
+for what looks like "the same kind of garbage" repeatedly, look upstream
+at whatever *constructs* the value before continuing to guard every
+place that *reads* it - the recursion-fix family here was exactly that
+kind of shared constructor, and fixing its skip-path was a single,
+low-risk change ("null" is *more* correct than leaving stale data) that
+resolved multiple different-looking consumer crashes at once, unlike
+the earlier failed attempt to guard 7 different *consumer* sites
+speculatively in one batch.
+
 ## Current crash (not yet fixed)
 
-Back in `sub_0013AE50` (RVA `0x6D05F2`, same as before the reverted
-sweep attempt) - not yet individually root-caused. Continue the
-one-crash-at-a-time approach per the lesson above.
+Not yet investigated - next step is resolving its RVA against
+`build/*.map` the same way as every fix above.
