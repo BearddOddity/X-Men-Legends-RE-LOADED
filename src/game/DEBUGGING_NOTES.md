@@ -1101,13 +1101,54 @@ genuine toolkit-level fix candidate - fixing it in `lifter.py`/
 `g_seh_ebp` propagation fix from the very start of this session) would
 be far more valuable than patching each of the 50 sites individually,
 and would likely resolve a cluster of not-yet-encountered crashes at
-once, the same way the 60-site output-slot fix did. **Not investigated
-further tonight** - the list of 50 sites hasn't been extracted or
-reviewed individually; this is a strong lead for a dedicated future
-session, not a "these 50 are all confirmed bugs" claim (some of the 50
-may have legitimate reasons to end this way, e.g. genuine unreachable/
-dead code after a `goto` elsewhere - would need per-site verification
-before mass-fixing).
+once, the same way the 60-site output-slot fix did.
+
+## All 50 dropped-tail-call sites fixed (verified, not speculative)
+
+Before mass-fixing, verified each of the 50 sites individually via a
+script: for every occurrence, confirmed the function's own `Original:
+... - END` address exactly equals the *next* function's `Original:
+START - ...` address. **All 50 matched with zero exceptions** - strong
+confirmation this is a uniform, systematic split-point bug, not a mix
+of real bugs and legitimate dead code.
+
+Applied the fix to all 50 (append `{g_seh_ebp = ebp; }funcName();
+return;` right after the dangling pushes, using the `ebp`-aware form
+only for the small number of sites where the truncated function had
+declared its own `ebp` local - in practice **all 50 were headless
+continuations with no declared `ebp`**, so all 50 got the plain
+`funcName(); return;` form). Compiled clean across all 21 affected
+files (only pre-existing warnings, no new errors), linked successfully.
+
+**Saved the fix script for reuse**: `src/game/tools_data/
+fix_dropped_tailcalls.py` (git-tracked, unlike the generated files it
+patches) - rerun this after any future regeneration of
+`src/recomp/gen/*.c` via the disasm/func_id/recomp pipeline, since these
+50 patches live in gitignored generated files and would otherwise be
+silently lost.
+
+**Result: 61 -> 59 kernel calls (not yet a net win).** Confirmed via
+RVA resolution that the new crash is the **same already-documented
+esp-corruption issue** (`sub_0013AE50`, `esp` in the same `0x0058Fxxx`
+range as earlier tonight's investigation), not a new problem introduced
+by any of the 50 fixes. This matches exactly what was predicted when
+`sub_0011EAAC`'s fix was tested in isolation earlier: completing these
+dropped calls means more game code actually runs than ever before,
+which reaches the *next* already-present bug sooner rather than
+introducing a new one. **The 50 fixes are correct and worth keeping**
+(no downside observed, real upside once the deeper esp-corruption chain
+is resolved) - they're just not sufficient on their own to beat the
+baseline. The `sub_00200B18` guards from the earlier investigation are
+still in place and still relevant.
+
+**Next step**: the deeper esp-corruption chain (`sub_0013AE50` /
+`sub_00200B18` / the font-glyph-adjacent construct chain) is now the
+sole remaining blocker to progress past 59/61. Worth checking first
+whether *this* crash is ALSO a dropped-tail-call instance my regex
+missed (a different trailing shape, e.g. two dangling pushes or a
+truncated ICALL block) before assuming it needs a bespoke guard -
+apply the same raw-disassembly-first discipline that worked for
+`sub_0020E547`.
 
 ## Technique: raw x86 disassembly for ambiguous lifted-C cases
 
