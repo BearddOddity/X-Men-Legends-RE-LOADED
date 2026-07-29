@@ -660,36 +660,68 @@ heap range - a large jump, confirming the untightened guard had been
 silently letting bad pointers through into other nearby code paths that
 happened not to crash (yet).
 
-## Current issue: genuine multi-function recursion (not yet fixed)
+## Genuine multi-function recursion (fixed) - a 374-instance template pattern
 
-At kernel call #57 the process now hits a **stack overflow**
-(`STATUS_STACK_OVERFLOW`, `0xC00000FD`) instead of a clean crash -
-`smoke_test.ps1` flags this by signature regardless of how far kernel
-calls got, since it's the same exception code as the earlier (already
-fixed) CRT lock-bootstrap recursion bug. **This is a different bug that
-happens to produce the same exception code**, not a regression of the
-old one - the call chain is entirely different code.
+At kernel call #57 the process hit a **stack overflow**
+(`STATUS_STACK_OVERFLOW`, `0xC00000FD`) - `smoke_test.ps1` flags this by
+signature regardless of how far kernel calls got, since it's the same
+exception code as the earlier (already fixed) CRT lock-bootstrap
+recursion bug. **This was a different bug that happened to produce the
+same exception code**, not a regression of the old one.
 
-ICALL trace immediately before the crash shows repeated `[ICALL] Failed
+ICALL trace immediately before the crash showed repeated `[ICALL] Failed
 to resolve VA 0xFFFFFFFF` (a `-1`/"not found" sentinel being called as
-if it were a function pointer) with an **identical repeating call chain**
-across consecutive failures:
+if it were a function pointer) with an identical repeating call chain:
+`sub_0013A6A0 -> sub_0013AC10 -> sub_0013AE50 -> sub_0013B0E0 ->
+sub_0013B220 -> sub_00145E60 -> sub_001463F0 -> back into sub_0013A6A0`.
+
+Traced to `sub_0013AC10`: it fetches a "dependency type" id via an ICALL
+through an uninitialized 16-byte-stride table (`eax = MEM32(edx+esi+4);
+ICALL(MEM32(eax+4))` - same table-corruption family as the tree/bitmap
+fixes above), and **unconditionally** calls `sub_0013A6A0()` to construct
+that type regardless of whether the lookup succeeded - and
+`sub_0013A6A0`'s own construction chain calls back into more of these
+same dispatch functions for its own sub-dependencies, closing the loop.
+
+**This turned out to be a template-generated pattern, not a one-off**:
+grepping for the exact structural shape (ICALL through `MEM32(eax+4)`,
+followed by `esi = MEM32(esp+0xC); PUSH eax,esi; call some
+constructor(); esp+=8; eax=esi;`) found **374 raw occurrences of the
+`ICALL(MEM32(eax+4))` idiom across 18 generated files, of which 59
+matched the exact recursive-dispatch shape** (the other ~300+ are the
+same macro used for unrelated purposes - destructors, generic vtable
+calls, etc. - verified by sampling several that did NOT match before
+trusting the narrower pattern). Wrote a Python script
+(`re.compile` on the exact multi-line template, substituting a
+guard + preserving the callee name and labels) to apply the identical
+fix to all 59 matches at once: skip the recursive construct call (and
+its balancing `esp = esp + 8`) when the lookup failed, since the
+epilogue's return value (`esi`) doesn't depend on it either way.
+Verified the transform matched cleanly (no partial/malformed matches)
+before rebuilding.
+
+Files touched (all gitignored, **lost if the disasm/recomp pipeline is
+ever rerun** - reapply by re-running the same regex+substitution, or
+search this commit's diff for the exact transform):
+`recomp_0007.c` (6), `recomp_0008.c` (41, includes the originally-traced
+`sub_0013AC10`, hand-fixed first then left alone by the script since its
+wording already differed from the template), `recomp_0009.c` (10),
+`recomp_0011.c` (2).
+
+Verified via `smoke_test.ps1`: stack overflow is gone entirely (back to
+a normal access-violation exit code), kernel calls hold at 57 (the same
+point reached before - the recursion was consuming stack, not blocking
+forward progress once it started, so fixing it revealed the *next*
+crash rather than advancing further). Baseline updated to 57.
+
+## Current crash (not yet fixed)
 
 ```
-sub_0013A6A0 -> sub_0013AC10 -> sub_0013AE50 -> sub_0013B0E0 ->
-sub_0013B220 -> sub_00145E60 -> sub_001463F0 -> (back into sub_0013A6A0)
+[CRASH] Access violation at RIP=..., fault addr write to Xbox VA 0x80000000
+Xbox regs: eax=1 ecx=0x80000000 edx=0 esi=1 edi=0 esp=0x00F7FA1C
 ```
 
-This is genuine **mutual recursion across 7 functions**, not simple
-self-recursion like the earlier lock-bootstrap bug - a different, harder
-class of problem (no single obvious "always acquire this before creating
-it" fix; likely a tree/graph traversal that revisits a node it should
-have already marked visited, or a terminator condition that depends on
-another D3D-null value). Not yet root-caused. The spin-loop probe
-technique (recomp_icall_fail_log's Nth-failure stack trace, already
-built) caught this cleanly; next step is resolving why VA `0xFFFFFFFF`
-specifically is being called (probably a `-1` "not found" return value
-from something upstream being used as a function pointer without a
-sentinel check, similar in spirit to the `sub_0011E7A0` fix above but in
-a different subsystem) and finding where the cycle should have
-terminated but doesn't.
+`ecx = 0x80000000` is exactly `1 << 31` (`eax = 1` at the crash). Looks
+like a bit-flag/shift computation whose result got used directly as a
+write address instead of a bitmask - not yet root-caused or traced to a
+specific function.

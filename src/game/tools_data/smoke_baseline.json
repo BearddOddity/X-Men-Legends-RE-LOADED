@@ -1,6 +1,6 @@
 {
   "note": "Update only after confirming this run genuinely reaches further than before - never lower these to make a regression pass.",
-  "recorded_utc": "2026-07-29T01:36:37.8828327Z",
-  "min_kernel_calls": 41.0,
+  "recorded_utc": "2026-07-29T03:05:16.4748220Z",
+  "min_kernel_calls": 57.0,
   "max_breakpoint_repeats": 5
 }
