@@ -891,7 +891,7 @@ resolved multiple different-looking consumer crashes at once, unlike
 the earlier failed attempt to guard 7 different *consumer* sites
 speculatively in one batch.
 
-## sub_0020E547 - root-caused via raw disassembly, still not fixed (3 attempts)
+## sub_0020E547 - root-caused via raw disassembly, fixed (took 4 attempts)
 
 ```
 [CRASH] fault addr read Xbox VA 0xFFFFFFFF (MEM32(eax) where eax=-1)
@@ -932,22 +932,72 @@ missing argument were 0". **Regressed again**, same stack-overflow
 symptom - but this time diagnosed fully instead of just reverting:
 
 The fallback path (`loc_0020E54F` onward) eventually reaches
-`sub_002096B0()`, which chains into an 8-function recursive cycle:
+`sub_002096B0()`, which chains into an 8-function cycle:
 `sub_001E8E20 -> sub_002096B0 -> sub_0020E547 -> sub_00234DF0 ->
-sub_0011DFE0 -> sub_0011E7A0 -> sub_0011EAAC -> sub_0011EBB0`. Unlike
-the tight infinite loops fixed earlier (millions of iterations/sec,
-target VA usually constant), this one does **real, varying work per
-iteration** (708,367 total calls before overflow, ICALL targets
-decrementing through memory in a structured way - looks like a genuine
-large-collection walk, e.g. enumerating hundreds/thousands of font
-glyphs) - it's not a bug *in* the fallback path being wrong so much as
-this whole subsystem being a much larger, still-unmapped piece of
-functionality than anything fixed so far this session. Reverted again;
-resolving this needs its own dedicated investigation starting with
-`sub_002096B0` and `sub_00234DF0`, which haven't been read yet.
+sub_0011DFE0 -> sub_0011E7A0 -> sub_0011EAAC -> sub_0011EBB0`. Reverted
+again pending investigation.
 
-Baseline unaffected (still 61) - not lost ground, but this remains the
-forward blocker.
+**Investigated `sub_0011EAAC` via raw disassembly - it's not recursion
+at all.** It's a straight-line sequence of ~20-30 direct calls into
+`sub_0011E7A0` (our own tree/pool-insert function, already fixed earlier
+this session for its own infinite-loop bug) with different
+size/index arguments each time (`0x68000`, `0xf8000`, `0x3fc000`,
+`0xe8000`, `0xd0000`, `0xb77000`, ...) - this is the **game's own memory
+pool registration**, not font glyph enumeration as originally guessed.
+No loop, no self-call. It's genuinely deep (many nested construct-
+dispatch calls through the 60-site family) but **finite** work.
+
+**The actual bug: our recompiled code uses far more native stack per
+logical call than the original x86** (register-simulation macros,
+`PUSH32`/`POP32` helpers, etc. all add real stack frames that the
+original single `push`/`call` didn't need). Work that fits comfortably
+in a normal thread stack on real hardware was overflowing our default
+1MB. **Fixed by raising the linker stack size to 16MB**
+(`/STACK:16777216` in `src/game/CMakeLists.txt`, committed - the one fix
+in this whole investigation that's NOT gitignored/lost-on-regen).
+
+**Attempt 3 (redo of attempt 2, now correct)**: re-applied the
+argument-validity guard from attempt 1/2 alongside the bigger stack.
+**Worked** - no more stack overflow, back to a normal access-violation
+crash, no regression.
+
+**Attempt 4**: that normal crash was a second instance of the
+"garbage data read through an already-valid pointer" pattern
+(`edx = MEM32(eax)` where `eax` is plausible but the data at it isn't) -
+same lesson as `sub_001E8E20`/`sub_00200B18`. Guarded with the same
+heap-range check on `edx` before using it in `MEM32(edx + 0xCC)`.
+**Important subtlety**: the guard must NOT push anything before
+skipping the ICALL block, even though the success path does
+`PUSH32(esp, ebx)` before reassigning `ebx` - because
+`RECOMP_ICALL_SAFE`'s own failure path restores `esp` to the value
+captured *before* that push too, so the correctly-balanced "as if the
+ICALL had failed" behavior is to touch `esp` not at all, not to
+replicate the push.
+
+Verified via `smoke_test.ps1` after each of the last two steps: 61
+kernel calls held, no regression, and the stack overflow is completely
+gone. Baseline still 61 (next crash is different code, not more kernel
+calls yet).
+
+## Current crash (not yet fixed) - corrupted esp inside sub_002235D0
+
+```
+[CRASH] Access violation, fault addr write to Xbox VA 0xFFFFFFA0
+Xbox regs: eax=0 ecx=0x005D93FC edx=0x001A4340 esp=0xFFFFFFA0 (!)
+ebx=0 esi=0x00F803A8 edi=0x00309736
+```
+
+`esp` itself is corrupted (`0xFFFFFFA0`, i.e. -96) - a genuine stack-
+depth mismatch somewhere, not the usual garbage-pointer pattern. Crash
+is inside `sub_002235D0` (the "igStringObj" function fixed earlier this
+session for an unrelated bug), reached via `sub_0020E547 ->
+sub_00234DF0 -> ...`. Not yet determined whether this is a fresh bug
+only reachable now that we've gotten further, or a latent stack-balance
+issue in one of tonight's `sub_0020E547` edits that only manifests a few
+calls later. Worth re-checking the two `sub_0020E547` guards' stack
+math carefully (using the raw-disassembly technique on the actual
+active call site, not just the generic shape) before assuming it's
+unrelated - next session's starting point.
 
 ## Technique: raw x86 disassembly for ambiguous lifted-C cases
 
