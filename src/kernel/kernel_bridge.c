@@ -432,12 +432,11 @@ static void bridge_NtAllocateVirtualMemory(void)
  */
 static void bridge_NtFreeVirtualMemory(void)
 {
-    uint32_t base_ptr = STACK_ARG(0);
-    uint32_t size_ptr = STACK_ARG(1);
-    uint32_t free_type = STACK_ARG(2);
-
-    g_eax = (uint32_t)xbox_NtFreeVirtualMemory(
-        XBOX_TO_NATIVE(base_ptr), XBOX_TO_NATIVE(size_ptr), free_type);
+    /* No-op, like xbox_HeapFree: our memory model is one big pre-mapped
+     * region carved up by a bump allocator, not individual VirtualAlloc
+     * calls, so the real VirtualFree() in xbox_NtFreeVirtualMemory is
+     * guaranteed to fail here. */
+    g_eax = 0; /* STATUS_SUCCESS */
 }
 
 /* ── ExAllocatePool / ExAllocatePoolWithTag (ordinals 15, 16) ─

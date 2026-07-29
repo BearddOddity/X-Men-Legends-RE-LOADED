@@ -20,6 +20,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <windows.h>
+#include "xbox_memory_layout.h"
 
 /* Register model, MEM macros, recomp_lookup/recomp_lookup_manual decls.
  * Not compiled as RECOMP_GENERATED_CODE, so eax/esp etc. stay unaliased -
@@ -260,6 +262,28 @@ void sub_0019F765(void)
     g_esp = entry_esp + 20;  /* ret 0x10 */
 }
 
+/*
+ * sub_001F8890 - string/name pool allocator. Called thiscall-style with
+ * the pool object in ecx and (length, out-ptr, out-ptr) on the stack;
+ * returns a buffer in eax that the caller immediately memcpy's a string
+ * into (no null check at the call site - see recomp_0015.c).
+ *
+ * On real hardware ecx is never null. In our build it IS null, because
+ * whatever constructs this pool is D3D-related (D3D isn't recompiled -
+ * see DEBUGGING_NOTES.md) and the generated version spins forever walking
+ * a linked list through a null pointer. Rather than emulate the real
+ * pool's free-list, just hand back a fresh block from the bump allocator
+ * - the caller only wants a writable buffer of the right size.
+ */
+void sub_001F8890(void)
+{
+    uint32_t entry_esp = g_esp;
+    uint32_t len = MEM32(entry_esp + 4);
+
+    g_eax = xbox_HeapAlloc(len ? len : 4, 4);
+    g_esp = entry_esp + 16;  /* ret 12 */
+}
+
 /* ── ICALL failure logging ─────────────────────────────────── */
 
 /*
@@ -285,6 +309,25 @@ void recomp_icall_fail_log(uint32_t va)
     static int seen_count = 0;
     static int overflowed = 0;
 
+    /* One-shot trace that bypasses the dedup below: fires on the Nth total
+     * failure regardless of VA, to catch a spin loop repeatedly failing on
+     * an already-seen VA (which the dedup would otherwise silence). */
+    static uint64_t total_fails = 0;
+    total_fails++;
+    if (total_fails == 1000) {
+        fprintf(stderr, "[ICALL] Spin-loop probe: failure #1000, VA 0x%08X (total calls: %llu)\n",
+                va, (unsigned long long)g_icall_count);
+        void *frames[8];
+        USHORT n = CaptureStackBackTrace(1, 8, frames, NULL);
+        HMODULE mod = GetModuleHandleA(NULL);
+        fprintf(stderr, "  Native call stack (resolve against build/*.map):\n");
+        for (USHORT i = 0; i < n; i++) {
+            fprintf(stderr, "    [%u] RVA 0x%llX\n", i,
+                (unsigned long long)((BYTE *)frames[i] - (BYTE *)mod));
+        }
+        fflush(stderr);
+    }
+
     for (int i = 0; i < seen_count; i++) {
         if (seen[i] == va) return;
     }
@@ -306,6 +349,18 @@ void recomp_icall_fail_log(uint32_t va)
         int idx = (g_icall_trace_idx - 16 + i) & 15;
         if (g_icall_trace[idx])
             fprintf(stderr, "    [%2d] 0x%08X\n", i, g_icall_trace[idx]);
+    }
+
+    /* Native call stack of the C caller - resolve as RVAs (addr - module
+     * base) against build/*.map "Publics by Value" to find the generated
+     * sub_XXXXXXXX function that issued this ICALL. */
+    void *frames[8];
+    USHORT n = CaptureStackBackTrace(1, 8, frames, NULL);
+    HMODULE mod = GetModuleHandleA(NULL);
+    fprintf(stderr, "  Native call stack (resolve against build/*.map):\n");
+    for (USHORT i = 0; i < n; i++) {
+        fprintf(stderr, "    [%u] RVA 0x%llX\n", i,
+            (unsigned long long)((BYTE *)frames[i] - (BYTE *)mod));
     }
     fflush(stderr);
 }

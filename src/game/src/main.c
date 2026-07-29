@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <process.h>
 
 /* xboxrecomp runtime headers */
 #include <xbox/xboxrecomp.h>
@@ -159,6 +160,95 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+/* ── Hang watchdog ─────────────────────────────────────────── */
+
+/*
+ * TEMPORARY DIAGNOSTIC: some bugs manifest as a silent infinite loop
+ * entirely within recompiled game/CRT code, never calling into the
+ * kernel bridge - so there's no natural hook point to count calls from
+ * (unlike the lock-bootstrap recursion, caught via a counter in
+ * bridge_RtlEnterCriticalSection). This watchdog thread sleeps, then
+ * suspends the main thread from the outside and dumps its instruction
+ * pointer plus a scan of the stack for addresses that look like they're
+ * within this module - resolve against build/*.map's "Publics by Value"
+ * the same way as every other RVA in this codebase. Remove once no
+ * longer needed (not meant to ship in a release build).
+ */
+#define WATCHDOG_TIMEOUT_MS 8000
+#define ICALL_TRACE_SIZE 16
+
+extern volatile uint32_t g_icall_trace[ICALL_TRACE_SIZE];
+extern volatile uint32_t g_icall_trace_idx;
+extern volatile uint64_t g_icall_count;
+
+static HANDLE g_watchdog_main_thread = NULL;
+
+static unsigned __stdcall watchdog_thread_proc(void *arg)
+{
+    (void)arg;
+    Sleep(WATCHDOG_TIMEOUT_MS);
+
+    if (!g_watchdog_main_thread) return 0;
+
+    fprintf(stderr, "\n[WATCHDOG] No progress after %d ms - main thread likely hung.\n", WATCHDOG_TIMEOUT_MS);
+    fprintf(stderr, "[WATCHDOG] Total ICALL dispatches: %llu\n", (unsigned long long)g_icall_count);
+    fprintf(stderr, "[WATCHDOG] Last %d ICALL targets (ring buffer, safe to read without suspending anything):\n", ICALL_TRACE_SIZE);
+    for (int i = 0; i < ICALL_TRACE_SIZE; i++) {
+        int idx = (g_icall_trace_idx - ICALL_TRACE_SIZE + i) & (ICALL_TRACE_SIZE - 1);
+        fprintf(stderr, "  [%2d] 0x%08X\n", i, g_icall_trace[idx]);
+    }
+    fflush(stderr);
+
+    /* SuspendThread + GetThreadContext previously caused a secondary
+     * crash here (possibly a race - SuspendThread's effect can be
+     * delayed until the target returns to user mode, so the main thread
+     * may keep running briefly). The ICALL trace above needs none of
+     * that - it's a plain global read - so it's kept; the risky
+     * suspend/inspect path is disabled unless re-enabling it to dig
+     * further (see DEBUGGING_NOTES.md). */
+#if 0
+    SuspendThread(g_watchdog_main_thread);
+
+    CONTEXT ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.ContextFlags = CONTEXT_FULL;
+    if (GetThreadContext(g_watchdog_main_thread, &ctx)) {
+        uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+        fprintf(stderr, "[WATCHDOG] RIP=0x%llX (RVA=0x%llX)\n",
+            (unsigned long long)ctx.Rip, (unsigned long long)(ctx.Rip - base));
+        fprintf(stderr, "[WATCHDOG] Stack scan (values in-range for this module, RSP=0x%llX):\n",
+            (unsigned long long)ctx.Rsp);
+        uintptr_t *sp = (uintptr_t *)ctx.Rsp;
+        int printed = 0;
+        for (int i = 0; i < 4096 && printed < 60; i++) {
+            uintptr_t v = sp[i];
+            if (v >= base && v < base + 0x02000000) {
+                fprintf(stderr, "  [%4d] RVA=0x%llX\n", i, (unsigned long long)(v - base));
+                printed++;
+            }
+        }
+        fflush(stderr);
+    } else {
+        fprintf(stderr, "[WATCHDOG] GetThreadContext failed: %lu\n", GetLastError());
+        fflush(stderr);
+    }
+#endif
+
+    /* Diagnostics captured - terminate rather than resume, since resuming
+     * just continues the same infinite loop and we already have what we
+     * need. */
+    TerminateProcess(GetCurrentProcess(), (UINT)-2);
+    return 0;
+}
+
+static void watchdog_arm(void)
+{
+    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+        GetCurrentProcess(), &g_watchdog_main_thread,
+        0, FALSE, DUPLICATE_SAME_ACCESS);
+    _beginthreadex(NULL, 0, watchdog_thread_proc, NULL, 0, NULL);
+}
+
 /* ── WinMain ───────────────────────────────────────────────── */
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -274,6 +364,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     /* Step 7: Call the recompiled entry point */
     printf("\nStarting game...\n");
     fflush(stdout);
+
+    watchdog_arm();
 
     recomp_func_t entry = recomp_lookup(YOUR_GAME_ENTRY_POINT);
     if (!entry) {
