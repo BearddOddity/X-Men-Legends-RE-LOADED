@@ -361,6 +361,44 @@ void sub_001F84D0(void)
     g_seh_ebp = ebp; sub_001F8545(); return;
 }
 
+extern void sub_00202B60(void);
+
+/*
+ * sub_002085CA - append-to-dynamic-array. Same D3D-null pattern again:
+ * growth (sub_00202B60) routes through the D3D-dependent allocator
+ * selected via 0x5BC53C/0x5BC538 (see sub_001F84D0 above), which always
+ * fails, so the array's backing buffer (esi+8) never gets allocated. The
+ * generated version writes into it unconditionally and crashes.
+ *
+ * Only one caller (sub_002085A0's tail-call, recomp_0015.c) with a fixed,
+ * simple register/stack contract, so kept as a near-verbatim copy (same
+ * reasoning as sub_001F84D0) plus one added guard: skip the write (and
+ * the count increment) if the buffer is still null, rather than crashing.
+ */
+void sub_002085CA(void)
+{
+    if (!CMP_L(g_ebx, g_eax)) {
+        PUSH32(g_esp, g_ebx);
+        g_ecx = g_esi;
+        PUSH32(g_esp, 0);
+        sub_00202B60();
+    }
+
+    g_eax = MEM32(g_esi + 0xC);
+    g_ecx = MEM32(g_esi + 8);
+    g_edx = MEM32(g_esp + 0x10);
+    if (g_ecx != 0) {
+        MEM32(g_ecx + g_eax * 4) = g_edx;
+        g_eax = MEM32(g_esi + 0xC);
+        g_ecx = g_eax + 1;
+        MEM32(g_esi + 0xC) = g_ecx;
+    }
+    POP32(g_esp, g_edi);
+    POP32(g_esp, g_esi);
+    POP32(g_esp, g_ebx);
+    g_esp += 8;
+}
+
 /* ── ICALL failure logging ─────────────────────────────────── */
 
 /*

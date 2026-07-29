@@ -157,6 +157,26 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         fflush(stderr);
     }
 
+    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_INT_DIVIDE_BY_ZERO) {
+        fprintf(stderr, "[CRASH] Integer divide-by-zero at RIP=0x%llX (RVA=0x%llX)\n",
+            (unsigned long long)ep->ContextRecord->Rip,
+            (unsigned long long)(ep->ContextRecord->Rip - (uintptr_t)GetModuleHandleA(NULL)));
+        fprintf(stderr, "  Xbox regs: eax=0x%08X ecx=0x%08X edx=0x%08X esp=0x%08X\n",
+            g_eax, g_ecx, g_edx, g_esp);
+        fprintf(stderr, "  Xbox regs: ebx=0x%08X esi=0x%08X edi=0x%08X\n",
+            g_ebx, g_esi, g_edi);
+        {
+            uintptr_t *sp = (uintptr_t *)ep->ContextRecord->Rsp;
+            fprintf(stderr, "  Native stack (first 8 return addrs):\n");
+            for (int i = 0; i < 64 && sp[i]; i++) {
+                if (sp[i] >= 0x140000000ULL && sp[i] < 0x150000000ULL) {
+                    fprintf(stderr, "    [%d] 0x%llX\n", i, (unsigned long long)sp[i]);
+                }
+            }
+        }
+        fflush(stderr);
+    }
+
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -199,13 +219,14 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
     }
     fflush(stderr);
 
-    /* SuspendThread + GetThreadContext previously caused a secondary
-     * crash here (possibly a race - SuspendThread's effect can be
-     * delayed until the target returns to user mode, so the main thread
-     * may keep running briefly). The ICALL trace above needs none of
-     * that - it's a plain global read - so it's kept; the risky
-     * suspend/inspect path is disabled unless re-enabling it to dig
-     * further (see DEBUGGING_NOTES.md). */
+    /* SuspendThread + GetThreadContext causes a secondary crash here
+     * (confirmed twice now - possibly a race, since SuspendThread's
+     * effect can be delayed until the target returns to user mode, so
+     * the main thread may keep running briefly with a torn context).
+     * Disabled by default; the ICALL trace above needs none of this.
+     * Re-enable only to hunt a specific quiet hang, and expect a
+     * secondary access violation right after the RIP/stack dump prints -
+     * that's fine, the diagnostics print first. */
 #if 0
     SuspendThread(g_watchdog_main_thread);
 
