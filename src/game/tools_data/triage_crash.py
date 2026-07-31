@@ -55,12 +55,21 @@ FILL_PATTERNS = {
 
 def parse_crash(path):
     text = open(path, encoding="utf-8", errors="ignore").read()
-    m = re.search(
-        r"\[CRASH\][^\n]*RVA=0x([0-9A-Fa-f]+)\), fault addr=0x([0-9A-Fa-f]+) \((read|write)\)",
-        text)
+    m = re.search(r"\[CRASH\][^\n]*?fault addr=0x([0-9A-Fa-f]+) \((read|write)\)", text)
     if not m:
         return None
-    crash = {"rva": int(m.group(1), 16), "access": m.group(3)}
+    crash = {"access": m.group(2)}
+    # RVA is only present - and only meaningful - when RIP is inside our image.
+    rva = re.search(r"\[CRASH\][^\n]*RVA=0x([0-9A-Fa-f]+)\)", text)
+    crash["rva"] = int(rva.group(1), 16) if rva else None
+    ext = re.search(r"\[CRASH\][^\n]*NOT in this image - inside ([^;]+);", text)
+    crash["foreign_module"] = ext.group(1).strip() if ext else None
+    # The crash handler's own stack walk, which names the recompiled caller
+    # when the fault itself happened inside a system DLL.
+    tail = text.split("[CRASH]", 1)[1] if "[CRASH]" in text else ""
+    tail = tail.split("Native stack", 1)
+    crash["stack"] = ([int(x, 16) for x in re.findall(r"RVA 0x([0-9A-Fa-f]+)", tail[1])]
+                      if len(tail) > 1 else [])
     va = re.search(r"Xbox VA of fault: 0x([0-9A-Fa-f]+)", text)
     crash["fault_va"] = int(va.group(1), 16) if va else None
     regs = {}
@@ -193,7 +202,29 @@ def main(argv):
     print(f"access       : {crash['access']} at Xbox VA 0x{crash['fault_va']:08X}")
 
     syms = load_map()
-    sym = symbolise(syms, crash["rva"])
+
+    if crash["foreign_module"]:
+        print(f"faulted in   : {crash['foreign_module']}")
+        print("               (not our code - a bad pointer was handed to a")
+        print("                library routine; the caller is in the stack below)")
+        if crash["stack"]:
+            print("\ncallers (nearest first):")
+            seen = set()
+            for rva in crash["stack"]:
+                s = symbolise(syms, rva)
+                if s and s["name"].startswith("sub_") and s["name"] not in seen:
+                    seen.add(s["name"])
+                    print(f"  {s['name']} + 0x{s['offset']:X}")
+        print()
+        print("registers:")
+        for name, val in sorted(crash["regs"].items()):
+            print(f"  {name} = 0x{val:08X}   {classify(val)}")
+        if crash["fault_va"] is not None:
+            print(f"\nfault was at Xbox VA 0x{crash['fault_va']:08X}"
+                  f"  {classify(crash['fault_va'])}")
+        return 0
+
+    sym = symbolise(syms, crash["rva"]) if crash["rva"] is not None else None
     if sym:
         pct = f"{100.0 * sym['offset'] / sym['size']:.0f}%" if sym["size"] else "?"
         print(f"function     : {sym['name']} + 0x{sym['offset']:X}"

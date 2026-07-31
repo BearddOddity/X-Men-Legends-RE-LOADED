@@ -76,6 +76,79 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size);
 typedef void (*recomp_func_t)(void);
 extern recomp_func_t recomp_lookup(uint32_t xbox_va);
 
+/* ── Crash-report helpers ──────────────────────────────────── */
+
+/*
+ * Actual load range of this executable.
+ *
+ * ASLR means we are NOT at the PE header's preferred base of 0x140000000 -
+ * a 64-bit EXE typically lands near 0x7FF6'00000000. An earlier version of
+ * the stack walk below filtered frames against the preferred base, so it
+ * matched nothing and printed an empty stack on every crash, and the RVA in
+ * the crash line was computed unconditionally and so was meaningless
+ * whenever the fault was inside a system DLL.
+ */
+static uintptr_t g_mod_base;
+static uintptr_t g_mod_end;
+
+static void module_range(void)
+{
+    if (g_mod_base) return;
+    HMODULE m = GetModuleHandleA(NULL);
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)m;
+    IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)((uint8_t *)m + dos->e_lfanew);
+    g_mod_base = (uintptr_t)m;
+    g_mod_end = g_mod_base + nt->OptionalHeader.SizeOfImage;
+}
+
+static int in_module(uintptr_t a)
+{
+    module_range();
+    return a >= g_mod_base && a < g_mod_end;
+}
+
+/* Print RIP, and its RVA only when the RVA actually means something. When the
+ * fault is inside a system DLL - a bad pointer handed to memcpy, say - name
+ * that DLL instead, because an RVA against our base would be garbage. */
+static void print_rip(const char *what, uintptr_t rip)
+{
+    module_range();
+    if (in_module(rip)) {
+        fprintf(stderr, "%s RIP=0x%llX (RVA=0x%llX)",
+            what, (unsigned long long)rip,
+            (unsigned long long)(rip - g_mod_base));
+        return;
+    }
+    HMODULE owner = NULL;
+    char name[MAX_PATH] = "<unknown module>";
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR)rip, &owner) && owner) {
+        GetModuleFileNameA(owner, name, sizeof name);
+    }
+    fprintf(stderr, "%s RIP=0x%llX (NOT in this image - inside %s;"
+                    " the recompiled caller is in the stack below)",
+        what, (unsigned long long)rip, name);
+}
+
+/* Walk the raw stack for anything that looks like a return address into our
+ * own image. Resolve the printed RVAs against build/*.map, or let
+ * tools_data/triage_crash.py do it. */
+static void dump_native_stack(const uintptr_t *sp)
+{
+    module_range();
+    fprintf(stderr, "  Native stack (resolve RVAs against build/*.map):\n");
+    int found = 0;
+    for (int i = 0; i < 256; i++) {
+        if (!in_module(sp[i])) continue;
+        fprintf(stderr, "    [%3d] RVA 0x%llX\n", i,
+            (unsigned long long)(sp[i] - g_mod_base));
+        if (++found >= 16) break;
+    }
+    if (!found)
+        fprintf(stderr, "    (no frames into this image found)\n");
+}
+
 /* ── VEH crash handler ─────────────────────────────────────── */
 
 /*
@@ -120,9 +193,8 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
             return EXCEPTION_CONTINUE_SEARCH;
         }
 
-        fprintf(stderr, "[CRASH] Access violation at RIP=0x%llX (RVA=0x%llX), fault addr=0x%llX (%s)\n",
-            (unsigned long long)ep->ContextRecord->Rip,
-            (unsigned long long)(ep->ContextRecord->Rip - (uintptr_t)GetModuleHandleA(NULL)),
+        print_rip("[CRASH] Access violation at", ep->ContextRecord->Rip);
+        fprintf(stderr, ", fault addr=0x%llX (%s)\n",
             (unsigned long long)fault_addr,
             ep->ExceptionRecord->ExceptionInformation[0] ? "write" : "read");
         fprintf(stderr, "  Xbox regs: eax=0x%08X ecx=0x%08X edx=0x%08X esp=0x%08X\n",
@@ -145,35 +217,18 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
          */
 
         /* Print native stack return addresses for debugging */
-        {
-            uintptr_t *sp = (uintptr_t *)ep->ContextRecord->Rsp;
-            fprintf(stderr, "  Native stack (first 8 return addrs):\n");
-            for (int i = 0; i < 64 && sp[i]; i++) {
-                if (sp[i] >= 0x140000000ULL && sp[i] < 0x150000000ULL) {
-                    fprintf(stderr, "    [%d] 0x%llX\n", i, (unsigned long long)sp[i]);
-                }
-            }
-        }
+        dump_native_stack((const uintptr_t *)ep->ContextRecord->Rsp);
         fflush(stderr);
     }
 
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_INT_DIVIDE_BY_ZERO) {
-        fprintf(stderr, "[CRASH] Integer divide-by-zero at RIP=0x%llX (RVA=0x%llX)\n",
-            (unsigned long long)ep->ContextRecord->Rip,
-            (unsigned long long)(ep->ContextRecord->Rip - (uintptr_t)GetModuleHandleA(NULL)));
+        print_rip("[CRASH] Integer divide-by-zero at", ep->ContextRecord->Rip);
+        fprintf(stderr, "\n");
         fprintf(stderr, "  Xbox regs: eax=0x%08X ecx=0x%08X edx=0x%08X esp=0x%08X\n",
             g_eax, g_ecx, g_edx, g_esp);
         fprintf(stderr, "  Xbox regs: ebx=0x%08X esi=0x%08X edi=0x%08X\n",
             g_ebx, g_esi, g_edi);
-        {
-            uintptr_t *sp = (uintptr_t *)ep->ContextRecord->Rsp;
-            fprintf(stderr, "  Native stack (first 8 return addrs):\n");
-            for (int i = 0; i < 64 && sp[i]; i++) {
-                if (sp[i] >= 0x140000000ULL && sp[i] < 0x150000000ULL) {
-                    fprintf(stderr, "    [%d] 0x%llX\n", i, (unsigned long long)sp[i]);
-                }
-            }
-        }
+        dump_native_stack((const uintptr_t *)ep->ContextRecord->Rsp);
         fflush(stderr);
     }
 

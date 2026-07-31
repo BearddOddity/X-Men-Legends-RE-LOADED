@@ -2185,3 +2185,87 @@ raw RVAs, which had to be resolved against `build/*.map` by hand every time.
 `triage_crash.py --icall` now does that automatically and names the calling
 `sub_XXXXXXXX` for every failure in the log. It pointed at `sub_002235D0`
 immediately - no rebuild required, since the data was already being logged.
+
+---
+
+## The NULL-object crashes share one cause: missing static initializers
+
+### The crash handler was blind
+
+At 53 kernel calls the fault was reported inside
+`__dyn_tls_init_callback + 0x6D6BD6D3` - an offset that *changed between runs*,
+which is the tell that RIP was not in our image at all and the RVA was
+meaningless. The native stack printed zero frames.
+
+Two bugs in `veh_handler()`:
+
+- The stack walk filtered frames against `0x140000000..0x150000000`, the PE
+  header's **preferred** base. ASLR puts a 64-bit EXE near `0x7FF6'00000000`,
+  so nothing ever matched and the stack was empty on every crash this project
+  has ever had.
+- The RVA was computed unconditionally against our module base, producing
+  garbage whenever the fault was inside a system DLL.
+
+Fixed by reading `SizeOfImage` from the loaded NT headers for a real module
+range, naming the owning module via `GetModuleHandleExA` when RIP is foreign,
+and scanning 256 stack slots instead of stopping at the first NULL. The very
+next run said:
+
+```
+[CRASH] Access violation at RIP=0x7FF8414AC17B (NOT in this image - inside
+        C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll; ...)
+  sub_00342AA0 + 0x6AA      <- the XBE's own memcpy
+  sub_00204800 + 0x252
+  ...
+```
+
+`triage_crash.py` now resolves that stack too, so a foreign-module crash names
+its recompiled caller directly.
+
+### What it found
+
+`sub_00342AA0` is the XBE's `memcpy`, lifted from `rep movsd`. Probing all four
+of its copy sites caught the fault: `dst=4, src=8, dwords=0x3FFFFFFF` - a 4 GB
+copy from near-NULL, an array *erase* on an object whose storage pointer is 0.
+A second probe on the array-insert path in `sub_00204800` showed the same:
+
+```
+[PROBE] 204829 obj=00000000 base=00000000 count=00000001 idx=00000000 ...
+```
+
+`obj` is the object itself. It is NULL, so `count` and `base` were read out of
+the **fake TIB** at VA 0 and came back as plausible nonsense.
+
+### The common root cause
+
+Classifying every failed indirect call, **9 of 12** targets are real `.text`
+addresses that were never recompiled - not garbage pointers:
+
+```
+0x00227F50  0x00340CDE  0x00340D86  0x00343862  0x00346743
+0x00349FAB  0x0034AA86  0x0034BB3A  0x003556E0
+```
+
+Disassembling them shows clean function entries ending in `ret`, and several
+are unmistakably **C++ static-initializer thunks**:
+
+```
+0x0034AA86: push 0x34AA40 ; call 0x19F0FF ; mov [0x5D9C1C], eax ; xor eax, eax ; ret
+0x003556E0: mov ecx, 0x47C4F8 ; call 0x119E0 ; push 0x359D10 ; call 0x340DE6 ; ret
+```
+
+`RECOMP_ICALL_SAFE` sets `eax = 0` when it cannot resolve a target, so every one
+of these calls silently returns NULL. That is where the NULL objects come from.
+
+**The guards added one at a time in Phase A are all treating the same disease.**
+Global constructors are not running because the functions that run them were
+never recompiled. Phase A is now bottlenecked on Phase B (seed the missing
+functions and regenerate).
+
+### Tooling: `strip_probes.py`
+
+Probes are added and removed several times per session; leaving one behind
+slows every run and pollutes `stderr.txt`, and a greedy regex once ate an entire
+function in this tree. `strip_probes.py` removes anything marked `/* PROBE */`,
+is block-aware for multi-line probes, and refuses to write on an unterminated
+block. Dry-run by default.
