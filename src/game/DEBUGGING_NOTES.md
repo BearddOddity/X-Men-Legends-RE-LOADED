@@ -1234,3 +1234,275 @@ the "separate" function and the `ret 4` signature mismatch, both of
 which would have taken many more failed guesses to find otherwise. Worth
 reaching for this earlier whenever a fix attempt regresses more than
 once on the same site.
+
+## Found the `sub_0020E520` caller, via a scoped diagnostic probe - and it led to a much bigger, systemic bug
+
+Followed the plan from the previous section: added a **diagnostic-only**
+probe at the very top of `sub_0020E520` (no behavior change) that
+captures a native stack trace the first time `ecx` fails the plausible-
+heap-pointer check, deduping by distinct `ecx` value (up to 16) instead
+of firing only once, since the *first* implausible value turned out to
+be a harmless, unrelated `ecx=0` case - the actual crash value
+(`0xBF800000`) only showed up as the *second* distinct implausible
+value once dedup-by-value was in place.
+
+Resolving the captured RVAs against `build/*.map` (same technique as
+before) gave the direct caller: `sub_00234DF0`, which does
+
+```c
+loc_00234E04: ;
+    ecx = MEM32(esp + 8);
+    esp = esp + 4;
+    PUSH32(esp, ecx);
+    ecx = MEM32(0x5BC498);              /* <-- reads a global "cache slot" */
+    PUSH32(esp, 0); sub_0020E520();     /* passes it as "this" */
+```
+
+`0x5BC498` is a global living in `.data`'s zero-initialized BSS tail
+(confirmed via a small XBE-header/section-table parser - the address is
+past the section's raw file data, so on real hardware it starts at 0
+and must be *written* by a lazy-init/"magic static" pattern before
+first use). The write is supposed to come from:
+
+```
+sub_00234DF0 -> sub_00209650(0, 0x231820) -> [ICALL to sub_00231820]
+             -> sub_00231820 -> sub_002235D0(..., &0x5BC498, ...)
+             -> sub_002235D0 either reuses a cached object at *0x5BC498,
+                or constructs a fresh one and writes its pointer there
+```
+
+A second scoped diagnostic (tracing `sub_002235D0` specifically when its
+"cache slot" argument equals `0x5BC498`) never fired at all - meaning
+the whole `sub_00209650 -> sub_00231820 -> sub_002235D0` chain never
+actually ran before `sub_00234DF0` read the (still-zero-turned-garbage)
+global. So the bug wasn't in `sub_002235D0`; something upstream was
+silently skipping the entire initializer call.
+
+### Root cause: systemic lifter bug in indirect-call operand translation
+
+`sub_00209650`'s real x86 (confirmed via raw capstone disassembly) is:
+
+```
+push edi
+call dword ptr [esp + 8]      ; the actual initializer function pointer
+```
+
+The lifter translated this as:
+
+```c
+{ uint32_t _icall_esp = g_esp;
+PUSH32(esp, edi);
+PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(esp + 8), _icall_esp); /* indirect call */
+}
+```
+
+On real x86, `call [esp+8]` computes its memory operand **before** the
+CPU pushes the return address as part of executing the `call`. The
+lifter's `PUSH32(esp, 0)` models that implicit return-address push, but
+it runs (as a C statement) **before** `MEM32(esp + 8)` is evaluated -
+one push too early. So the operand ends up reading 4 bytes deeper on
+the simulated stack than it should: instead of the caller's pushed
+function pointer (`0x231820`), it reads whatever was sitting at that
+now-shifted slot - in this case a stale `0` (the *caller's own* dummy
+return-address placeholder from the "PUSH32(esp,0); sub_00209650();"
+call convention). ICALL to VA 0 predictably fails and falls back to
+`eax = 0` with no call made at all - which is exactly why the entire
+initializer chain silently never executed.
+
+This is a **general codegen bug**, not specific to this one call site:
+any `call [esp+N]` gets mistranslated the same way, because the bug is
+purely about *statement order* in the generated C, independent of what
+`N` is or what else is going on. Confirmed by grepping for the shape
+`RECOMP_ICALL_SAFE(MEM32(esp + ...)` across `src/recomp/gen/*.c`: **37
+occurrences across 10 files**, all with the identical
+`PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(esp + N), _icall_esp);` shape.
+
+**Fixed at the source** in `tools/recomp/lifter.py`'s `_lift_call()` -
+indirect-call targets are now captured into a temp *before* the dummy
+push:
+
+```c
+uint32_t _icall_target = MEM32(esp + N);
+PUSH32(esp, 0); RECOMP_ICALL_SAFE(_icall_target, _icall_esp);
+```
+
+This is safe for register/immediate targets too (evaluating them a
+statement earlier doesn't change their value), so the lifter now always
+emits this shape for indirect calls rather than special-casing esp-
+relative operands.
+
+**Reapplied to the already-generated files** via a new script,
+`tools_data/fix_icall_esp_operand.py` (same reusable-script pattern as
+`fix_dropped_tailcalls.py` - rerun after any pipeline regeneration in
+case it picks up an older `lifter.py`). It patched all 37 sites
+mechanically; no manual review needed since the transformation is a
+pure, unconditional statement reordering.
+
+### Result: this is real progress, even though the raw kernel-call count regressed (61 -> 39)
+
+Same situation as the earlier `sub_0011EAAC` dropped-tail-call fix: the
+fix itself is verified correct (proven via disassembly comparison, not
+guesswork), but *completing* previously-silently-skipped initializer
+calls means a large amount of code that never used to run now runs -
+and that code has its own, previously-unreached bugs. `sub_00209650 ->
+sub_002235D0` (the "get-or-construct cached singleton" function
+documented earlier in this file, with its own existing manual guard for
+a different fake-cached-pointer issue) now genuinely executes, calls
+further into `sub_00216FD0`, and crashes there:
+
+```
+edi = MEM32(esp + 0x18);   /* the caller's pushed argument */
+...
+eax = MEM32(edi + 0x34);   /* faults: edi = 0xCCCCCCCC */
+```
+
+The `0xCCCCCCCC` argument traces back one level further, to
+`sub_002235D0` pushing the **return value of a vtable ICALL**
+(`RECOMP_ICALL_SAFE(MEM32(esp + 0x128), ...)`, one of the 37 now-fixed
+sites) directly as `sub_00216FD0`'s argument. That ICALL is resolving
+and calling a real function now (previously it may not have mattered),
+and whatever it calls is itself returning `0xCCCCCCCC` - i.e. reading
+something uninitialized several objects deep into this same lazy-init
+chain. **Not yet investigated further** - this is fresh, previously
+unreachable territory, not a regression caused by the ICALL-operand fix
+itself. Next step: trace what real function `MEM32(esp+0x128)` resolves
+to at this call (add a scoped one-shot diagnostic the same way as
+`sub_0020E520`'s, printing the resolved VA and return value), then walk
+into *that* function's real x86 to find what it's supposed to read
+before it's actually been constructed.
+
+`smoke_baseline.json`'s `min_kernel_calls` was **not** lowered to 39 -
+per the `sub_0011EAAC` precedent, a proven-correct fix that surfaces a
+new downstream bug is not a regression to codify into the baseline, and
+kernel-call count should climb back past 61 once this next bug is
+fixed.
+
+## Second dropped-tail-call site found and fixed: `sub_002085B3`
+
+Followed the `sub_00216FD0` crash (`edi = MEM32(esp+0x18)` reading
+`0xCCCCCCCC`, the caller's argument) with a diagnostic-only probe at
+its entry (dedup-by-exact-value, same style as `sub_0020E520`'s
+probe). Traced the caller: `sub_002235D0`'s "get-or-construct" logic
+calls `sub_00216FD0`, which (on the "already has a linked resource"
+branch) calls `sub_002085A0`. That function pushes `ebx`/`esi`/`edi`
+then branches to either `sub_002085B3` or (its own fallthrough)
+`sub_002085CA` - **both** are the *next* function's start address
+exactly matching *this* function's own end address (same signature as
+the 50-site bug already documented above), i.e. another instance of
+the systemic dropped-fallthrough lifter bug. `sub_002085CA` had
+already been caught (it's manually overridden in `recomp_manual.c` and
+correctly pops `edi`/`esi`/`ebx` + `esp+=8` at its end, matching the
+disabled auto-generated version exactly). **`sub_002085B3` had not** -
+it ends on `eax = eax >> 2;` with nothing after, not a bare `PUSH32`,
+which is why `fix_dropped_tailcalls.py`'s regex (which only matches a
+trailing `PUSH32(esp, ...)`) never caught it.
+
+Fixed the same way as the other 50: appended `sub_002085CA(); return;`
+after the truncated body (verified via address continuity: this
+function's "Original ... - 0x002085CA" end exactly equals
+`sub_002085CA`'s "Original: 0x002085CA - ..." start). Confirmed via
+the diagnostic probe that this genuinely fixes the `sub_00216FD0`
+crash - re-running afterward, execution goes one level deeper (into
+`sub_002085CA` itself) instead of faulting in `sub_00216FD0`.
+
+**Lesson for any future re-run of `fix_dropped_tailcalls.py`**: its
+`DROP_PAT` regex only matches functions that end on a dangling
+`PUSH32(esp, ...)` line. A dropped fallthrough can end on *any*
+statement (here, a `shr`/`>>`) - the reliable signal is address
+continuity (`this function's own "Original: ... - END"` exactly equals
+`next function's "Original: START - ..."`), not the trailing statement
+shape. Worth extending the script to flag *every* address-continuous
+function pair for manual review, not just ones ending in a bare push.
+
+## Third bug in the same chain: not yet found, deep multi-hop corruption
+
+With `sub_002085B3` fixed, the exact same boot sequence now reaches
+one level deeper before crashing - **still 39 kernel calls**, still
+segfaults, but now inside `sub_002085CA` itself
+(`MEM32(g_ecx + g_eax * 4) = g_edx;`, both `g_ecx` and `g_eax` are
+`0xCCCCCCCC`). Crash regs are consistently reproducible:
+```
+eax=0xCCCCCCCC ecx=0xCCCCCCCC edx=0x00F81388 esp=0x00F7FBD4
+ebx=0xCCCCCCCC esi=0x0013D370 edi=0xCCCCCCCC
+```
+`edx=0x00F81388` is a *real* heap pointer (matches the freshly
+allocated object confirmed below), so not everything is corrupted -
+only `eax`/`ebx`/`ecx`/`edi` (all `0xCCCCCCCC`) and `esi`
+(`0x0013D370`, a *code* address - a real function, `sub_0013D370`,
+confirmed to exist).
+
+**Call chain** (confirmed via stack-trace probes + `build/*.map`
+resolution): `sub_00239E50` (legit one-time global initializer, guards
+itself via a 64-bit call counter at `0x5BC510`/`0x5BC514`) ->
+`sub_00236500` -> ... -> `sub_002282E0` -> `sub_00209650` ->
+`sub_00227E00` -> `sub_002235D0` (class/type "get-or-construct"
+registration, slot = `0x3FA818`, name = NULL) -> `sub_00216FD0` ->
+`sub_002085A0` -> `sub_002085B3` -> `sub_002085CA` (crash).
+
+**Ruled out via direct diagnostic probes** (add-print/rebuild/run,
+each removed after use - none left in the tree):
+- `sub_002235D0`'s construction path: `eax=0`, `edi(name)=0` at the
+  `sub_002226E0()` call site - a clean, deliberate NULL name, not
+  uninitialized garbage.
+- `sub_002226E0` (called via `sub_00222708`, since `MEM32(0x5BC508)`'s
+  flag byte was `0`, i.e. genuinely first-time construction): its own
+  allocator (`sub_001F7E00`) routes through the well-known "D3D-null
+  allocator" (see `sub_001F84D0`/`sub_001F8890`/`sub_002085CA`
+  elsewhere in this doc - always fails, no real D3D hardware) and
+  correctly falls back to `sub_003437F3`, which **succeeds**: returned
+  `esi=0x00F81388` - a valid, in-range heap pointer.
+- `sub_00222708` finishes constructing that object (sets vtable
+  `0x3F5D88`, calls `sub_00216EE0`/`sub_00222600`, two vtable ICALLs)
+  and returns it intact.
+- Back in `sub_002235D0`, `esi = MEM32(ebx)` = `0x00F81388` (confirmed
+  valid) at `loc_00223698`. Manually re-read *every* line from there
+  through the `sub_00216FD0()` call site (`loc_002236EC`) across all
+  branches (`loc_00223825`/`loc_00223821`/`loc_0022379A`/
+  `loc_002236F7` included) - `esi` is never reassigned anywhere in
+  that stretch, so it should still be `0x00F81388` when pushed as
+  `sub_00216FD0`'s "this".
+- Manually re-verified `sub_00209650`'s `esi`/`ebx` push/pop discipline
+  line by line (it's called twice, nested, in this chain) - every path
+  through it (early-exit at `loc_002096A8`, and the
+  `loc_0020968E`/`loc_00209694` path) correctly balances its
+  `PUSH32(esp,ebx)`/`PUSH32(esp,esi)` at `loc_0020965B` against
+  `POP32(esp,esi)`/`POP32(esp,ebx)` at `loc_00209694` before returning.
+  No missing pop found here despite the recursive/nested call shape
+  being the prime suspect.
+
+**Where the trail was left off**: `0x0013D370` (a real function
+address) and `0x0015FDF0` showed up repeatedly and *alternating* in
+the `[ICALL] Recent ICALL targets` log around this same point in
+execution - a strong signature of `sub_00209650`'s own array-walk loop
+(`for esi in 0..ebx: call [MEM32(edi)+esi*4]`, `loc_00209666`) calling
+through a two-entry callback array containing these two addresses. Not
+yet confirmed whether `esi`/`edi` genuinely end up holding one of
+these values (as opposed to a return value from calling them) by the
+time `sub_00216FD0` receives them, or through which of its two callers
+(`sub_002235D0` vs. `sub_0022FCCB`, both call `sub_00216FD0` - only the
+`sub_002235D0` path has been traced so far).
+
+**Next steps for whoever picks this up**:
+1. Add a probe directly in `sub_002235D0` right at
+   `PUSH32(esp, eax); ecx = esi; PUSH32(esp, 0); sub_00216FD0();`
+   (`loc_002236EC`) printing `esi` and the ICALL-returned `eax`
+   *immediately* before the call - this pins down definitively whether
+   the corruption happens before or after this exact point, closing
+   the gap between the confirmed-valid `esi=0x00F81388` at
+   `loc_00223698` and the confirmed-garbage `esi=0x0013D370` at the
+   crash.
+2. If `esi` is still valid there, the bug is inside `sub_00216FD0` or
+   `sub_002085A0` themselves (re-disassemble both against raw x86 -
+   the `sub_002085A0`/`sub_002085B3`/`sub_002085CA` split already
+   proved the C model wasn't trustworthy here at least once this
+   session).
+3. If `esi` is *already* wrong at `loc_002236EC`, the two vtable ICALLs
+   at `loc_002236DC`/`loc_002236E3` (`MEM32(esp+0x124)` /
+   `MEM32(esp+0x128)`) are the next suspects - check what real
+   functions they resolve to and whether either is `sub_0013D370` or
+   `sub_0015FDF0` directly.
+4. Do **not** re-guess from the lifted C alone if a second attempt
+   regresses - use the raw-disassembly technique (see the dedicated
+   section above) on `sub_00216FD0` and `sub_002085A0` next, the same
+   way it definitively resolved the `sub_001F7E00` argument-offset
+   question earlier in this investigation.

@@ -1,0 +1,890 @@
+[
+ {
+  "addr": 3517904,
+  "bytes_to_next_known": 144,
+  "found_ret": true,
+  "size_to_ret": 113,
+  "n_insns": 36,
+  "n_calls": 1,
+  "call_targets": [
+   "0x35ca5e"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3518048,
+  "bytes_to_next_known": 48,
+  "found_ret": true,
+  "size_to_ret": 42,
+  "n_insns": 13,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3518096,
+  "bytes_to_next_known": 416,
+  "found_ret": true,
+  "size_to_ret": 280,
+  "n_insns": 83,
+  "n_calls": 2,
+  "call_targets": [
+   "0x35dac0",
+   "0x35d670"
+  ],
+  "n_branches": 7,
+  "n_fpu_sse": 36,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3518512,
+  "bytes_to_next_known": 16,
+  "found_ret": true,
+  "size_to_ret": 15,
+  "n_insns": 5,
+  "n_calls": 1,
+  "call_targets": [
+   "0x35fde0"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3518528,
+  "bytes_to_next_known": 224,
+  "found_ret": true,
+  "size_to_ret": 36,
+  "n_insns": 10,
+  "n_calls": 1,
+  "call_targets": [
+   "dword ptr [0x3c6d08]"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": null
+ },
+ {
+  "addr": 3518752,
+  "bytes_to_next_known": 544,
+  "found_ret": true,
+  "size_to_ret": 8,
+  "n_insns": 3,
+  "n_calls": 1,
+  "call_targets": [
+   "0x35fd20"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": null
+ },
+ {
+  "addr": 3519296,
+  "bytes_to_next_known": 176,
+  "found_ret": true,
+  "size_to_ret": 73,
+  "n_insns": 28,
+  "n_calls": 5,
+  "call_targets": [
+   "0x3600f0",
+   "0x362820",
+   "0x3604a0",
+   "0x3605d0",
+   "0x3604a0"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3519472,
+  "bytes_to_next_known": 640,
+  "found_ret": true,
+  "size_to_ret": 628,
+  "n_insns": 188,
+  "n_calls": 11,
+  "call_targets": [
+   "0x361320",
+   "0x3614b0",
+   "0x3614b0",
+   "0x361320",
+   "0x3619a0",
+   "0x35b180",
+   "0x360090",
+   "0x35e6c0"
+  ],
+  "n_branches": 19,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3520112,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 40,
+  "n_insns": 12,
+  "n_calls": 1,
+  "call_targets": [
+   "0x361360"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3520192,
+  "bytes_to_next_known": 816,
+  "found_ret": true,
+  "size_to_ret": 791,
+  "n_insns": 256,
+  "n_calls": 6,
+  "call_targets": [
+   "0x35b180",
+   "0x35b180",
+   "0x3617f0",
+   "0x35b1f0",
+   "0x360090",
+   "0x360090"
+  ],
+  "n_branches": 28,
+  "n_fpu_sse": 0,
+  "ret_imm": 20
+ },
+ {
+  "addr": 3521008,
+  "bytes_to_next_known": 32,
+  "found_ret": true,
+  "size_to_ret": 20,
+  "n_insns": 8,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": null
+ },
+ {
+  "addr": 3521040,
+  "bytes_to_next_known": 560,
+  "found_ret": true,
+  "size_to_ret": 546,
+  "n_insns": 171,
+  "n_calls": 8,
+  "call_targets": [
+   "0x361690",
+   "0x361690",
+   "0x361690",
+   "0x361690",
+   "0x35c440",
+   "0x35dac0",
+   "0x360090",
+   "0x35e4d0"
+  ],
+  "n_branches": 15,
+  "n_fpu_sse": 18,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3521600,
+  "bytes_to_next_known": 704,
+  "found_ret": true,
+  "size_to_ret": 83,
+  "n_insns": 29,
+  "n_calls": 1,
+  "call_targets": [
+   "0x1a1ddb"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3522304,
+  "bytes_to_next_known": 352,
+  "found_ret": true,
+  "size_to_ret": 254,
+  "n_insns": 72,
+  "n_calls": 1,
+  "call_targets": [
+   "0x35bc40"
+  ],
+  "n_branches": 8,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3522656,
+  "bytes_to_next_known": 432,
+  "found_ret": true,
+  "size_to_ret": 153,
+  "n_insns": 45,
+  "n_calls": 2,
+  "call_targets": [
+   "0x361240",
+   "0x360090"
+  ],
+  "n_branches": 4,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3523088,
+  "bytes_to_next_known": 144,
+  "found_ret": true,
+  "size_to_ret": 141,
+  "n_insns": 48,
+  "n_calls": 2,
+  "call_targets": [
+   "0x361240",
+   "0x360090"
+  ],
+  "n_branches": 4,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3523232,
+  "bytes_to_next_known": 3360,
+  "found_ret": true,
+  "size_to_ret": 96,
+  "n_insns": 28,
+  "n_calls": 1,
+  "call_targets": [
+   "0x361240"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3526592,
+  "bytes_to_next_known": 320,
+  "found_ret": true,
+  "size_to_ret": 108,
+  "n_insns": 41,
+  "n_calls": 2,
+  "call_targets": [
+   "0x35cec0",
+   "0x1a1ddb"
+  ],
+  "n_branches": 4,
+  "n_fpu_sse": 0,
+  "ret_imm": 16
+ },
+ {
+  "addr": 3526912,
+  "bytes_to_next_known": 560,
+  "found_ret": true,
+  "size_to_ret": 84,
+  "n_insns": 25,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": null
+ },
+ {
+  "addr": 3527472,
+  "bytes_to_next_known": 48,
+  "found_ret": true,
+  "size_to_ret": 45,
+  "n_insns": 17,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3527520,
+  "bytes_to_next_known": 752,
+  "found_ret": true,
+  "size_to_ret": 126,
+  "n_insns": 36,
+  "n_calls": 1,
+  "call_targets": [
+   "0x361240"
+  ],
+  "n_branches": 4,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3528272,
+  "bytes_to_next_known": 272,
+  "found_ret": true,
+  "size_to_ret": 27,
+  "n_insns": 10,
+  "n_calls": 1,
+  "call_targets": [
+   "0x1a1e7b"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3528544,
+  "bytes_to_next_known": 416,
+  "found_ret": true,
+  "size_to_ret": 70,
+  "n_insns": 30,
+  "n_calls": 2,
+  "call_targets": [
+   "0x35d3f0",
+   "0x35d450"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3528960,
+  "bytes_to_next_known": 832,
+  "found_ret": true,
+  "size_to_ret": 28,
+  "n_insns": 8,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": null
+ },
+ {
+  "addr": 3529792,
+  "bytes_to_next_known": 64,
+  "found_ret": true,
+  "size_to_ret": 53,
+  "n_insns": 15,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3529856,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 77,
+  "n_insns": 24,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3529936,
+  "bytes_to_next_known": 176,
+  "found_ret": true,
+  "size_to_ret": 51,
+  "n_insns": 16,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3530112,
+  "bytes_to_next_known": 64,
+  "found_ret": true,
+  "size_to_ret": 57,
+  "n_insns": 15,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3530176,
+  "bytes_to_next_known": 96,
+  "found_ret": true,
+  "size_to_ret": 68,
+  "n_insns": 22,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3530272,
+  "bytes_to_next_known": 240,
+  "found_ret": true,
+  "size_to_ret": 101,
+  "n_insns": 30,
+  "n_calls": 2,
+  "call_targets": [
+   "0x361690",
+   "0x360090"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 5,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3530512,
+  "bytes_to_next_known": 224,
+  "found_ret": true,
+  "size_to_ret": 116,
+  "n_insns": 41,
+  "n_calls": 5,
+  "call_targets": [
+   "0x35d930",
+   "0x35d930",
+   "0x35d930",
+   "0x35d930",
+   "0x35d930"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 6,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3530736,
+  "bytes_to_next_known": 384,
+  "found_ret": true,
+  "size_to_ret": 68,
+  "n_insns": 20,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3531120,
+  "bytes_to_next_known": 272,
+  "found_ret": true,
+  "size_to_ret": 261,
+  "n_insns": 78,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 7,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3531392,
+  "bytes_to_next_known": 112,
+  "found_ret": true,
+  "size_to_ret": 99,
+  "n_insns": 35,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3531504,
+  "bytes_to_next_known": 64,
+  "found_ret": true,
+  "size_to_ret": 61,
+  "n_insns": 19,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3531568,
+  "bytes_to_next_known": 2080,
+  "found_ret": true,
+  "size_to_ret": 57,
+  "n_insns": 17,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3533648,
+  "bytes_to_next_known": 144,
+  "found_ret": true,
+  "size_to_ret": 143,
+  "n_insns": 43,
+  "n_calls": 6,
+  "call_targets": [
+   "0x360090",
+   "0x35dac0",
+   "0x35d670",
+   "0x360090",
+   "0x35e6c0",
+   "0x35e4d0"
+  ],
+  "n_branches": 6,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3533792,
+  "bytes_to_next_known": 160,
+  "found_ret": true,
+  "size_to_ret": 130,
+  "n_insns": 38,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 7,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3533952,
+  "bytes_to_next_known": 9952,
+  "found_ret": true,
+  "size_to_ret": 111,
+  "n_insns": 32,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 5,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3543904,
+  "bytes_to_next_known": 64,
+  "found_ret": true,
+  "size_to_ret": 55,
+  "n_insns": 20,
+  "n_calls": 1,
+  "call_targets": [
+   "0x361360"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3543968,
+  "bytes_to_next_known": 448,
+  "found_ret": true,
+  "size_to_ret": 66,
+  "n_insns": 23,
+  "n_calls": 2,
+  "call_targets": [
+   "0x3613a0",
+   "0x361240"
+  ],
+  "n_branches": 4,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3544416,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 55,
+  "n_insns": 19,
+  "n_calls": 3,
+  "call_targets": [
+   "0x1a1ddb",
+   "0x1a1ddb",
+   "0x1a1e7b"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3544496,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 75,
+  "n_insns": 24,
+  "n_calls": 2,
+  "call_targets": [
+   "0x360090",
+   "0x360190"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3544576,
+  "bytes_to_next_known": 96,
+  "found_ret": true,
+  "size_to_ret": 23,
+  "n_insns": 9,
+  "n_calls": 1,
+  "call_targets": [
+   "0x1a1ddb"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3544672,
+  "bytes_to_next_known": 3536,
+  "found_ret": true,
+  "size_to_ret": 30,
+  "n_insns": 10,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360190"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3548208,
+  "bytes_to_next_known": 13632,
+  "found_ret": true,
+  "size_to_ret": 927,
+  "n_insns": 264,
+  "n_calls": 10,
+  "call_targets": [
+   "0x361880",
+   "0x360090",
+   "0x361690",
+   "0x361690",
+   "0x361690",
+   "0x361690",
+   "0x361690",
+   "0x361690"
+  ],
+  "n_branches": 22,
+  "n_fpu_sse": 36,
+  "ret_imm": 24
+ },
+ {
+  "addr": 3561840,
+  "bytes_to_next_known": 8256,
+  "found_ret": true,
+  "size_to_ret": 20,
+  "n_insns": 7,
+  "n_calls": 1,
+  "call_targets": [
+   "0x361b60"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3570096,
+  "bytes_to_next_known": 480,
+  "found_ret": true,
+  "size_to_ret": 311,
+  "n_insns": 103,
+  "n_calls": 4,
+  "call_targets": [
+   "0x365710",
+   "0x360090",
+   "0x3600a0",
+   "0x35fd20"
+  ],
+  "n_branches": 7,
+  "n_fpu_sse": 0,
+  "ret_imm": 20
+ },
+ {
+  "addr": 3570576,
+  "bytes_to_next_known": 832,
+  "found_ret": true,
+  "size_to_ret": 599,
+  "n_insns": 192,
+  "n_calls": 4,
+  "call_targets": [
+   "0x365570",
+   "0x3600a0",
+   "0x3600a0",
+   "0x35fd20"
+  ],
+  "n_branches": 7,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3571408,
+  "bytes_to_next_known": 96,
+  "found_ret": true,
+  "size_to_ret": 16,
+  "n_insns": 5,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3571504,
+  "bytes_to_next_known": 192,
+  "found_ret": true,
+  "size_to_ret": 16,
+  "n_insns": 5,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3571696,
+  "bytes_to_next_known": 96,
+  "found_ret": true,
+  "size_to_ret": 16,
+  "n_insns": 5,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 20
+ },
+ {
+  "addr": 3571792,
+  "bytes_to_next_known": 2960,
+  "found_ret": true,
+  "size_to_ret": 16,
+  "n_insns": 5,
+  "n_calls": 0,
+  "call_targets": [],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 24
+ },
+ {
+  "addr": 3574752,
+  "bytes_to_next_known": 624,
+  "found_ret": true,
+  "size_to_ret": 229,
+  "n_insns": 71,
+  "n_calls": 9,
+  "call_targets": [
+   "0x369840",
+   "0x35fd20",
+   "0x35fde0",
+   "0x3688a0",
+   "0x35fd20",
+   "0x35fde0",
+   "0x368a90",
+   "0x368ba0"
+  ],
+  "n_branches": 12,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3575376,
+  "bytes_to_next_known": 96,
+  "found_ret": true,
+  "size_to_ret": 74,
+  "n_insns": 29,
+  "n_calls": 2,
+  "call_targets": [
+   "0x361c20",
+   "0x365850"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3575472,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 77,
+  "n_insns": 30,
+  "n_calls": 2,
+  "call_targets": [
+   "0x361c20",
+   "0x365850"
+  ],
+  "n_branches": 0,
+  "n_fpu_sse": 0,
+  "ret_imm": 12
+ },
+ {
+  "addr": 3575552,
+  "bytes_to_next_known": 80,
+  "found_ret": true,
+  "size_to_ret": 27,
+  "n_insns": 7,
+  "n_calls": 1,
+  "call_targets": [
+   "0x1a1ddb"
+  ],
+  "n_branches": 1,
+  "n_fpu_sse": 0,
+  "ret_imm": 8
+ },
+ {
+  "addr": 3575632,
+  "bytes_to_next_known": 912,
+  "found_ret": true,
+  "size_to_ret": 29,
+  "n_insns": 10,
+  "n_calls": 1,
+  "call_targets": [
+   "0x1a1e7b"
+  ],
+  "n_branches": 2,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3576544,
+  "bytes_to_next_known": 512,
+  "found_ret": true,
+  "size_to_ret": 128,
+  "n_insns": 35,
+  "n_calls": 3,
+  "call_targets": [
+   "0x35ddc0",
+   "0x360090",
+   "0x35e460"
+  ],
+  "n_branches": 3,
+  "n_fpu_sse": 0,
+  "ret_imm": 4
+ },
+ {
+  "addr": 3577056,
+  "bytes_to_next_known": 24072,
+  "found_ret": true,
+  "size_to_ret": 711,
+  "n_insns": 189,
+  "n_calls": 1,
+  "call_targets": [
+   "0x360090"
+  ],
+  "n_branches": 22,
+  "n_fpu_sse": 1,
+  "ret_imm": 12
+ }
+]

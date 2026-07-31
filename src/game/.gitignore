@@ -60,3 +60,10 @@ configure_log.txt
 # OS
 Thumbs.db
 .DS_Store
+
+# Ad-hoc debug run captures (stdout/stderr dumps from diagnostic probe runs)
+run_*.txt
+stdout.txt
+stderr.txt
+xbox_kernel.log
+build_full.log

@@ -1196,7 +1196,14 @@ class Lifter:
         elif len(ops) >= 1:
             target = _fmt_operand_read(ops[0])
             # Mark indirect calls for post-processing by _fixup_icall_esp_save
-            return [f"PUSH32(esp, 0); RECOMP_ICALL_SAFE({target}, _icall_esp); /* indirect call */"]
+            # Real x86 `call [esp+N]` computes the memory operand BEFORE
+            # pushing the return address. The dummy PUSH32(esp, 0) below
+            # models that push, so if we evaluated `target` after it, any
+            # esp-relative operand (e.g. MEM32(esp+N)) would read 4 bytes
+            # too deep. Capture the target into a temp first so it's read
+            # with the pre-push esp, matching real hardware timing.
+            return [f"uint32_t _icall_target = {target}; "
+                    f"PUSH32(esp, 0); RECOMP_ICALL_SAFE(_icall_target, _icall_esp); /* indirect call */"]
         return ["/* call: no target */"]
 
     def _lift_ret(self, insn, ops):
