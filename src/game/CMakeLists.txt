@@ -53,6 +53,12 @@ file(GLOB RECOMP_GEN_SOURCES CONFIGURE_DEPENDS "src/recomp/gen/*.c")
 set(GAME_SOURCES
     src/main.c
     src/recomp_manual.c
+    # Native replacement for the Xbox D3D8 entry points. The recomp pipeline
+    # never disassembles the D3D section, so without this those calls fall
+    # through to empty stubs that leak simulated stack and return stale
+    # registers. Generated once by tools_data/gen_d3d8_shim.py, then
+    # hand-maintained as real rendering is filled in.
+    src/d3d8_shim.c
     # Add game-specific sources here, e.g.:
     # src/asset_loader.c
     # src/custom_renderer.c
