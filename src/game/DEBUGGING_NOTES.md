@@ -1671,3 +1671,47 @@ map RVA `0x962DB8`.
 This is a **workaround, not a root fix.** The real question - what should
 initialise `+0x394` on the object at `0x5BC508` - is still open, and is likely
 one of the inert D3D paths. Revisit once the D3D shim does real work.
+
+### Generator bug: `ret N` detection walked off the end of the function
+
+`gen_d3d8_shim.py`'s first `stdcall_bytes()` only trusted a `ret` once every
+forward branch target had been passed. That skips the *fast-path* `ret` in a
+function shaped like `sub_0035D900`:
+
+```
+jae  0x35d91c     ; slow path: flush pushbuffer, then retry
+...
+ret               ; <- fast path, pops 0 - SKIPPED by the old rule
+0x35d91c: push edx / push ecx / call flush / pop / jmp back to entry
+int3 ...          ; padding: real end of function
+```
+
+Having skipped it, the sweep ran through the padding and picked up a `ret 8`
+belonging to a **later, unrelated function** - producing exactly the wrong-stack-
+cleanup bug this shim exists to eliminate. `sub_0035D900` is called 36 times, so
+that was 288 bytes of spurious pops.
+
+Fixed by collecting *every* `ret` in the function and terminating on an int3
+padding run (or on a terminator with no forward branch past it), warning if the
+immediates disagree. Corrected 3 of 67: `0x0035D100` and `0x0035D160` (4 -> 0)
+and `0x0035D900` (8 -> 0).
+
+Worth remembering generally: "scan forward until a `ret`" is not a safe way to
+find a function's stack cleanup in optimised code. Padding runs are the reliable
+end-of-function marker here.
+
+### Key finding: the game reaches NO D3D call before the current crash
+
+With per-call tracing compiled into the shim (`D3D8_SHIM_TRACE`), a full run to
+the crash logs **zero** D3D entry-point calls. Verified the mechanism is live:
+trace enabled, all 67 stubs disabled so the shim wins at link, no duplicate
+definitions.
+
+This invalidates the working theory that the current blocker is D3D-null
+related. The crash happens in ordinary engine code *before graphics
+initialisation begins*, so making the shim return real objects cannot help it -
+those functions are never reached.
+
+The shim work is still necessary (and fixed two real corruption classes), but it
+is **not** on the critical path to the next boot milestone. Debugging effort
+should go to the engine-side crash at map RVA `0x962DB8` instead.

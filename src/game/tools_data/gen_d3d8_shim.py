@@ -99,10 +99,28 @@ def stdcall_bytes(data, secs, va, limit=0x1200):
     """
     Determine a function's __stdcall argument cleanup by finding its `ret N`.
 
-    Linear sweep from the entry point, tracking forward branch targets so we
-    don't stop at a `ret` that belongs to an earlier basic block than a branch
-    still pending. Returns N (bytes of args the callee pops), or None if no
-    `ret` was found within `limit` bytes.
+    Collect EVERY `ret` in the function and return their (agreed) immediate.
+
+    Collecting rather than stopping at the first terminal `ret` matters. A
+    function often has an early `ret` that a forward conditional branch jumps
+    past, e.g. sub_0035D900:
+
+        jae  0x35d91c     ; slow path: flush, then retry
+        ...
+        ret               ; <- fast path returns here, pops 0
+      0x35d91c:
+        push edx / push ecx / call flush / pop / jmp back to entry
+        int3 ...          ; padding: function really ends here
+
+    An algorithm that only trusts a `ret` once every forward branch target has
+    been passed skips that `ret`, walks off the end of the function through the
+    padding, and picks up a `ret N` belonging to some *later* function. That
+    silently produces the wrong stack cleanup - the exact class of bug this
+    shim exists to fix - so it must not be guessed at.
+
+    Termination: stop on a run of int3 padding (the real function boundary), or
+    on a terminator (`ret`/unconditional `jmp`) once no forward branch reaches
+    past it. Returns N, or None if nothing conclusive was found.
     """
     try:
         import capstone
@@ -116,23 +134,43 @@ def stdcall_bytes(data, secs, va, limit=0x1200):
         return None
     off = sec["raw"] + delta
     md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+
+    rets = []
     furthest_branch = va
+    padding_run = 0
     for insn in md.disasm(data[off:off + limit], va):
+        # A run of int3 is inter-function padding - the function ended.
+        if insn.mnemonic == "int3":
+            padding_run += 1
+            if padding_run >= 2:
+                break
+            continue
+        padding_run = 0
+
         if insn.mnemonic.startswith("j") and insn.op_str.startswith("0x"):
             try:
                 furthest_branch = max(furthest_branch, int(insn.op_str, 16))
             except ValueError:
                 pass
+
         if insn.mnemonic == "ret":
-            # Only trust this ret if no forward branch jumps past it.
+            try:
+                rets.append(int(insn.op_str, 16) if insn.op_str else 0)
+            except ValueError:
+                return None
             if insn.address >= furthest_branch:
-                if insn.op_str:
-                    try:
-                        return int(insn.op_str, 16)
-                    except ValueError:
-                        return None
-                return 0
-    return None
+                break
+        elif insn.mnemonic == "jmp" and insn.address >= furthest_branch:
+            # Unconditional jump with nothing branching past it: tail call or
+            # loop back to entry. Either way this path leaves the function.
+            break
+
+    if not rets:
+        return None
+    if len(set(rets)) > 1:
+        # Genuinely ambiguous - surface it rather than picking one silently.
+        print(f"  WARNING 0x{va:08X}: conflicting ret immediates {sorted(set(rets))}")
+    return rets[0]
 
 
 def main(argv):
@@ -207,15 +245,49 @@ def main(argv):
     lines.append("unsigned long g_d3d8_shim_calls = 0;")
     lines.append("")
     lines.append("/*")
-    lines.append(" * D3D8_SHIM_ENTER / D3D8_SHIM_RET")
+    lines.append(" * D3D8_SHIM_TRACE - set to 1 to log every shim call, in order, with args.")
+    lines.append(" *")
+    lines.append(" * Which of these entry points actually run before a given crash is the")
+    lines.append(" * thing you need when deciding which to implement for real; guessing from")
+    lines.append(" * the API surface wastes effort on functions the game never reaches.")
+    lines.append(" * Arguments are logged too, because D3D8 Create* functions return an")
+    lines.append(" * HRESULT and hand the new object back through an out-pointer ARGUMENT")
+    lines.append(" * rather than in eax - so the argument values are what identify an")
+    lines.append(" * out-param that Phase 2 will need to fill in.")
+    lines.append(" */")
+    lines.append("#define D3D8_SHIM_TRACE 1")
+    lines.append("")
+    lines.append("#if D3D8_SHIM_TRACE")
+    lines.append("#include <stdio.h>")
+    lines.append("/* Args live on the simulated stack: caller pushed them, then the dummy")
+    lines.append(" * return address. So arg1 is at g_esp + 4, arg2 at g_esp + 8, ... */")
+    lines.append("static void d3d8_trace(unsigned va, unsigned ret_imm)")
+    lines.append("{")
+    lines.append("    unsigned nargs = ret_imm / 4u;")
+    lines.append('    fprintf(stderr, "[D3D8] #%lu 0x%08X(", g_d3d8_shim_calls, va);')
+    lines.append("    for (unsigned i = 0; i < nargs && i < 8u; i++) {")
+    lines.append('        fprintf(stderr, "%s0x%08X", i ? ", " : "", MEM32(g_esp + 4u + i * 4u));')
+    lines.append("    }")
+    lines.append('    fprintf(stderr, ")\\n");')
+    lines.append("    fflush(stderr);")
+    lines.append("}")
+    lines.append("#define D3D8_TRACE(va, n) d3d8_trace((va), (n))")
+    lines.append("#else")
+    lines.append("#define D3D8_TRACE(va, n) ((void)0)")
+    lines.append("#endif")
+    lines.append("")
+    lines.append("/*")
+    lines.append(" * D3D8_SHIM_RET")
     lines.append(" *")
     lines.append(" * ret_imm is the callee's __stdcall argument cleanup, read from the real")
     lines.append(" * `ret N` in the XBE. Total esp adjustment is 4 (dummy return address the")
-    lines.append(" * caller pushed) + ret_imm (the arguments).")
+    lines.append(" * caller pushed) + ret_imm (the arguments). Trace BEFORE adjusting esp, so")
+    lines.append(" * the arguments are still addressable.")
     lines.append(" */")
-    lines.append("#define D3D8_SHIM_RET(ret_imm, value)  \\")
-    lines.append("    do { g_d3d8_shim_calls++;          \\")
-    lines.append("         g_eax = (value);              \\")
+    lines.append("#define D3D8_SHIM_RET(va, ret_imm, value)  \\")
+    lines.append("    do { g_d3d8_shim_calls++;              \\")
+    lines.append("         D3D8_TRACE((va), (ret_imm));      \\")
+    lines.append("         g_eax = (value);                  \\")
     lines.append("         g_esp += 4 + (ret_imm); } while (0)")
     lines.append("")
     lines.append("/* S_OK - most D3D8 calls that report status succeed trivially in Phase 1. */")
@@ -232,7 +304,7 @@ def main(argv):
         lines.append(f"/* 0x{va:08X}  [{e['section']}]  {e['calls']} call site(s){note} */")
         lines.append(f"void sub_{va:08X}(void)")
         lines.append("{")
-        lines.append(f"    D3D8_SHIM_RET({n}, D3D8_OK);")
+        lines.append(f"    D3D8_SHIM_RET(0x{va:08X}u, {n}, D3D8_OK);")
         lines.append("}")
         lines.append("")
 
