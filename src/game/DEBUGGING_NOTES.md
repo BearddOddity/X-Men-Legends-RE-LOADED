@@ -1766,3 +1766,78 @@ find src/recomp/gen -name '*.c' -exec touch {} +
 ```
 
 then rebuild, and confirm the expected number of objects actually recompiled.
+
+## ROOT CAUSE FOUND: kernel ordinal 47 popped 24 bytes instead of 8
+
+The `sub_001A06E8` argument-frame mismatch traced to a genuine bug in the
+kernel bridge, not the lifter.
+
+`kernel_bridge.c` keeps the same ordinal in two hand-maintained tables:
+
+  * handler table  - `case 47: return bridge_HalReadSMCTrayState;` (2 args)
+  * arg-bytes table - `case 47: return 24;  /* HalReadWritePCISpace(6) */`
+
+Nothing enforced agreement, and the arg table is what drives cleanup
+(`g_esp += g_slot_arg_bytes[slot]`). So every call to ordinal 47 popped 24
+bytes when the caller had pushed 8 - silently raising `esp` by 16.
+
+**The damage that caused.** In `sub_001A23F3`, the real frame is
+`push ebp / mov ebp,esp / sub esp,0x34 / push ebx,esi,edi`, so `esp` must be
+`ebp-0x40` when it sets up the call to `sub_001A06E8`. The ordinal-47 over-pop
+left it at `ebp-0x30` instead. The sequence is:
+
+```
+lea eax, [ebp-0x34]         ; pointer to a 0x30-byte struct
+push eax                    ; with esp wrong, this lands AT ebp-0x34
+mov dword ptr [ebp-0x34], 0x30   ; ...and immediately overwrites it
+```
+
+so the callee received `0x30` - the struct's size field - where its address
+should have been, then dereferenced it.
+
+**Verified empirically before and after**, via probes in both functions:
+
+| measurement            | before          | after           |
+| ---------------------- | --------------- | --------------- |
+| caller `esp` vs `ebp-0x40` | `+16`       | `+0`            |
+| `arg6` at `[ebp+0x1C]` | `0x00000030`    | `0x00F7FF58`    |
+| `MEM32(arg6)`          | (not a pointer) | `0x30` (correct)|
+
+Fixed by setting ordinal 47's cleanup to 8 bytes. The argument count is what
+was verified - from the game's own call site, which pushes exactly two values
+(`0x461694`, a `.data` pointer, and `1`). That `(pointer, TRUE)` shape matches
+`HalRegisterShutdownNotification(Registration, Register)` rather than either
+name in the tables, so the *names* in this range are also suspect; the count is
+the part that is established.
+
+Crash progresses past `sub_001A06E8` into `sub_001A0B0C` (a later split of the
+same original function). Kernel-call count is unchanged at 40 because the
+remaining failure still precedes the next kernel call.
+
+### Tool: `tools_data/audit_kernel_ordinals.py`
+
+Cross-checks the two ordinal tables and reports (a) ordinals whose arg-table
+comment names a different function than the handler table maps, and (b)
+ordinals present in one table but not the other. Exits non-zero on a name
+mismatch so it can gate a build. Worth running after any bridge edit - this
+class of bug is silent and its symptom appears far from its cause.
+
+Current state: no name mismatches. Two ordinals have **no** arg-bytes entry and
+fall through to the `default: return 0`, so they under-pop their arguments:
+
+- ordinal 63 (`bridge_IoCreateSymbolicLink`)
+- ordinal 188 (`bridge_NtCreateDirectoryObject`)
+
+Neither is called on the current boot path, and the handlers do not reveal the
+true signatures (they ignore most arguments), so **the counts were deliberately
+not guessed** - a wrong value here reproduces exactly the bug above. If either
+is ever hit, derive the count from a real call site's pushes, the same way
+ordinal 47 was settled.
+
+### Gotcha: don't strip probes with a greedy multi-line regex
+
+Removing a diagnostic block with `(?:.*?\n)*?` under `re.DOTALL` matched across
+a function boundary and deleted an entire adjacent function, which only showed
+up as a link error (`unresolved external symbol sub_001A23F3`). Restoring the
+single file from the gen/ backup was the fast fix. Prefer removing probes with
+an exact-text edit, or restore the file from backup and re-apply.

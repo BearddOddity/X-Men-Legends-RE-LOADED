@@ -1321,7 +1321,31 @@ static int stdcall_args_for_ordinal(ULONG ordinal)
     case  41: return  8;  /* HalDisableSystemInterrupt(2) */
     case  44: return  8;  /* HalGetInterruptVector(2) */
     case  46: return  8;  /* HalReadSMCTrayState(2) */
-    case  47: return 24;  /* HalReadWritePCISpace(6) */
+    /* Ordinal 47 takes TWO args (8 bytes), not six.
+     *
+     * This table previously said 24 (HalReadWritePCISpace), which contradicted
+     * the handler table below - that maps ordinal 47 to
+     * bridge_HalReadSMCTrayState, a 2-argument function. The disagreement was
+     * live: the bridge popped 24 bytes of "arguments" when the caller had
+     * pushed 8, so every call to ordinal 47 silently raised the simulated
+     * stack by 16 bytes.
+     *
+     * Verified against the game's own call site (sub_001A23F3, 0x001A23FF):
+     *
+     *     push ebx            ; = 1
+     *     push 0x461694       ; a .data pointer
+     *     call dword ptr [0x3C6CD0]   ; thunk slot 76 -> ordinal 47
+     *
+     * Two pushes, so 8 bytes. The (pointer, TRUE) shape matches
+     * HalRegisterShutdownNotification(Registration, Register) rather than
+     * either name above; what matters here is the argument count.
+     *
+     * Symptom this caused: the 16-byte over-pop left the caller's esp above
+     * its own locals, so the next `push` wrote INTO the 0x30-byte struct at
+     * ebp-0x34 and the following `mov [ebp-0x34], 0x30` overwrote the pointer
+     * that had just been passed - the callee then received 0x30 as an address.
+     * See DEBUGGING_NOTES.md. */
+    case  47: return  8;
     case  49: return  4;  /* HalRequestSoftwareInterrupt(1) */
     case 358: return  0;  /* HalIsResetOrShutdownPending(void) */
 
