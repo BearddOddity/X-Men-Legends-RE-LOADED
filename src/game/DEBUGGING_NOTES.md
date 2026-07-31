@@ -2269,3 +2269,85 @@ slows every run and pollutes `stderr.txt`, and a greedy regex once ate an entire
 function in this tree. `strip_probes.py` removes anything marked `/* PROBE */`,
 is block-aware for multi-line probes, and refuses to write on an unterminated
 block. Dry-run by default.
+
+---
+
+## Phase B: seeding the undiscovered functions (53 -> 48, deliberately)
+
+### Discovery was the gap, not translation
+
+Of the 26,505 functions in `tools/disasm/output/functions.json`, **26,504 have
+generated C** (the exception is the XBE entry point, which `main.c` handles).
+So when an indirect call fails on a *real* `.text` address, translation is not
+at fault - discovery never found the function.
+
+Function discovery works largely from direct call targets. A function whose
+address is only ever taken as **data** is never the target of a `call rel32`
+and so is invisible to it. `find_missing_functions.py` scans the data sections
+for pointers into `.text`, discards anything already known or lying inside a
+known function's body, and checks the bytes decode as code. Of the 12 failing
+targets, 8 turned up immediately - and their referring addresses clustered:
+
+```
+0x0044A580:  00000000 00346743 00349FAB 00000000
+             00000000 00345B25 003556E0 00355700
+0x0044B0A0:  003B14C3 00000000 00000000 00340D86
+             00343862 0034BB3A 0034AA86 00000000
+```
+
+Two NULL-terminated arrays of function pointers - the MSVC CRT initializer
+tables (`__xi_a`/`__xc_a`). `_initterm` walks these at startup. Every entry the
+recompiler had not discovered failed to resolve, and `RECOMP_ICALL_SAFE`
+returns `eax = 0` on failure, so **the global constructors silently did
+nothing**. That is the origin of the NULL objects behind most of this
+project's crashes.
+
+The ninth address, `0x00227F50`, has no data reference at all (it is reached
+through a computed pointer) and was seeded by hand.
+
+### Seeding is additive on purpose
+
+`seed_missing_functions.py` computes each function's extent by disassembling to
+its terminating `ret`, appends the entries to a copy of `functions.json`, runs
+`tools.recomp -f` per function, and writes the results to a **new**
+`gen/recomp_seed.c`. Registration goes through `recomp_lookup_manual()` in the
+hand-written `src/recomp_manual.c` - the extension point `RECOMP_ICALL_SAFE`
+already consults before the generated table.
+
+Nothing existing is modified. The 214 hand guards are untouched, and the wiring
+survives a future regeneration. A full regeneration would also have found these,
+but would have zeroed every hand edit for a change that needed none of that.
+
+### The result, stated honestly
+
+**53 -> 48 kernel calls. That is a regression on the headline metric.**
+
+The supporting signals all moved the other way:
+
+- failed indirect calls per run: **12 -> 2**
+- kernel ordinal 128 is reached for the first time
+- the CRT initializer tables actually execute
+
+The earlier 53 was reached by a program whose global objects were all NULL - it
+was progress measured on garbage. The 48 is fewer calls on a far more correct
+program. Kept deliberately, with the user's agreement, rather than reverted.
+
+**Lesson for the metric itself:** kernel-call count is a proxy. When a change
+alters *which* path the program takes, comparing counts across it is comparing
+different programs. Rule #8's second signals are what make the call.
+
+### Next blocker: SEH
+
+The new crash is in `sub_003432FC`, which the register arithmetic identifies as
+`_except_handler3`:
+
+```
+ecx = esi + esi*2          ; 3 * trylevel, for 12-byte scope table entries
+eax = MEM32(edi + ecx*4 + 4)   ; the filter function
+```
+
+With `esi = 0xFFD9003C`, that computes `0xFE6159E4` - the observed fault
+address exactly. `esi` is the trylevel, read from the exception registration
+record `ebx = 0x0044A598` - which is in `.data`, where a registration record
+should be **on the stack**. So an exception is being raised during startup and
+the SEH emulation is dispatching it against a bogus registration frame.

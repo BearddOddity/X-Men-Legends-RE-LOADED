@@ -173,8 +173,34 @@ static void sub_001A1C23(void)
     g_eax = 0;
 }
 
+/* ── Seeded functions (tools_data/seed_missing_functions.py) ── */
+/*
+ * Reachable only via data-section pointers, so function discovery
+ * missed them and every indirect call here returned NULL. Declared
+ * here rather than in the generated recomp_funcs.h so the wiring
+ * survives a regeneration.
+ */
+extern void sub_00227F50(void);
+extern void sub_00340CDE(void);
+extern void sub_00340D86(void);
+extern void sub_00343862(void);
+extern void sub_00346743(void);
+extern void sub_00349FAB(void);
+extern void sub_0034AA86(void);
+extern void sub_0034BB3A(void);
+extern void sub_003556E0(void);
+
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
+    if (xbox_va == 0x00227F50u) return sub_00227F50;
+    if (xbox_va == 0x00340CDEu) return sub_00340CDE;
+    if (xbox_va == 0x00340D86u) return sub_00340D86;
+    if (xbox_va == 0x00343862u) return sub_00343862;
+    if (xbox_va == 0x00346743u) return sub_00346743;
+    if (xbox_va == 0x00349FABu) return sub_00349FAB;
+    if (xbox_va == 0x0034AA86u) return sub_0034AA86;
+    if (xbox_va == 0x0034BB3Au) return sub_0034BB3A;
+    if (xbox_va == 0x003556E0u) return sub_003556E0;
     if (xbox_va == 0x0019F196) return sub_0019F196;
     if (xbox_va == 0x001A1C23) return sub_001A1C23;
     return (recomp_func_t)0;
