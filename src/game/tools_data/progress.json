@@ -1,0 +1,90 @@
+[
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 40,
+    "failed_icalls": null,
+    "heap_allocs": null,
+    "crash_in": "sub_001A0B0C",
+    "fault_va": null,
+    "commit": "e4849ba",
+    "message": "Guard non-heap argument in sub_00216FD0 (39 -> 40)",
+    "note": "Backfilled from commit history and DEBUGGING_NOTES; second signals were not being recorded yet."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 43,
+    "failed_icalls": null,
+    "heap_allocs": null,
+    "crash_in": "sub_001A0B0C",
+    "fault_va": null,
+    "commit": "e4849ba",
+    "message": "Guard uninitialised circular-list heads in sub_001A0B0C (40 -> 43)",
+    "note": "Backfilled."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 44,
+    "failed_icalls": null,
+    "heap_allocs": null,
+    "crash_in": "sub_001A0B0C+0x1F4F",
+    "fault_va": "0xFFFFFFFD",
+    "commit": "92e61a1",
+    "message": "Fix stale deferred flag test in sub_002041D0 (43 -> 44)",
+    "note": "Backfilled."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 47,
+    "failed_icalls": 21,
+    "heap_allocs": null,
+    "crash_in": "sub_001F7930+0x1FC",
+    "fault_va": "0x8B467573",
+    "commit": "caa24ad",
+    "message": "Guard uninitialised bucket head in sub_001A0B0C (44 -> 47)",
+    "note": "Backfilled. First entry with a failed-indirect-call count."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 53,
+    "failed_icalls": 13,
+    "heap_allocs": null,
+    "crash_in": "VCRUNTIME140.dll",
+    "fault_va": "0xFFFFFFE4",
+    "commit": "10cf2b3",
+    "message": "Fix _icall_esp captured across register saves in sub_002235D0 (47 -> 53)",
+    "note": "Backfilled. esp also moved from the heap into the real stack range - a second signal that this was a real fix, not a moved crash."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 53,
+    "failed_icalls": 12,
+    "heap_allocs": null,
+    "crash_in": "VCRUNTIME140.dll",
+    "fault_va": "0xFFFFFFE4",
+    "commit": "dbcdd4c",
+    "message": "Fix 3 more _icall_esp save-point sites (53 held)",
+    "note": "Backfilled. Correct but not on the critical path yet, so no advance - and no regression."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 48,
+    "failed_icalls": 2,
+    "heap_allocs": null,
+    "crash_in": "sub_003432FC+0x265",
+    "fault_va": "0xFE6159E4",
+    "commit": "c604214",
+    "message": "Phase B: seed the 9 undiscovered functions (53 -> 48)",
+    "note": "DELIBERATE DIP, agreed with the user. The CRT static initializers had never run, so every global object was NULL - the earlier 53 was progress measured on garbage. Failed indirect calls 12 -> 2 and kernel ordinal 128 reached for the first time. Vindicated at the next entry."
+  },
+  {
+    "date": "2026-07-31",
+    "kernel_calls": 54,
+    "failed_icalls": 0,
+    "heap_allocs": null,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF10",
+    "commit": "6cb3399",
+    "message": "Fix __SEH_epilog restoring registers from a drifted esp (48 -> 54)",
+    "note": "Past the old best of 53, and zero failed indirect calls for the first time. Only reachable because the seeded initializers made this path execute."
+  }
+]
