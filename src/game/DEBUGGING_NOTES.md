@@ -2479,3 +2479,68 @@ values relative to `esp` across a function body is exposed to drift. Where the
 original stored an explicit frame or save-area pointer, prefer restoring
 through that pointer - it is what the original author put there for exactly
 this kind of recovery.
+
+---
+
+## The 54-call crash: runaway recursion in class registration
+
+`esp = 0xFFFFFF10` at the fault - the simulated stack pointer has gone
+*negative*, blowing through the bottom of the 8 MB Xbox stack. The crash
+handler's stack walk shows a clean six-frame cycle repeating to the bottom:
+
+```
+sub_002235D0 -> sub_002226E0 -> sub_002221E0 -> sub_00209650 -> sub_002235D0 -> ...
+```
+
+`sub_002235D0` registers an engine class descriptor. It checks a cache slot,
+and on a miss calls `sub_002226E0` to create the object, storing the result
+afterwards:
+
+```asm
+0x0022368d: push eax
+0x0022368e: call 0x2226e0
+0x00223693: add esp, 4
+0x00223696: mov dword ptr [ebx], eax     ; cache stored AFTER the call
+```
+
+Verified against the original disassembly - the lift is faithful, store-after-
+call is what the game does. So the recursion must be broken by the *arguments*,
+not by the cache discipline: registering class A recurses into its members, and
+that hierarchy is finite on real hardware.
+
+### The hand guard is innocent
+
+Suspicion fell first on the hand-added plausibility guard on that cache check,
+whose own comment guessed its root cause was "likely a caller argument-offset
+mismatch upstream" - which is exactly the `_icall_esp` register-save bug fixed
+earlier today, in this very function. Tempting, but Rule #5 says probe:
+
+```
+[GUARD] depth=1 ebx=005BC2FC cached=00000000 guard_takes=0 orig_takes=0
+[GUARD] depth=2 ebx=005BC274 cached=00000000 guard_takes=0 orig_takes=0
+...
+[GUARD] depth=40 ebx=005BC274 cached=00000000 guard_takes=0 orig_takes=0
+```
+
+`guard_takes` and `orig_takes` agree at every depth, so the guard changes
+nothing on this path - the original check would recurse identically. The cached
+value is `0` every time because the recursion never returns to perform the
+store. Left in place per Rule #10: it is inert here, and removing it would only
+risk the case it was written for.
+
+The next thread is upstream: `sub_00209650` iterates a child list, and one of
+those children resolves back to the class being registered. That list is where
+to look.
+
+### `strip_probes.py` had a hole - now closed
+
+The probe used above opened with `{ static int _d; ... {` on a line carrying no
+`/* PROBE */` marker, only its closing line did. The stripper removed just the
+marked line, leaving a dangling `{` and half a statement - and then printed
+"no probes found - tree is clean". The build caught it, but the tool had
+already lied.
+
+Fixed with an invariant rather than a bigger parser: **whatever is removed must
+be brace-balanced on its own.** If it is not, the removal would break the
+surrounding code, so refuse to write and say why. Covered by a check in the
+tool's own test path.

@@ -45,6 +45,20 @@ def strip(lines):
             depth = 1
     if depth:
         raise SystemExit("unterminated probe block - refusing to write")
+
+    # Safety net: whatever we remove must be brace-balanced on its own, or the
+    # remaining code is syntactically broken. This catches a probe written
+    # against the convention - e.g. one whose *opening* line carries no marker,
+    # so only its closing line gets removed, silently leaving a dangling `{`
+    # and a half-written statement behind. Happened once; the build caught it,
+    # but "no probes found - tree is clean" had already been printed.
+    balance = sum(l.count("{") - l.count("}") for l in removed)
+    if balance:
+        raise SystemExit(
+            f"removing these {len(removed)} line(s) would leave {balance:+d} "
+            "unbalanced brace(s) - refusing to write.\n"
+            "A multi-line probe must open with `{ /* PROBE */` and close with "
+            "`} /* PROBE */`; fix the markers and re-run.")
     return out, removed
 
 
