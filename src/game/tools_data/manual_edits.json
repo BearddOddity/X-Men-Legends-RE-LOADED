@@ -3368,6 +3368,51 @@
   "pre": "    edi = MEM32(esp + 0x130);"
  },
  {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
+   "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
+   "     * cleans up with the `esp = esp + 4` at loc_002237AD just below. With",
+   "     * _icall_esp captured above the argument push, a failed call popped the",
+   "     * argument via RECOMP_ICALL_SAFE and then the caller popped it again,",
+   "     * leaving esp 4 bytes high. Capture below the push so the failure path",
+   "     * only discards the return address and the caller does the cleanup. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, esi);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00226250",
+  "block": [
+   "    /* Manual fix (not in original x86): esi/edi are callee-saved register",
+   "     * saves (the epilogue pops both), not arguments. Capturing _icall_esp",
+   "     * above them made a failed call unwind the saves too, skewing esp by 8",
+   "     * bytes. Same defect as sub_002235D0; see DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00236500",
+  "block": [
+   "    /* Manual fix (not in original x86): esi/edi here are callee-saved",
+   "     * register saves - the epilogue pops both - not call arguments. The",
+   "     * lifter captured _icall_esp above them, so a failed indirect call",
+   "     * unwound the saves as well and left esp 8 bytes high for the rest of",
+   "     * the function. Same defect as sub_002235D0; see DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
+ },
+ {
   "file": "recomp_0018.c",
   "kind": "insert_before",
   "function": "sub_002577CE",
