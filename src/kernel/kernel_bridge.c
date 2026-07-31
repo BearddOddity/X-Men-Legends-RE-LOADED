@@ -1529,8 +1529,8 @@ static bridge_func_t bridge_for_ordinal(ULONG ordinal)
     case 166: return bridge_MmAllocateContiguousMemoryEx;
     case 171: return bridge_MmFreeContiguousMemory;
     case 173: return bridge_MmGetPhysicalAddress;
-    case 182: return bridge_MmSetAddressProtect;
     case 181: return bridge_MmQueryStatistics;
+    case 182: return bridge_MmSetAddressProtect;
 
     /* Memory - virtual */
     case 184: return bridge_NtAllocateVirtualMemory;
@@ -1542,13 +1542,13 @@ static bridge_func_t bridge_for_ordinal(ULONG ordinal)
     case  24: return bridge_ExQueryPoolBlockSize;
 
     /* IRQL */
+    case 129: return bridge_KeRaiseIrqlToDpcLevel;
     case 160: return bridge_KfRaiseIrql;
     case 161: return bridge_KfLowerIrql;
-    case 129: return bridge_KeRaiseIrqlToDpcLevel;
 
     /* Critical sections */
-    case 291: return bridge_RtlInitializeCriticalSection;
     case 277: return bridge_RtlEnterCriticalSection;
+    case 291: return bridge_RtlInitializeCriticalSection;
     case 294: return bridge_RtlLeaveCriticalSection;
 
     /* Timing */
@@ -1563,9 +1563,9 @@ static bridge_func_t bridge_for_ordinal(ULONG ordinal)
     case 113: return bridge_KeInitializeTimerEx;
 
     /* Synchronization */
-    case 189: return bridge_NtCreateEvent;
     case 145: return bridge_KeSetEvent;
     case 159: return bridge_KeWaitForSingleObject;
+    case 189: return bridge_NtCreateEvent;
     case 238: return bridge_NtYieldExecution;
 
     /* Hardware */
