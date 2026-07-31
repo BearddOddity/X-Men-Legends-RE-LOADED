@@ -1841,3 +1841,68 @@ a function boundary and deleted an entire adjacent function, which only showed
 up as a link error (`unresolved external symbol sub_001A23F3`). Restoring the
 single file from the gen/ backup was the fast fix. Prefer removing probes with
 an exact-text edit, or restore the file from backup and re-apply.
+
+## Uninitialised circular-list heads in `sub_001A0B0C` (40 -> 43 kernel calls)
+
+Three sites in `sub_001A0B0C` walk a circular list embedded at `ebx+0x180`:
+
+```c
+ecx = ebx + 0x180;            /* address of the list head */
+eax = MEM32(ecx);             /* first link */
+if (ecx == eax) goto skip;    /* head points at itself => empty */
+edi = eax + -8;               /* else step back to the node header */
+```
+
+On real hardware an initialised-but-empty head **points at itself**, which the
+original `CMP_EQ` catches. Here the head reads **0**, because whatever should
+self-initialise it never ran - `ebx` is `0x00F81000`, the base of the 1MB block
+from `NtAllocateVirtualMemory`, so the memory is merely zeroed. `eax = 0` then
+gives `edi = 0xFFFFFFF8` and the dereference faults.
+
+A zero head is logically the same thing as an empty list, so all three sites now
+also treat `eax == 0` as empty. Narrow (one function, three sites) and
+semantically faithful rather than a blind range check.
+
+**40 -> 43 kernel calls**, stable across runs.
+
+## Next blocker: failed ICALLs cascade into garbage objects
+
+The crash moves to `sub_001F19F0`, on its very first instruction
+(`edx = MEM32(ecx + 8)` with `ecx = 0xFFB79BE8`; `0xFFB79BE8 + 8` is exactly the
+faulting address). It is called with a garbage `this`.
+
+The mechanism is in `sub_002041D0`:
+
+```c
+RECOMP_ICALL_SAFE(MEM32(eax + 0x50), ...);  /* on failure: eax = 0 */
+MEM32(eax + 0x2C) = MEM32(eax + 0x2C) - 1;  /* -> decrements VA 0x2C  */
+eax = MEM32(eax + 0x30);                    /* -> reads VA 0x30       */
+if (eax == 0) goto skip;                    /* garbage isn't 0, so no skip */
+ecx = eax; sub_001F19F0();                  /* -> crash               */
+```
+
+The real x86 is the same shape - `call [eax+0x50]` legitimately clobbers `eax`
+with the callee's return value, and the following `[eax+0x2C]` operates on it.
+So this is **not** a lifter bug. The damage is entirely from
+`RECOMP_ICALL_SAFE`'s failure path returning 0: the null check at `+0x30` was
+written to catch a *legitimate* null, and reading VA `0x30` out of the fake TIB
+produces a non-zero garbage pointer that sails past it.
+
+### Failed ICALL targets fall into two distinct categories
+
+Classified with `tools_data/whatis.py`:
+
+- **Genuine missing functions.** `0x00227F50` disassembles cleanly and has the
+  same shape as its neighbours (`call` then a run of argument pushes), i.e. it
+  really is a function the pipeline failed to detect. An ICALL to it can never
+  resolve. Note it is **not** in `tools/recomp/output/addable_functions.json`
+  (120 entries) - none of the observed failing targets are - so that file does
+  not cover this case.
+- **Bad function pointers.** `0x00111600` resolves to `+0xE0 into sub_00111520`
+  and disassembles to nonsense (`mov gs, esi` / `add byte ptr [eax], al`), so it
+  is not even an instruction boundary. Nothing to add here; the pointer itself
+  is garbage, which is a symptom of some earlier corruption.
+
+Distinguishing the two matters: only the first is fixed by extending the
+function database. Check any new failing target with `whatis.py` before assuming
+it is a missing function.
