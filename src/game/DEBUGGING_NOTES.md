@@ -1990,3 +1990,81 @@ add it to `MARKERS`.
 - **Do not anchor one guard to another guard's comment.** Guards often sit back
   to back; in a freshly regenerated tree the neighbouring comment does not exist
   yet. Anchor on generator output only.
+
+## Fourth systemic lifter bug: stale deferred flag tests (435 sites)
+
+x86 computes flags with one instruction and branches on them later. The lifter
+models this by deferring: it emits a placeholder where the flag-producing
+instruction was, and re-evaluates the comparison **inline at the `jcc`**:
+
+```c
+(void)0;                    /* test cl, cl - flags set for next jcc */
+ecx = esi;
+if (TEST_NZ(LO8(ecx), LO8(ecx))) goto loc_002041F8;
+```
+
+That is only valid while nothing in between writes the tested register. At
+`sub_002041D0` the real x86 is:
+
+```
+002041e0: test cl, cl        ; flags come from cl HERE
+002041e2: mov  ecx, esi      ; ecx clobbered
+002041e4: jne  0x2041f8      ; still branches on the pre-clobber flags
+```
+
+so the generated form re-read `LO8(ecx)` *after* `ecx = esi` and tested the low
+byte of the **object pointer** instead of the flag byte. The branch could go the
+wrong way - and did.
+
+**What that caused.** Taking the wrong arm reached
+`call [eax + 0x50]` where `eax = MEM32(esi)` was a **NULL vtable pointer**.
+Because VA 0 is mapped (the fake TIB), `MEM32(0 + 0x50)` did not fault - it
+silently returned garbage (`0x227E0068`), the ICALL failed on it, `eax` became
+0, and `MEM32(0 + 0x30)` then produced `0xFFB79BE8`, which sailed past the
+code's legitimate `if (eax == 0)` check and became a garbage `this` for
+`sub_001F19F0`. Probe output confirming this exactly:
+
+```
+[DBG 2041D0] #1 vtable=0x00000000 target=[vt+0x50]=0x227E0068
+[DBG 2041D0] #1 after icall eax=0x00000000 -> [eax+0x30]=0xFFB79BE8
+```
+
+Fixed at this one site by capturing the operand before the clobber, which is
+what the hardware does:
+
+```c
+{ uint32_t _flag_cl = LO8(ecx);
+  ecx = esi;
+  if (TEST_NZ(_flag_cl, _flag_cl)) goto loc_002041F8; }
+```
+
+**43 -> 44 kernel calls**, stable across runs.
+
+### Scale, and why the other 434 were NOT swept
+
+`tools_data/find_stale_flag_tests.py` scans all 14,060 deferred-flag sites and
+reports the **435** whose tested register is both assigned before the `jcc` and
+still referenced by it. Roughly one site in 32.
+
+Only this one is *proven* wrong - by disassembling the original and comparing.
+The detector reports a **shape**, not a proven miscompile: a site is only truly
+broken if the clobber actually changes the branch outcome, and some clobbers
+will be benign. Given this document's repeated lesson that wide-scope sweeps
+regress (61->44 and 58->57 both came from confident bulk edits), the remaining
+434 are left alone pending per-site verification.
+
+The proper fix is in the lifter: emit the comparison operands into temporaries
+at the flag-producing instruction rather than re-reading registers at the `jcc`.
+That would fix all 435 at once and survive regeneration - but it only reaches
+the generated tree through a regeneration, so it is gated on the manual-edit
+re-application story above.
+
+### Related hazard: the fake TIB makes NULL dereferences silent
+
+Worth stating on its own, because it changes how these bugs present. Xbox VA 0
+is mapped (the fake TIB, needed for `fs:[0]` SEH emulation), so
+`MEM32(0 + offset)` returns data instead of faulting. Every null-pointer
+dereference therefore yields *plausible-looking garbage* rather than an
+immediate, obvious crash - which is why so many failures in this log surface far
+from their cause as "a garbage pointer appeared". When a garbage value has no
+clear origin, check whether something read through a null base.
