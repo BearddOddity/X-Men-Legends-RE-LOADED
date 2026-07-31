@@ -3332,6 +3332,25 @@
   "kind": "insert_before",
   "function": "sub_002235D0",
   "block": [
+   "    /* Manual fix (not in original x86): the lifter captured _icall_esp before",
+   "     * these four pushes, but ebx/ebp/esi/edi are callee-saved register saves",
+   "     * (the epilogue at loc_00223805 pops all four), not call arguments. On",
+   "     * ICALL failure RECOMP_ICALL_SAFE restores g_esp to the save point, so it",
+   "     * was unwinding the register saves too and leaving esp 16 bytes high for",
+   "     * the rest of the function - which made every later MEM32(esp + 0x1XX)",
+   "     * argument read land four descriptor slots off. That is how the",
+   "     * \"igNamedObject\" name string at 0x003FA710 ended up being called as a",
+   "     * function pointer. Only `push edx` is an argument, so save esp here. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
    "    /* Manual guard (not in original x86): on real hardware MEM32(ebx) is",
    "     * either 0 (not yet cached) or a real heap pointer from a prior call.",
    "     * In our build, one caller passes an `ebx` that ends up pointing at",

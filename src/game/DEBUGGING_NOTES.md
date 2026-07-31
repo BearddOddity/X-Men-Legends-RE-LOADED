@@ -2123,3 +2123,65 @@ register, and - the part that actually cracks these - which register the fault
 address is a small offset from, optionally grepping the function for that exact
 `MEM8/16/32(reg + off)` expression. On the next crash it named the single
 faulting line unambiguously on the first try.
+
+---
+
+## `_icall_esp` captured across register saves in `sub_002235D0` (47 -> 53)
+
+### A name string called as a function pointer
+
+The crash was in `sub_001F7930`, a virtual dispatch on a NULL `this`. Probing
+the two call sites showed caller 2 (`sub_002235D0`) passed a valid object five
+times and NULL on the sixth. Just before that, two indirect calls failed on
+targets `0x00219568` (mid-instruction) and `0x003FA710` - which `whatis.py`
+identifies as **`.rdata` string data**, `"igNamedObject"` / `"igErrorHandler"`.
+The garbage `edx = 0x63656A62` at the crash is `"bjec"` from that same string.
+
+A *name string* was being called as a *function pointer*.
+
+### Root cause
+
+`sub_002235D0` registers an engine class descriptor and reads its arguments as
+`MEM32(esp + 0x120 .. 0x13C)`. Its prologue was lifted as:
+
+```c
+{ uint32_t _icall_esp = g_esp;      /* <- captured too early */
+PUSH32(esp, ebx);
+PUSH32(esp, ebp);
+PUSH32(esp, esi);
+PUSH32(esp, edi);
+PUSH32(esp, edx);                   /* the only real argument */
+PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x58), _icall_esp);
+}
+```
+
+`ebx/ebp/esi/edi` are callee-saved **register saves** - the epilogue pops all
+four - not call arguments. `RECOMP_ICALL_SAFE` restores `g_esp` to the save
+point on failure, so a failed call unwound the register saves too and left
+`esp` 16 bytes high for the remainder of the function. Every subsequent
+`MEM32(esp + 0x1XX)` argument read then landed four descriptor slots off,
+handing the name-string pointer to a slot expecting a constructor.
+
+Fix: capture `_icall_esp` *after* the four saves, immediately before the one
+genuine argument push. Same defect previously fixed in `sub_00209650`; this is
+the second confirmed instance, so it is a pattern rather than a one-off.
+
+**47 -> 53 kernel calls**, stable across runs. Two side effects confirm the
+diagnosis rather than merely moving the crash: `esp` at the next fault is now
+`0x00F7F7C8`, inside the real stack range, where it had been `0x03FFFD10` (in
+the *heap*); and failed indirect calls per run dropped from 21 to 13.
+
+### Distinguishing a register save from an argument
+
+Cheap and reliable: callee-saved registers on x86 are `ebx`, `ebp`, `esi`,
+`edi`, and a function that saves them pops them in the epilogue. Caller-saved
+(`eax`, `ecx`, `edx`) pushed immediately before a call are arguments. When in
+doubt, check the epilogue for the matching pops.
+
+### Tooling: resolving "who made this bad call"
+
+`recomp_icall_fail_log()` already captured a native backtrace but printed it as
+raw RVAs, which had to be resolved against `build/*.map` by hand every time.
+`triage_crash.py --icall` now does that automatically and names the calling
+`sub_XXXXXXXX` for every failure in the log. It pointed at `sub_002235D0`
+immediately - no rebuild required, since the data was already being logged.

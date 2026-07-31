@@ -69,7 +69,27 @@ def parse_crash(path):
     crash["regs"] = regs
     crash["kernel_calls"] = len(re.findall(r"\[KERNEL\] #", text))
     crash["icall_fails"] = re.findall(r"Failed to resolve VA 0x([0-9A-Fa-f]+)", text)
+    crash["icalls"] = parse_icalls(text)
     return crash
+
+
+def parse_icalls(text):
+    """Pair each ICALL failure with the backtrace RVAs logged beneath it.
+
+    recomp_icall_fail_log() already captures a native stack, but prints it as
+    raw RVAs - resolving them by hand against build/*.map was the slow step.
+    """
+    out = []
+    blocks = re.split(r"\n(?=\[)", text)
+    for b in blocks:
+        m = re.match(r"\[ICALL\] Failed to resolve VA 0x([0-9A-Fa-f]+)", b)
+        if not m:
+            continue
+        stack = b.split("Native call stack", 1)
+        rvas = ([int(x, 16) for x in re.findall(r"RVA 0x([0-9A-Fa-f]+)", stack[1])]
+                if len(stack) > 1 else [])
+        out.append({"va": int(m.group(1), 16), "stack": rvas})
+    return out
 
 
 # ── symbolisation ───────────────────────────────────────────
@@ -160,6 +180,8 @@ def main(argv):
     ap.add_argument("-f", "--file", default=DEFAULT_LOG)
     ap.add_argument("--grep", action="store_true",
                     help="grep the function for the derived expression")
+    ap.add_argument("--icall", action="store_true",
+                    help="resolve each failed indirect call's backtrace to a caller")
     args = ap.parse_args(argv)
 
     crash = parse_crash(args.file)
@@ -219,9 +241,20 @@ def main(argv):
 
     if crash["icall_fails"]:
         print(f"\nfailed indirect calls this run: {len(crash['icall_fails'])}")
-        print("  " + ", ".join("0x" + v.upper() for v in crash["icall_fails"][-6:]))
-        print("  (classify each with whatis.py - a clean disassembly means a")
-        print("   genuinely missing function; nonsense means a bad pointer)")
+        if args.icall:
+            for c in crash["icalls"]:
+                print(f"\n  target 0x{c['va']:08X}   {classify(c['va'])}")
+                for rva in c["stack"]:
+                    s = symbolise(syms, rva)
+                    if s and s["name"].startswith("sub_"):
+                        print(f"    called from {s['name']} + 0x{s['offset']:X}")
+                if not c["stack"]:
+                    print("    (no backtrace logged for this one)")
+        else:
+            print("  " + ", ".join("0x" + v.upper() for v in crash["icall_fails"][-6:]))
+            print("  (--icall resolves each failure's backtrace to a caller;")
+            print("   classify targets with whatis.py - a clean disassembly means")
+            print("   a genuinely missing function, nonsense means a bad pointer)")
     return 0
 
 
