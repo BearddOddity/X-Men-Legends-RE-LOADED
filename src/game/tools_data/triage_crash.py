@@ -224,6 +224,16 @@ def main(argv):
                   f"  {classify(crash['fault_va'])}")
         return 0
 
+    if crash["stack"]:
+        print("callers (nearest first):")
+        seen = set()
+        for rva in crash["stack"]:
+            s = symbolise(syms, rva)
+            if s and s["name"].startswith("sub_") and s["name"] not in seen:
+                seen.add(s["name"])
+                print(f"  {s['name']} + 0x{s['offset']:X}")
+        print()
+
     sym = symbolise(syms, crash["rva"]) if crash["rva"] is not None else None
     if sym:
         pct = f"{100.0 * sym['offset'] / sym['size']:.0f}%" if sym["size"] else "?"

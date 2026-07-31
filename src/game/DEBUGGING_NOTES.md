@@ -2351,3 +2351,49 @@ address exactly. `esi` is the trylevel, read from the exception registration
 record `ebx = 0x0044A598` - which is in `.data`, where a registration record
 should be **on the stack**. So an exception is being raised during startup and
 the SEH emulation is dispatching it against a bogus registration frame.
+
+### The 48-call crash: `_initterm`'s cursor is destroyed mid-walk
+
+`sub_001A3554` is the CRT startup dispatcher. It walks two hardcoded tables -
+`0x44B0A8..0x44B0BC` and `0x44A590..0x44B0A4` - calling every entry that is
+neither 0 nor -1, with the cursor in `esi`.
+
+Probing every dispatch shows the walk going wrong in one step:
+
+```
+[PROBE] initterm slot=0044B0B8 fn=0034AA86     <- fine
+[PROBE] initterm  slot=0044A594 fn=00345B25     <- fine
+[PROBE] initterm  slot=0044A598 fn=003556E0     <- fine, last real entry
+[PROBE] initterm  slot=00F7FF10 fn=00000008     <- cursor is now on the STACK
+[PROBE] initterm  slot=00F7FF2C fn=003432FC     <- calls _except_handler3
+```
+
+`esi` jumps from `.data` to the stack after `sub_003556E0` returns. `esi` is
+callee-saved, so the cursor should have survived. Once it is pointing at the
+stack, the loop calls whatever stack slots look like pointers - including the
+`_except_handler3` address that `__SEH_prolog` stores in its registration
+record, which is what made the earlier crash *look* like exception dispatch. It
+was never an exception; it was `_initterm` walking the stack.
+
+This is newly-exercised code: `sub_003556E0` is one of the seeded functions and
+had never run before.
+
+`sub_003556E0` itself lifts cleanly. It calls `sub_000119E0` (balanced
+`push esi` / `pop esi`) and `sub_00340DE6`, which reaches `sub_00340DAE` - a
+`__try` function using the SEH helper pair `__SEH_prolog` (`sub_003432A8`) and
+`__SEH_epilog` (`sub_003432E3`). Those helpers are where `ebx/esi/edi` are
+saved and restored, and they are the most intricate thing in the tree: the
+prolog relocates the return address, rewrites the argument slot to hold the
+caller's `ebp`, allocates the frame from an argument, and links a registration
+record into the fake TIB at VA 0.
+
+Reading them against the original disassembly, the lift looks structurally
+faithful - the `[esp+0x10]` argument offsets, the `[ebp-16]` registration
+record address and the pop order in the epilog all check out. So the clobber is
+not obvious from inspection and the next step is a probe around the
+prolog/epilog pair rather than more reading (Rule #5). If they do turn out to
+be mis-lifted, `recomp_manual.c` is the place to fix them: hand-written
+replacements for these two would be narrower and safer than trying to make the
+lifter model a function that rewrites its own return address.
+
+**Status: 48 kernel calls, stable, 2 failed indirect calls (from 12).**
