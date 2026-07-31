@@ -1,0 +1,4974 @@
+[
+ {
+  "file": "recomp_0000.c",
+  "kind": "insert_before",
+  "function": "sub_00011AAE",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00011AB4",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00011AB4's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00011AB4(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0000.c",
+  "kind": "insert_before",
+  "function": "sub_0002E230",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0002E235",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0002E235's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0002E235(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0001.c",
+  "kind": "insert_before",
+  "function": "sub_00043602",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0004360B",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0004360B's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0004360B(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0002.c",
+  "kind": "insert_before",
+  "function": "sub_0005EF0B",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0005EF42",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0005EF42's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0005EF42(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0002.c",
+  "kind": "insert_before",
+  "function": "sub_00061190",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000611C7",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000611C7's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000611C7(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0003.c",
+  "kind": "insert_before",
+  "function": "sub_000825FB",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00082609",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00082609's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00082609(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0004.c",
+  "kind": "insert_before",
+  "function": "sub_000B0EE2",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000B0EEB",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000B0EEB's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000B0EEB(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000C06B6",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000C06C6",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000C06C6's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000C06C6(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000C07CF",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000C07E2",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000C07E2's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000C07E2(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000C089A",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000C08AD",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000C08AD's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000C08AD(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000C12C9",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000C12D3",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000C12D3's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000C12D3(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000D9697",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000D96C2",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000D96C2's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000D96C2(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000DA82D",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000DA83D",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000DA83D's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_000DA83D(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0005.c",
+  "kind": "insert_before",
+  "function": "sub_000DDBB4",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_000DDBBA",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_000DDBBA's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_000DDBBA(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0010A857",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0010A858",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0010A858's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0010A858(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001186A0",
+  "block": [
+   "    /* Manual guard (not in original x86): this is a tree-node-pool walk",
+   "     * (16-byte nodes, \"0x3FFFFFFF\" = null-child sentinel) through a",
+   "     * pool base (ecx) that's never allocated - same D3D-null pattern as",
+   "     * elsewhere (see DEBUGGING_NOTES.md) - so it reads zeroed memory that",
+   "     * forms a spurious cycle and never reaches the sentinel. Bail out as",
+   "     * \"not found\" after an iteration cap well beyond any real tree depth,",
+   "     * instead of spinning forever. Per-call counter (not static) - this",
+   "     * function is called repeatedly for legitimate searches, so a",
+   "     * persistent counter would eventually misfire during normal use. */",
+   "    if (++_guard_iter > 100000) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
+  ],
+  "match": null,
+  "anchor": "    edx = eax;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_001198B0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00119900 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00119900(); /* call 0x00119900 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001198B0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_001199B0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00119A00 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00119A00(); /* call 0x00119A00 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001199B0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_0011BE90",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0011BDE0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0011BDE0(); /* call 0x0011BDE0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011BE90",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_0011D470",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0011D2C0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0011D2C0(); /* call 0x0011D2C0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011D470",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_0011D4C0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0011D370 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0011D370(); /* call 0x0011D370 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011D4C0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011E7A0",
+  "block": [
+   "    /* Manual guard (not in original x86): this inserts a new node into a",
+   "     * fixed-capacity bitmap-indexed pool embedded in the \"this\" object",
+   "     * (offsets +0x160.. from edx=edi+4). sub_001186A0's find just above",
+   "     * always reports \"not found\" because its own tree-pool is unallocated",
+   "     * (D3D-null pattern, see DEBUGGING_NOTES.md) - every call that would",
+   "     * normally be a cache hit now inserts a fresh node instead, so this",
+   "     * pool's \"count\" (ebx) grows without bound across repeated calls",
+   "     * (this function has 23 call sites) until the computed bitmap/node",
+   "     * address runs off into unrelated memory and crashes. Cap the count",
+   "     * far above any plausible legitimate small-object-cache size and",
+   "     * bail out via the function's own clean exit (loc_0011E8D2, already",
+   "     * used by its other early-exit paths) instead of corrupting memory. */",
+   "    if (ebx > 4096) goto loc_0011E8D2;"
+  ],
+  "match": null,
+  "anchor": "    eax = ebx;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011EAAC",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0011EB6A",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0011EB6A's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0011EB6A(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0011F87F",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0011F881",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0011F881's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0011F881(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_0012017F",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00120181",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00120181's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00120181(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "wrap",
+  "function": "sub_00124190",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00124010 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00124010(); /* call 0x00124010 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_00124190",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00130670",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00130510 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00130510(); /* call 0x00130510 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00130670",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_001306C0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001305C0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001305C0(); /* call 0x001305C0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_001306C0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00130F70",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00130AC0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00130AC0(); /* call 0x00130AC0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00130F70",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00131030",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00130E10 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00130E10(); /* call 0x00130E10 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00131030",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00131080",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00130EC0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00130EC0(); /* call 0x00130EC0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00131080",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00132410",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00132460 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00132460(); /* call 0x00132460 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00132410",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00134BE0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00133880 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00133880(); /* call 0x00133880 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00134BE0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00134C30",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00133930 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00133930(); /* call 0x00133930 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00134C30",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_001398E0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001394C0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001394C0(); /* call 0x001394C0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_001398E0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00139930",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00139570 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00139570(); /* call 0x00139570 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00139930",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00139980",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00139620 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00139620(); /* call 0x00139620 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00139980",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013ABC0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013A5F0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A5F0(); /* call 0x0013A5F0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013ABC0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AC10",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\" id",
+   "     * fetched via an ICALL through an uninitialized 16-byte-stride table",
+   "     * (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL fails",
+   "     * our fallback returns 0, and sub_0013A6A0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it recurses back",
+   "     * through this same broken table and never terminates, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A6A0(); /* call 0x0013A6A0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AC10",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AC60",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013A750 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A750(); /* call 0x0013A750 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AC60",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013ACB0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013A800 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A800(); /* call 0x0013A800 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013ACB0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AD00",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013A8B0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A8B0(); /* call 0x0013A8B0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AD00",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AD50",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013A960 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013A960(); /* call 0x0013A960 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AD50",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013ADA0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013AA10 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013AA10(); /* call 0x0013AA10 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013ADA0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): edx (MEM32(ebp) above) can be",
+   "     * a garbage pointer - see the guard at loc_0013AF1C below. Treat an",
+   "     * implausible edx as \"nothing to clean up here\" (ecx==0 case). */",
+   "    if (!(edx >= 0x00880000u && edx < 0x04000000u)) goto loc_0013AF1C;"
+  ],
+  "match": null,
+  "anchor": "    ecx = MEM32(edx + 0xC);"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): edx traces back to MEM32(ebp)",
+   "     * near the top of this block, another D3D-null-pattern object",
+   "     * pointer that can be garbage instead of valid (see",
+   "     * DEBUGGING_NOTES.md). Skip the write if it doesn't look like a real",
+   "     * heap pointer. */",
+   "    if (edx >= 0x00880000u && edx < 0x04000000u) MEM32(edx + 0xC) = eax;"
+  ],
+  "match": null,
+  "anchor": "    eax = esp + 0x10;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): edi+0x14 is supposed to hold a",
+   "     * pointer to a bounding-box object; when whatever constructs it",
+   "     * never ran (D3D-null pattern, see DEBUGGING_NOTES.md) it can hold",
+   "     * leftover garbage instead of null, which then gets written through",
+   "     * as if it were a valid pointer. Skip the bbox init if it doesn't",
+   "     * look like a real heap pointer. */",
+   "    if (eax >= 0x00880000u && eax < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    ecx = 0xC3480000u;",
+  "wrapped": [
+   "    ecx = 0xC3480000u;",
+   "    MEM32(eax + 8) = ecx;",
+   "    MEM32(eax + 0xC) = ecx;",
+   "    MEM32(eax + 0x10) = ecx;",
+   "    eax = MEM32(edi + 0x14);",
+   "    ecx = 0x43480000;",
+   "    MEM32(eax + 0x14) = ecx;",
+   "    MEM32(eax + 0x18) = ecx;",
+   "    MEM32(eax + 0x1C) = ecx;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): MEM32(esi) is another",
+   "     * D3D-null-pattern object pointer that can be garbage instead of",
+   "     * null - see the guard just above and DEBUGGING_NOTES.md. */",
+   "    if (MEM32(esi) >= 0x00880000u && MEM32(esi) < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(esi);",
+  "wrapped": [
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0xC) = ebx;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x14) = ebx;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x10) = ebx;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x18) = ebp;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 8) = ebx;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x1C) = ebp;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x20) = 1;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x24) = ebp;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x2C) = ebx;",
+   "    eax = MEM32(esi);",
+   "    MEM32(eax + 0x28) = ebx;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): edx is data read through an",
+   "     * already-valid pointer (eax) - can still be garbage (observed:",
+   "     * 0xBF800000 = -1.0f, a float-matrix field misread as a vtable",
+   "     * pointer). Same lesson as sub_001E8E20/sub_00200B18/sub_0020E547 -",
+   "     * see DEBUGGING_NOTES.md. MEM32(edx + 0x80) below would fault",
+   "     * natively before RECOMP_ICALL_SAFE's own check can run. */",
+   "    if (edx >= 0x00880000u && edx < 0x04000000u) {",
+   "    { uint32_t _icall_esp = g_esp;"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, ecx);"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): edi+4 is another D3D-null",
+   "     * pattern object pointer field (see DEBUGGING_NOTES.md) that can",
+   "     * hold garbage instead of null/valid, and gets dereferenced directly",
+   "     * as MEM32(ecx) with no null check. Skip the ICALL if it doesn't",
+   "     * look like a real heap pointer. */",
+   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    edx = MEM32(ecx);",
+  "wrapped": [
+   "    edx = MEM32(ecx);",
+   "    { uint32_t _icall_esp = g_esp;",
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, 0x3F800000);",
+   "    PUSH32(esp, ebp);",
+   "    PUSH32(esp, 0x28);",
+   "    PUSH32(esp, esi);",
+   "    MEM8(esp + 0x44) = 7;",
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(edx + 0x54), _icall_esp); /* indirect call */",
+   "    }"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86) - see loc_0013AFF9 above; edi+8",
+   "     * is the same kind of D3D-null-pattern pointer field. */",
+   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(ecx);",
+  "wrapped": [
+   "    eax = MEM32(ecx);",
+   "    { uint32_t _icall_esp = g_esp;",
+   "    PUSH32(esp, ebp);",
+   "    PUSH32(esp, 0x28);",
+   "    PUSH32(esp, edx);",
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x78), _icall_esp); /* indirect call */",
+   "    }"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86) - see the identical guard at",
+   "     * loc_0013AFF9 above. */",
+   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(ecx);",
+  "wrapped": [
+   "    eax = MEM32(ecx);",
+   "    { uint32_t _icall_esp = g_esp;",
+   "    PUSH32(esp, ebx);",
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x94), _icall_esp); /* indirect call */",
+   "    }"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): ebx (edi+4) is the same",
+   "     * D3D-null-pattern pointer field guarded earlier in this function -",
+   "     * see loc_0013AFF9 above and DEBUGGING_NOTES.md. Treat a garbage",
+   "     * (non-heap-pointer) value the same as the ebp/\"null\" case. */",
+   "    if (CMP_EQ(ebx, ebp) || !(ebx >= 0x00880000u && ebx < 0x04000000u)) goto loc_0013B06A; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_0013B067: ;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013B0E0",
+  "block": [
+   "    /* Manual guard (not in original x86): ecx should be a bounded loop",
+   "     * index (0..0x3F, matching the 64-iteration cap this loop already",
+   "     * enforces via edi/0x40 below) into a fixed-size array at esi. In a",
+   "     * corrupted run it can instead hold an unrelated garbage value",
+   "     * (observed: a float bit pattern), which turns \"esi + ecx*4\" into a",
+   "     * wild address. Same defensive-bounds philosophy as the other guards",
+   "     * in this session - see DEBUGGING_NOTES.md. */",
+   "    if (ecx < 0x40u) MEM32(esi + ecx * 4) = edi;"
+  ],
+  "match": null,
+  "anchor": "    edx = MEM32(esi + 0x104);"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013DFE0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013D770 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013D770(); /* call 0x0013D770 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013DFE0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E030",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013D820 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013D820(); /* call 0x0013D820 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E030",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E080",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013D8D0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013D8D0(); /* call 0x0013D8D0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E080",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E0D0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013D980 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013D980(); /* call 0x0013D980 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E0D0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E120",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013DA30 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013DA30(); /* call 0x0013DA30 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E120",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E170",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013DAE0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013DAE0(); /* call 0x0013DAE0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E170",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E1C0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013DB90 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013DB90(); /* call 0x0013DB90 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E1C0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E210",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013DC40 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013DC40(); /* call 0x0013DC40 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E210",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E260",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013DCF0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013DCF0(); /* call 0x0013DCF0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E260",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_0013E2B0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0013D470 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0013D470(); /* call 0x0013D470 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013E2B0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_001402F0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00140340 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00140340(); /* call 0x00140340 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_001402F0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00140790",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001407E0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001407E0(); /* call 0x001407E0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00140790",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00140BF0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00140C40 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00140C40(); /* call 0x00140C40 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00140BF0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00140E20",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00140E70 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00140E70(); /* call 0x00140E70 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00140E20",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00141050",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001410A0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001410A0(); /* call 0x001410A0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00141050",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00141560",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001415B0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001415B0(); /* call 0x001415B0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00141560",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00141790",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_001417E0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_001417E0(); /* call 0x001417E0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00141790",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00141CA0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00141CF0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00141CF0(); /* call 0x00141CF0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00141CA0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00141F70",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00141FC0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00141FC0(); /* call 0x00141FC0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00141F70",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00144180",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00143C10 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00143C10(); /* call 0x00143C10 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00144180",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_001441D0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00143CC0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00143CC0(); /* call 0x00143CC0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_001441D0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00144220",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00143D70 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00143D70(); /* call 0x00143D70 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00144220",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00144270",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00143E20 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00143E20(); /* call 0x00143E20 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00144270",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "wrap",
+  "function": "sub_00144B00",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00144A40 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00144A40(); /* call 0x00144A40 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_00144B00",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_001465F2",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_001465F9",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_001465F9's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_001465F9(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_00146A60",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00146870 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00146870(); /* call 0x00146870 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_00146A60",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_00148530",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00147F60 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00147F60(); /* call 0x00147F60 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_00148530",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_00148580",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00148010 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00148010(); /* call 0x00148010 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_00148580",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014B960",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B2B0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B2B0(); /* call 0x0014B2B0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014B960",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014B9B0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B360 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B360(); /* call 0x0014B360 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014B9B0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014BA00",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B410 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B410(); /* call 0x0014B410 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014BA00",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014BA50",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B4C0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B4C0(); /* call 0x0014B4C0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014BA50",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014BAA0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014ABB0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014ABB0(); /* call 0x0014ABB0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014BAA0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014BAF0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B570 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B570(); /* call 0x0014B570 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014BAF0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "wrap",
+  "function": "sub_0014BB40",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_0014B620 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_0014B620(); /* call 0x0014B620 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0014BB40",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0015898A",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00158998",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00158998's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_00158998(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_00167397",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0016754B",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0016754B's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0016754B(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0009.c",
+  "kind": "insert_before",
+  "function": "sub_0016754B",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00167550",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00167550's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00167550(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0010.c",
+  "kind": "insert_before",
+  "function": "sub_0017DB3B",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0017DB44",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0017DB44's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0017DB44(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0010.c",
+  "kind": "insert_before",
+  "function": "sub_0017DC31",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0017DC3A",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0017DC3A's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0017DC3A(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0010.c",
+  "kind": "insert_before",
+  "function": "sub_0018BE59",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0018BE76",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0018BE76's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_0018BE76(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0010.c",
+  "kind": "insert_before",
+  "function": "sub_0018E632",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0018E641",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0018E641's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0018E641(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "wrap",
+  "function": "sub_00194290",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00193FC0 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00193FC0(); /* call 0x00193FC0 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_00194290",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "wrap",
+  "function": "sub_001942E0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a \"dependency type\"",
+   "     * id fetched via an ICALL through an uninitialized 16-byte-stride",
+   "     * table (D3D-null pattern, see DEBUGGING_NOTES.md). When the ICALL",
+   "     * fails our fallback returns 0, and sub_00194070 (called purely for its",
+   "     * construction side effect - its return value is discarded below",
+   "     * regardless) doesn't validate its argument, so it can recurse back",
+   "     * through this same broken table and never terminate, overflowing",
+   "     * the stack. Skip the construct call when the lookup failed - the",
+   "     * epilogue's return value (esi) is unaffected either way. */",
+   "    if (eax != 0) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, eax);",
+  "wrapped": [
+   "    PUSH32(esp, eax);",
+   "    PUSH32(esp, esi);",
+   "    PUSH32(esp, 0); sub_00194070(); /* call 0x00194070 */",
+   "    esp = esp + 8;",
+   "    } else {",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001942E0",
+  "block": [
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = 0;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_0019E944",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0019E972",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0019E972's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_0019E972(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
+   "    /* Manual guard (not in original x86): this is a circular-list walk -",
+   "     * `ecx` is the address of the list head embedded at ebx+0x180, `eax` is",
+   "     * its first link, and head == self means the list is empty. On real",
+   "     * hardware an initialised-but-empty head points AT ITSELF, which the",
+   "     * original CMP_EQ catches. In our build the head reads 0, because the",
+   "     * code that should self-initialise it has not run (ebx is the base of a",
+   "     * 1MB block from NtAllocateVirtualMemory, so the memory is merely zeroed).",
+   "     * A zero head is logically the same thing - an empty list - so treat it",
+   "     * as such instead of computing eax-8 = 0xFFFFFFF8 and dereferencing it.",
+   "     * See DEBUGGING_NOTES.md. */",
+   "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A0E9F; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001A0E8D: ;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
+   "    /* Manual guard (not in original x86): this is a circular-list walk -",
+   "     * `ecx` is the address of the list head embedded at ebx+0x180, `eax` is",
+   "     * its first link, and head == self means the list is empty. On real",
+   "     * hardware an initialised-but-empty head points AT ITSELF, which the",
+   "     * original CMP_EQ catches. In our build the head reads 0, because the",
+   "     * code that should self-initialise it has not run (ebx is the base of a",
+   "     * 1MB block from NtAllocateVirtualMemory, so the memory is merely zeroed).",
+   "     * A zero head is logically the same thing - an empty list - so treat it",
+   "     * as such instead of computing eax-8 = 0xFFFFFFF8 and dereferencing it.",
+   "     * See DEBUGGING_NOTES.md. */",
+   "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A0F77; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001A0F65: ;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
+   "    /* Manual guard (not in original x86): this is a circular-list walk -",
+   "     * `ecx` is the address of the list head embedded at ebx+0x180, `eax` is",
+   "     * its first link, and head == self means the list is empty. On real",
+   "     * hardware an initialised-but-empty head points AT ITSELF, which the",
+   "     * original CMP_EQ catches. In our build the head reads 0, because the",
+   "     * code that should self-initialise it has not run (ebx is the base of a",
+   "     * 1MB block from NtAllocateVirtualMemory, so the memory is merely zeroed).",
+   "     * A zero head is logically the same thing - an empty list - so treat it",
+   "     * as such instead of computing eax-8 = 0xFFFFFFF8 and dereferencing it.",
+   "     * See DEBUGGING_NOTES.md. */",
+   "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A10AE; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001A109C: ;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A2FFB",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_001A3003",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_001A3003's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_001A3003(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A3B65",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_001A3B6A",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_001A3B6A's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_001A3B6A(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001E8E20",
+  "block": [
+   "    /* Manual guard (not in original x86): esi is read from a free-list",
+   "     * slot array that's supposed to hold either 0 or a real cached",
+   "     * object pointer. In our build it can end up holding bytes from an",
+   "     * unrelated string constant instead (same misread-as-pointer pattern",
+   "     * as sub_002235D0 - see DEBUGGING_NOTES.md), which then gets walked",
+   "     * as an object and crashes. Treat anything that doesn't look like a",
+   "     * plausible Xbox VA the same as \"no cached object here\". */",
+   "    if (esi != 0 && (esi < 0x00880000u || esi >= 0x04000000u)) esi = 0;",
+   "    if (TEST_Z(esi, esi)) goto loc_001E8E5B; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001E8E41: ;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001E8E20",
+  "block": [
+   "    /* Manual guard (not in original x86): esi passed the pointer-range",
+   "     * check above but the DATA stored there (a \"vtable\"-ish pointer) can",
+   "     * still be garbage - MEM32(eax + 0x78) below would fault natively",
+   "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
+   "     * check only validates its own argument's VALUE, not whether reading",
+   "     * it was safe. Validate eax the same way before using it. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
+  ],
+  "match": null,
+  "anchor": "    ecx = esi;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001E8E20",
+  "block": [
+   "    /* Manual guard (not in original x86) - see the identical guard at",
+   "     * loc_001E8E32 above. */",
+   "    if (esi != 0 && (esi < 0x00880000u || esi >= 0x04000000u)) esi = 0;",
+   "    if (TEST_Z(esi, esi)) goto loc_001E8E99; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001E8E7F: ;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001E8E20",
+  "block": [
+   "    /* Manual guard (not in original x86) - see the identical guard at",
+   "     * loc_001E8E41 above. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
+  ],
+  "match": null,
+  "anchor": "    ecx = esi;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001ED5D9",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_001ED5FA",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_001ED5FA's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_001ED5FA(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00200B18",
+  "block": [
+   "    /* Manual guard (not in original x86): eax (a global pointer at",
+   "     * 0x5BB894) can be garbage (observed: 0x80000000, a suspicious",
+   "     * \"shift/flag value\" pattern - see DEBUGGING_NOTES.md), and",
+   "     * MEM16(eax + 0x12) below would fault natively on it directly. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) eax = 0;"
+  ],
+  "match": null,
+  "anchor": "    edx = MEM32(ebx);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "wrap",
+  "function": "sub_00200B18",
+  "block": [
+   "    /* Manual guard (not in original x86): edx (MEM32(ebx)) is another",
+   "     * D3D-null-pattern object pointer that can be garbage instead of",
+   "     * null/valid (see DEBUGGING_NOTES.md and the sub_001E8E20 guards -",
+   "     * same \"validate data read through an already-valid pointer\"",
+   "     * lesson). MEM32(edx + 0x50) below would fault natively before",
+   "     * RECOMP_ICALL_SAFE's own check can run. */",
+   "    if (edx >= 0x00880000u && edx < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */",
+  "wrapped": [
+   "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */",
+   "    } else {",
+   "    esp = _icall_esp; eax = 0;"
+  ]
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00200B18",
+  "block": [
+   "    /* Manual guard (not in original x86): eax here is the (possibly",
+   "     * garbage, possibly a misread flag value like 0x80000000) result of",
+   "     * the D3D-font ICALL chain above - can be neither null nor a real",
+   "     * heap pointer. Treat non-plausible values as 0 before dereferencing,",
+   "     * matching the established convention (see DEBUGGING_NOTES.md). */",
+   "    if (eax != 0 && !(eax >= 0x00880000u && eax < 0x04000000u)) eax = 0;"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(eax + 0x28);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00200B18",
+  "block": [
+   "    /* Manual guard (not in original x86): ecx (a stride/width fetched via",
+   "     * a D3D-font-dependent ICALL that fails - see DEBUGGING_NOTES.md) is",
+   "     * 0 on real hardware never, here it always is. Avoid the divide by",
+   "     * zero; the quotient/remainder below feed rendering geometry we",
+   "     * don't use anyway (no D3D), so any safe placeholder is fine. */",
+   "    if (ecx == 0) ecx = 1;"
+  ],
+  "match": null,
+  "anchor": "    eax = edi;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002068B0",
+  "block": [
+   "    /* Manual guard (not in original x86): ecx is the array's backing",
+   "     * buffer; it can be garbage instead of null when growth (which",
+   "     * routes through the D3D-null allocator chain, see",
+   "     * DEBUGGING_NOTES.md) never ran or half-completed. Skip the write",
+   "     * if it doesn't look like a real heap pointer, same convention as",
+   "     * sub_001E8E20's guards. */",
+   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) MEM32(ecx + edi * 4) = ebx;"
+  ],
+  "match": null,
+  "anchor": "    POP32(esp, edi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002068DA",
+  "block": [
+   "    /* Manual guard (not in original x86) - see the identical guard in",
+   "     * sub_002068B0 above. */",
+   "    if (eax >= 0x00880000u && eax < 0x04000000u) MEM32(eax + edi * 4) = ebx;"
+  ],
+  "match": null,
+  "anchor": "    POP32(esp, edi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002085B3",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this function off",
+   "     * here, dropping the tail-call into sub_002085CA (confirmed by",
+   "     * matching original address ranges - this function's own \"Original\"",
+   "     * end address 0x002085CA equals sub_002085CA's start address). Same",
+   "     * systemic lifter bug documented in DEBUGGING_NOTES.md for 50 other",
+   "     * sites, just with a different trailing-statement shape (ends on a",
+   "     * shift, not a bare PUSH32) that the original detection script",
+   "     * didn't match. Without this, sub_002085A0's pushed ebx/esi/edi (and",
+   "     * the caller's stack args) are never popped, and edi/esi/ebx are",
+   "     * left holding this function's scratch values instead of being",
+   "     * restored - observed corrupting a caller's \"edi\" to 0xCCCCCCCC and",
+   "     * crashing sub_00216FD0. */",
+   "    sub_002085CA(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00209650",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter's _icall_esp save point",
+   "     * was placed BEFORE `PUSH32(esp, edi)`, but that push is a callee-saved",
+   "     * register save (real x86: `push edi` at 0x00209650, matched by `pop edi`",
+   "     * at 0x002096A8), not an argument to the indirect call. The call is",
+   "     * `call [esp+8]`, which reads a target already on the stack and pushes no",
+   "     * arguments of its own. With the save point too early, a failed ICALL",
+   "     * (e.g. target 0x00227F50, which has no recompiled function) rolled esp",
+   "     * back past the saved edi, so the later POP32 popped the caller's data -",
+   "     * corrupting the stack and cascading into garbage registers downstream.",
+   "     * Capture esp AFTER the register save so only the dummy return address is",
+   "     * unwound on failure. See DEBUGGING_NOTES.md. */"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E547",
+  "block": [
+   "    /* Manual guard (not in original x86): confirmed via raw disassembly",
+   "     * that sub_0020E520/sub_0020E547 are one logical x86 function split",
+   "     * by a mid-function jne, and that most call sites correctly forward",
+   "     * a real argument down through several levels (verified",
+   "     * sub_0011DFE0 -> sub_00234DF0 -> sub_0020E520 pushes literal 0",
+   "     * correctly at every level in our lifted C) - so eax=0 here is",
+   "     * often genuinely correct and should take the fallback path below,",
+   "     * not skip it. Some other call site clearly still supplies garbage",
+   "     * (observed eax=-1), so keep the plausible-pointer guard too. See",
+   "     * DEBUGGING_NOTES.md - this fix is correct; what looked like a",
+   "     * regression from it was actually reaching a separate, real",
+   "     * recursion further downstream that a bigger stack (CMakeLists.txt",
+   "     * /STACK:16777216) addresses instead. */",
+   "    if (TEST_NZ(eax, eax) && eax >= 0x00880000u && eax < 0x04000000u) goto loc_0020E56D; /* jne: not equal / not zero */"
+  ],
+  "match": null,
+  "anchor": "loc_0020E54F: ;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E547",
+  "block": [
+   "    /* Manual guard (not in original x86): edx is data read through an",
+   "     * already-valid pointer (eax) - can still be garbage, same lesson",
+   "     * as sub_001E8E20/sub_00200B18 (see DEBUGGING_NOTES.md).",
+   "     * MEM32(edx + 0xCC) below would fault natively before",
+   "     * RECOMP_ICALL_SAFE's own check can run. */",
+   "    if (edx >= 0x00880000u && edx < 0x04000000u) {",
+   "    { uint32_t _icall_esp = g_esp;"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, ebx);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00216FD0",
+  "block": [
+   "    /* Manual guard (not in original x86). This function treats `edi` as an",
+   "     * object with a lazily-initialised cache slot at +0x34: non-zero means",
+   "     * \"already built, reuse it\". In our build one caller reaches here with",
+   "     * edi = 0x003F3638, which is a .rdata vtable/descriptor rather than a heap",
+   "     * object, so +0x34 reads a *method pointer* (sub_0013D370, a one-byte `ret`",
+   "     * stub). That is non-zero, so construction is skipped and the stub address",
+   "     * is used as `this`; reading fields off it returns the int3 padding after",
+   "     * it (0xCCCCCCCC), and the eventual MEM32(ecx + eax*4) = edx computes",
+   "     * 0xFFFFFFFC and faults.",
+   "     *",
+   "     * Root cause is upstream and unresolved: sub_00213000 selects this value",
+   "     * because MEM32(MEM32(0x5BC508) + 0x394) is 0, and whatever should",
+   "     * initialise that field is one of the currently-inert D3D paths. Verified",
+   "     * NOT a lifter bug - both sub_00216FD0 and sub_00213000 were disassembled",
+   "     * and match the generated C exactly. See DEBUGGING_NOTES.md.",
+   "     *",
+   "     * Until the upstream field is understood, treat an implausible cache value",
+   "     * as \"nothing usable here\" and take this function's own existing no-op exit",
+   "     * (the same path taken when edi == 0), rather than dereferencing it. Note",
+   "     * we deliberately do NOT fall through to the construct-and-store branch:",
+   "     * that would write through MEM32(edi + 0x34) into read-only descriptor",
+   "     * data and corrupt a vtable. */",
+   "    if (!(edi >= 0x00880000u && edi < 0x04000000u)) goto loc_002170DF;"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(edi + 0x34);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002171E8",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002171ED",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002171ED's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002171ED(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
+   "    /* Manual guard (not in original x86): on real hardware MEM32(ebx) is",
+   "     * either 0 (not yet cached) or a real heap pointer from a prior call.",
+   "     * In our build, one caller passes an `ebx` that ends up pointing at",
+   "     * a string constant (\"igStringObj\" - see DEBUGGING_NOTES.md) instead",
+   "     * of a genuine cache slot, so the \"already cached\" check below reads",
+   "     * the string's bytes as a fake nonzero pointer and later crashes",
+   "     * walking it as an object. Root cause not fully understood (likely a",
+   "     * caller argument-offset mismatch upstream); treat obviously-implausible",
+   "     * \"cached\" values as if the slot were empty; the plausible-VA range",
+   "     * matches the one already used in sub_0019F765's list-walk guard. */",
+   "    if (CMP_NE(MEM32(ebx), 0) && MEM32(ebx) >= 0x00010000u && MEM32(ebx) < 0x02000000u) goto loc_00223698; /* jne: not equal / not zero */"
+  ],
+  "match": null,
+  "anchor": "loc_00223620: ;"
+ },
+ {
+  "file": "recomp_0018.c",
+  "kind": "insert_before",
+  "function": "sub_002577CE",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002577E7",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002577E7's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002577E7(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0018.c",
+  "kind": "insert_before",
+  "function": "sub_00259CC0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax should be null or a real",
+   "     * pointer here; in our build it can hold garbage instead (D3D-null",
+   "     * pattern, see DEBUGGING_NOTES.md). Treat garbage the same as null. */",
+   "    if (TEST_Z(eax, eax) || !(eax >= 0x00880000u && eax < 0x04000000u)) { g_seh_ebp = ebp; sub_00259CCD(); return; } /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_00259CC8: ;"
+ },
+ {
+  "file": "recomp_0018.c",
+  "kind": "insert_before",
+  "function": "sub_00268B70",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00268B77",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00268B77's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00268B77(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0018.c",
+  "kind": "insert_before",
+  "function": "sub_00278190",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_0027819A",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_0027819A's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_0027819A(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0019.c",
+  "kind": "insert_before",
+  "function": "sub_00278DEF",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00278DF5",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00278DF5's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00278DF5(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0019.c",
+  "kind": "insert_before",
+  "function": "sub_00281D9E",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00281DA8",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00281DA8's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00281DA8(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0020.c",
+  "kind": "insert_before",
+  "function": "sub_002A9CCC",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002A9CD1",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002A9CD1's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002A9CD1(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002C2ED4",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002C2EF5",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002C2EF5's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_002C2EF5(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002C358E",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002C3599",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002C3599's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_002C3599(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002C8623",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002C8629",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002C8629's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002C8629(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002C9D03",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002C9D0A",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002C9D0A's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002C9D0A(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002CEC4E",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002CEC50",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002CEC50's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002CEC50(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002CEF8B",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002CEF98",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002CEF98's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002CEF98(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0021.c",
+  "kind": "insert_before",
+  "function": "sub_002CEFFD",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002CF006",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002CF006's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002CF006(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0022.c",
+  "kind": "insert_before",
+  "function": "sub_002FC2C0",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_002FC2C2",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_002FC2C2's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_002FC2C2(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0022.c",
+  "kind": "insert_before",
+  "function": "sub_00307F0F",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00307F11",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00307F11's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00307F11(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0023.c",
+  "kind": "insert_before",
+  "function": "sub_00314A6C",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00314A9D",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00314A9D's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_00314A9D(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0024.c",
+  "kind": "insert_before",
+  "function": "sub_00321E36",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00321E40",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00321E40's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    sub_00321E40(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "insert_before",
+  "function": "sub_003424BE",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_003424C3",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_003424C3's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_003424C3(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "insert_before",
+  "function": "sub_0034620D",
+  "block": [
+   "    /* Manual fix (not in original x86): the lifter cut this",
+   "     * function off here, dropping the tail-call into sub_00346210",
+   "     * (confirmed by matching original address ranges - this",
+   "     * function's own \"Original\" end address equals sub_00346210's",
+   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
+   "     * systematic lifter bug found at 50 sites across the codebase. */",
+   "    g_seh_ebp = ebp; sub_00346210(); return;"
+  ],
+  "match": null,
+  "anchor": "}"
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035ADD0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035ADD0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035AE60: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035AE60\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035AE90: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035AE90\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035AFB0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035AFB0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B030: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B030\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B040: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B040\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B120: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B120\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B340: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B340\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B3F0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B3F0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B670: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B670\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B6C0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B6C0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035B9F0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035B9F0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035BA10: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035BA10\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035BC40: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035BC40\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035BF00: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035BF00\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035C060: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035C060\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035C210: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035C210\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035C2A0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035C2A0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035CFC0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035CFC0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D100: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D100\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D160: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D160\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D330: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D330\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D360: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D360\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D650: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D650\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D760: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D760\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035D900: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035D900\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DC40: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DC40\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DC80: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DC80\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DCD0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DCD0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DD80: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DD80\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DDC0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DDC0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DE20: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DE20\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DF10: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DF10\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035DFF0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035DFF0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035E170: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035E170\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035E280: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035E280\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035E2F0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035E2F0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035E330: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035E330\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035EB50: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035EB50\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035EBE0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035EBE0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0035EC80: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0035EC80\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00361360: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00361360\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003613A0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003613A0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00361560: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00361560\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003615B0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003615B0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00361600: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00361600\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00361660: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00361660\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00362430: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00362430\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003658E0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003658E0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00365970: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00365970\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00365990: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00365990\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003679B0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003679B0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00367B90: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00367B90\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00367ED0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00367ED0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00367F30: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00367F30\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00367FF0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00367FF0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368050: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368050\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368BE0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368BE0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368E50: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368E50\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368EB0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368EB0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368F00: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368F00\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00368F50: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00368F50\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003692E0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003692E0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003694E0: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_003694E0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00396FBD: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00396FBD\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00397737: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_00397737\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0039788A: moved to src/d3d8_shim.c (native PC implementation) */"
+  ],
+  "match": "^void sub_0039788A\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ }
+]

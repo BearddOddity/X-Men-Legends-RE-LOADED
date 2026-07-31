@@ -1906,3 +1906,80 @@ Classified with `tools_data/whatis.py`:
 Distinguishing the two matters: only the first is fixed by extending the
 function database. Check any new failing target with `whatis.py` before assuming
 it is a missing function.
+
+## Regeneration risk: MEASURED (do not regenerate without reading this)
+
+`gen/*.c` is generated but no longer purely generated - it carries **202
+hand-written edits** (90 `Manual guard`, 60 `Manual addition`, 52 `Manual fix`)
+plus 67 stub lines disabled in favour of `src/d3d8_shim.c`. Those files are
+gitignored, so a regeneration destroys all of it.
+
+The risk was measured non-destructively: `tools.recomp` was re-run with
+`--gen-dir` pointing at a scratch directory, using the **existing**
+`tools/disasm/output` and `tools/func_id/output`, so it reproduced exactly what
+the live tree was generated from without touching anything.
+
+### What survives a regeneration by itself
+
+| fix class | live | after regen | note |
+| --- | --- | --- | --- |
+| lifter `_icall_target` fix | 38 | **17,146** | automatic, and *more thorough* - the committed `lifter.py` change applies it to every indirect call, not just the 37 esp-relative ones patched by script |
+| dropped tail-calls | 51 | 0 | re-runnable via `fix_dropped_tailcalls.py` (but see its known blind spot above) |
+| D3D stub disabling | 67 | 0 | re-runnable via `gen_d3d8_shim.py`, which reports the list |
+| **hand-written guards** | **202** | **0** | **not reproducible by any script** |
+
+So the systematic work is safe; the hand guards are the entire risk.
+
+### Tool: `tools_data/manual_edits.py`
+
+Extracts the hand edits into `manual_edits.json` and re-applies them after a
+regeneration:
+
+```sh
+py -3 tools_data/manual_edits.py extract              # before regenerating
+py -3 tools_data/manual_edits.py verify --gen-dir DIR # dry run, changes nothing
+py -3 tools_data/manual_edits.py apply   --gen-dir DIR
+```
+
+Edits are anchored to the *following source line* (and, for wrapping guards, to
+the enclosed lines) rather than to line numbers, so they survive the generator
+moving code around. Anchor comparison is normalised, so an edit anchored to the
+old `RECOMP_ICALL_SAFE(X, ...)` spelling still matches the new
+`_icall_target = X; ... RECOMP_ICALL_SAFE(_icall_target, ...)` form.
+
+**`apply` is atomic**: if any edit fails to place, nothing is written at all. A
+partially restored tree still compiles but is silently missing guards, which is
+far worse than an obvious failure.
+
+**Current status: 145 of 269 recorded edits re-apply mechanically.** The
+remaining 124 are the `Manual addition` family, which do not merely insert or
+wrap code - they restructure it into `if (...) { ... } else { ... }` around
+generated statements. That shape is not expressible as insert-before or
+wrap-region and is not handled. If you regenerate today, expect to re-apply
+those by hand from this document and from `manual_edits.json` (which records
+each one's text and location even when it cannot auto-apply).
+
+### Regression guard
+
+`extract` first audits every `/* Manual <word> (not in original x86)` marker in
+gen/ against the `MARKERS` list and **fails with exit code 2** on an unknown
+one. This is deliberate: the third marker wording (`Manual addition`) was
+initially missing from the tool, and because unknown text is indistinguishable
+from generator output, those 60 edits were being silently dropped - a
+regeneration would have lost them with no error. If you introduce a new wording,
+add it to `MARKERS`.
+
+**Keep using the existing three wordings** rather than inventing new ones.
+
+### Bugs found while building this (all fixed, worth not repeating)
+
+- **Text-based idempotency is wrong.** Checking "does this comment already
+  appear in the file" made every duplicate look already-applied: all 50
+  dropped-tail-call fixes share one comment, so 49 were silently skipped. The
+  check must be positional - does the block sit immediately before *this*
+  anchor.
+- **Blank lines are useless anchors** (not unique, and falsy in Python) - anchor
+  on the next non-blank line.
+- **Do not anchor one guard to another guard's comment.** Guards often sit back
+  to back; in a freshly regenerated tree the neighbouring comment does not exist
+  yet. Anchor on generator output only.
