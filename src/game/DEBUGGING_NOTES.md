@@ -1715,3 +1715,54 @@ those functions are never reached.
 The shim work is still necessary (and fixed two real corruption classes), but it
 is **not** on the critical path to the next boot milestone. Debugging effort
 should go to the engine-side crash at map RVA `0x962DB8` instead.
+
+## Engine crash after the `sub_00216FD0` guard - investigated, not yet fixed
+
+With the guard in place the crash moves into ordinary engine code. Register
+state is much healthier than before: `ecx`/`ebx`/`esi` are all valid heap
+pointers and only `edi` is bad (`0xFFFFFFF8`, i.e. `0 - 8`).
+
+Located it as **`sub_001A06E8`** (map RVA varies between builds as layout
+shifts - resolve it fresh each time rather than trusting a recorded RVA).
+
+What was established:
+
+- `sub_001A06E8` begins by calling the SEH prolog helper `sub_003432A8`, then
+  reads its frame pointer back out of `g_seh_ebp`. **That machinery works** - a
+  probe shows `ebp = 0x00F7FF3C`, a valid stack address, not 0. The initial
+  "SEH prolog never set ebp" theory was wrong.
+- The failure is an **argument-frame mismatch**. `sub_001A06E8` reads
+  `MEM32(ebp + 0x1C)`, dereferences it, and memcpy's `0x30` bytes from it - so
+  it must be a pointer to a `0x30`-byte struct whose first field is `0x30`
+  (a classic Win32 `dwSize` header). The probe shows it reads the value
+  **`0x30`** instead: the struct's *contents*, not its address.
+- The **caller is correct.** `sub_001A23F3` was disassembled and matches the
+  generated C exactly: `lea eax,[ebp-0x34]` / `push eax` (6 args total), with
+  `mov dword ptr [ebp-0x34], 0x30` filling the size field.
+- Hand-tracing the frame says `ebp + 0x1C` *should* land on arg6. It instead
+  lands on the caller's local buffer at `ebp_caller - 0x34`, so some quantity of
+  stack drift is present - but the amount was not pinned down.
+- **Ruled out: an 8-byte drift.** Instrumenting all 3205 remaining empty stubs
+  showed only **2** are called before the crash (`0x001183EC`, `0x0019F7C8`),
+  leaking 8 bytes. If the drift were 8 bytes the callee would read arg4; arg4 is
+  `MEM32(0x10138)` = `0x1000`, not `0x30`. So residual stub leakage is real but
+  is **not** the explanation here.
+
+Next step: probe `esp` in `sub_001A23F3` immediately before the call and in
+`sub_001A06E8` at entry, and compare against the hand-traced values, rather than
+continuing to derive the offset on paper.
+
+### Gotcha: restoring gen/ from a tar backup can produce a stale build
+
+`tar` preserves mtimes, so files restored from a backup can be *older* than the
+existing `.obj` files and ninja will skip recompiling them - you get a binary
+still containing code you thought you removed. Symptom seen here: diagnostic
+output kept appearing after the probes had been restored away.
+
+After any restore:
+
+```sh
+find src/recomp/gen -name '*.c' -exec touch {} +
+```
+
+then rebuild, and confirm the expected number of objects actually recompiled.
