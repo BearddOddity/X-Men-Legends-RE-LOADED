@@ -2068,3 +2068,58 @@ dereference therefore yields *plausible-looking garbage* rather than an
 immediate, obvious crash - which is why so many failures in this log surface far
 from their cause as "a garbage pointer appeared". When a garbage value has no
 clear origin, check whether something read through a null base.
+
+---
+
+## Uninitialized bucket head in `sub_001A0B0C` (44 -> 47 kernel calls)
+
+### The half-correct empty-list test
+
+`loc_001A0B71` computes a bucket head and tests whether the list is empty:
+
+```c
+eax = esi + edi * 8 + 0x180;
+if (CMP_EQ(MEM32(eax), eax)) goto loc_001A0C07;  /* empty */
+eax = MEM32(eax + 4);   /* prev */
+eax = eax - 8;          /* container_of */
+SET_LO8(edx, MEM8(eax + 5));   /* faults */
+```
+
+A **properly initialised** empty head is self-linked: `next == head`, so the
+test catches it. A head that was **never initialised** is zero-filled, so
+`next == 0`, which is *not* equal to the head - the test falls through as if
+the list had elements. `prev` is also 0, so `container_of` yields
+`0 - 8 == 0xFFFFFFF8`, and the very next byte read faults at `0xFFFFFFFD`.
+
+Confirmed by probe, not inference: `head = 0x00F811C0`, `prev = 0`.
+
+The guard treats a head whose back pointer is not a plausible heap address as
+an empty list. This is the **sixth** instance of this pattern in this one
+function; the other five are guarded the same way.
+
+### Two wrong turns worth recording
+
+**1. Trusting the interpolated source line.** `triage_crash.py` estimates the
+crash line by scaling the native function offset across the generated function's
+line range. That put the fault near line 31214, and there *was* a matching
+`MEM8(eax + 5)` there. A probe at that site produced **no output at all** - the
+block is never reached. The estimate is a hint for narrowing a search, never
+evidence. The tool's *expression* derivation (`fault == eax + 5`) is the
+reliable part; the line number is not.
+
+**2. Reasoning that a site was safe because a later line looked fine.** The
+argument was "`eax` must be valid at line 30658, because `MEM8(eax + 5) = ...`
+there does not fault". That is backwards: if the read at 30624 faults, control
+never reaches 30658, so 30658 proves nothing. A line only constrains registers
+on paths that actually execute it.
+
+Both errors cost a build cycle each. Probe first.
+
+### `triage_crash.py`
+
+Added this round (Rule #4). It reads `stderr.txt` and reports the kernel-call
+count, the owning function via the linker map, a region classification for every
+register, and - the part that actually cracks these - which register the fault
+address is a small offset from, optionally grepping the function for that exact
+`MEM8/16/32(reg + off)` expression. On the next crash it named the single
+faulting line unambiguously on the first try.

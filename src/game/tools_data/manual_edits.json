@@ -2831,6 +2831,67 @@
   "kind": "insert_before",
   "function": "sub_001A0B0C",
   "block": [
+   "    /* Manual guard (not in original x86): the bucket head at",
+   "       esi+edi*8+0x180 can still be zero-filled here. A self-linked empty",
+   "       head has next == head, so the test above catches it - but a head that",
+   "       was never initialised has next == 0, which is *not* equal to the head,",
+   "       so it falls through as if the list were non-empty. loc_001A0B83 then",
+   "       computes node = prev - 8 = 0 - 8 = 0xFFFFFFF8 and faults reading",
+   "       MEM8(node + 5). Observed with head = 0x00F811C0, prev = 0.",
+   "       Treat a head whose back pointer is not a plausible heap address as an",
+   "       empty list. Sixth instance of this pattern in this function. */",
+   "    if (!(MEM32(eax + 4) >= 0x00880000u && MEM32(eax + 4) < 0x04000000u))",
+   "        goto loc_001A0C07;"
+  ],
+  "match": null,
+  "anchor": "loc_001A0B83: ;",
+  "pre": "    if (CMP_EQ(MEM32(eax), eax)) goto loc_001A0C07; /* je: equal / zero */"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
+   "    /* Manual guard (not in original x86): circular-list walk - `edx` is the",
+   "     * address of the list head and the compared register is its first link;",
+   "     * head == self means the list is empty. On real hardware an initialised",
+   "     * empty head points AT ITSELF, which the original CMP_EQ catches. Here it",
+   "     * reads 0, because whatever should self-initialise it never ran, and the",
+   "     * following `link - 8` then yields 0xFFFFFFF8 and faults. A zero head is",
+   "     * logically the same thing - an empty list - so treat it as such. Same fix",
+   "     * as the three sites below; these two were missed the first time.",
+   "     * See DEBUGGING_NOTES.md. */",
+   "    if (CMP_EQ(edx, eax) || eax == 0) goto loc_001A0D5B; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001A0D1E: ;",
+  "pre": "    MEM32(ebp + -68) = eax;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
+   "    /* Manual guard (not in original x86): circular-list walk - `edx` is the",
+   "     * address of the list head and the compared register is its first link;",
+   "     * head == self means the list is empty. On real hardware an initialised",
+   "     * empty head points AT ITSELF, which the original CMP_EQ catches. Here it",
+   "     * reads 0, because whatever should self-initialise it never ran, and the",
+   "     * following `link - 8` then yields 0xFFFFFFF8 and faults. A zero head is",
+   "     * logically the same thing - an empty list - so treat it as such. Same fix",
+   "     * as the three sites below; these two were missed the first time.",
+   "     * See DEBUGGING_NOTES.md. */",
+   "    if (CMP_EQ(edx, ecx) || ecx == 0) goto loc_001A0D5B; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_001A0D35: ;",
+  "pre": "    MEM32(ebp + -68) = ecx;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "insert_before",
+  "function": "sub_001A0B0C",
+  "block": [
    "    /* Manual guard (not in original x86): this is a circular-list walk -",
    "     * `ecx` is the address of the list head embedded at ebx+0x180, `eax` is",
    "     * its first link, and head == self means the list is empty. On real",
@@ -3073,6 +3134,33 @@
   "match": null,
   "anchor": "    eax = edi;",
   "pre": "    ecx = ZX16(LO16(eax));"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002041D0",
+  "block": [
+   "    /* Manual fix (not in original x86): stale deferred flag test. The lifter",
+   "     * defers a flag-producing instruction and re-evaluates the comparison",
+   "     * inline at the jcc, which is only valid while nothing in between writes",
+   "     * the tested register. Real x86 here is:",
+   "     *",
+   "     *     test cl, cl        ; flags come from cl HERE",
+   "     *     mov  ecx, esi      ; ecx clobbered",
+   "     *     jne  0x2041f8      ; still branches on the pre-clobber flags",
+   "     *",
+   "     * The generated form re-read LO8(ecx) *after* `ecx = esi`, so it tested the",
+   "     * low byte of the object pointer instead of the flag byte and could take",
+   "     * the wrong branch - reaching an indirect call through a NULL vtable, whose",
+   "     * result then became a garbage `this` (see DEBUGGING_NOTES.md).",
+   "     *",
+   "     * Capture the operand before the clobber, exactly as the hardware does.",
+   "     * tools_data/find_stale_flag_tests.py finds the other sites of this shape. */",
+   "    { uint32_t _flag_cl = LO8(ecx);"
+  ],
+  "match": null,
+  "anchor": "      ecx = esi;",
+  "pre": "    eax = MEM32(esi);"
  },
  {
   "file": "recomp_0015.c",
