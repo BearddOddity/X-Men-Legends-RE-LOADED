@@ -13,7 +13,8 @@
    "    sub_00011AB4(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3C701C);"
  },
  {
   "file": "recomp_0000.c",
@@ -29,7 +30,8 @@
    "    sub_0002E235(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3F800000);"
  },
  {
   "file": "recomp_0001.c",
@@ -45,7 +47,8 @@
    "    sub_0004360B(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0002.c",
@@ -61,7 +64,8 @@
    "    sub_0005EF42(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ecx);"
  },
  {
   "file": "recomp_0002.c",
@@ -77,7 +81,8 @@
    "    sub_000611C7(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3C806C);"
  },
  {
   "file": "recomp_0003.c",
@@ -93,7 +98,8 @@
    "    sub_00082609(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0004.c",
@@ -109,7 +115,8 @@
    "    sub_000B0EEB(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0005.c",
@@ -125,7 +132,8 @@
    "    sub_000C06C6(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0005.c",
@@ -141,7 +149,8 @@
    "    sub_000C07E2(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0005.c",
@@ -157,7 +166,8 @@
    "    sub_000C08AD(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0005.c",
@@ -173,7 +183,8 @@
    "    sub_000C12D3(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3CD03C);"
  },
  {
   "file": "recomp_0005.c",
@@ -189,7 +200,8 @@
    "    sub_000D96C2(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ecx);"
  },
  {
   "file": "recomp_0005.c",
@@ -205,7 +217,8 @@
    "    g_seh_ebp = ebp; sub_000DA83D(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 1);"
  },
  {
   "file": "recomp_0005.c",
@@ -221,7 +234,8 @@
    "    sub_000DDBBA(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x18);"
  },
  {
   "file": "recomp_0007.c",
@@ -237,7 +251,8 @@
    "    sub_0010A858(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ebx);"
  },
  {
   "file": "recomp_0007.c",
@@ -256,7 +271,8 @@
    "    if (++_guard_iter > 100000) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
   ],
   "match": null,
-  "anchor": "    edx = eax;"
+  "anchor": "    edx = eax;",
+  "pre": "loc_001186B3: ;"
  },
  {
   "file": "recomp_0007.c",
@@ -275,6 +291,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -283,28 +306,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00119900(); /* call 0x00119900 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_001198B0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0007.c",
@@ -323,6 +326,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -331,28 +341,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00119A00(); /* call 0x00119A00 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_001199B0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0007.c",
@@ -371,6 +361,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -379,28 +376,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011BDE0(); /* call 0x0011BDE0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0011BE90",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0007.c",
@@ -419,6 +396,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -427,28 +411,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011D2C0(); /* call 0x0011D2C0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0011D470",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0007.c",
@@ -467,6 +431,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -475,28 +446,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011D370(); /* call 0x0011D370 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0011D4C0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0007.c",
@@ -518,7 +469,8 @@
    "    if (ebx > 4096) goto loc_0011E8D2;"
   ],
   "match": null,
-  "anchor": "    eax = ebx;"
+  "anchor": "    eax = ebx;",
+  "pre": "    ebx++;"
  },
  {
   "file": "recomp_0007.c",
@@ -534,7 +486,8 @@
    "    sub_0011EB6A(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0xA4000);"
  },
  {
   "file": "recomp_0007.c",
@@ -550,7 +503,8 @@
    "    sub_0011F881(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 1);"
  },
  {
   "file": "recomp_0007.c",
@@ -566,7 +520,8 @@
    "    sub_00120181(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 1);"
  },
  {
   "file": "recomp_0007.c",
@@ -585,6 +540,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -593,28 +555,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00124010(); /* call 0x00124010 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_00124190",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -633,6 +575,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -641,28 +590,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130510(); /* call 0x00130510 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00130670",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -681,6 +610,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -689,28 +625,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001305C0(); /* call 0x001305C0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_001306C0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -729,6 +645,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -737,28 +660,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130AC0(); /* call 0x00130AC0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00130F70",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -777,6 +680,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -785,28 +695,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130E10(); /* call 0x00130E10 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00131030",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -825,6 +715,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -833,28 +730,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130EC0(); /* call 0x00130EC0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00131080",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -873,6 +750,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -881,28 +765,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00132460(); /* call 0x00132460 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00132410",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -921,6 +785,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -929,28 +800,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00133880(); /* call 0x00133880 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00134BE0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -969,6 +820,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -977,28 +835,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00133930(); /* call 0x00133930 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00134C30",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1017,6 +855,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1025,28 +870,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001394C0(); /* call 0x001394C0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_001398E0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1065,6 +890,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1073,28 +905,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00139570(); /* call 0x00139570 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00139930",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1113,6 +925,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1121,28 +940,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00139620(); /* call 0x00139620 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00139980",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1161,6 +960,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1169,28 +975,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A5F0(); /* call 0x0013A5F0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013ABC0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1209,6 +995,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1217,28 +1010,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A6A0(); /* call 0x0013A6A0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013AC10",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1257,6 +1030,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1265,28 +1045,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A750(); /* call 0x0013A750 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013AC60",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1305,6 +1065,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1313,28 +1080,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A800(); /* call 0x0013A800 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013ACB0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1353,6 +1100,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1361,28 +1115,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A8B0(); /* call 0x0013A8B0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013AD00",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1401,6 +1135,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1409,28 +1150,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A960(); /* call 0x0013A960 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013AD50",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1449,6 +1170,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1457,28 +1185,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013AA10(); /* call 0x0013AA10 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013ADA0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1491,7 +1199,8 @@
    "    if (!(edx >= 0x00880000u && edx < 0x04000000u)) goto loc_0013AF1C;"
   ],
   "match": null,
-  "anchor": "    ecx = MEM32(edx + 0xC);"
+  "anchor": "    ecx = MEM32(edx + 0xC);",
+  "pre": "loc_0013AEFC: ;"
  },
  {
   "file": "recomp_0008.c",
@@ -1506,7 +1215,8 @@
    "    if (edx >= 0x00880000u && edx < 0x04000000u) MEM32(edx + 0xC) = eax;"
   ],
   "match": null,
-  "anchor": "    eax = esp + 0x10;"
+  "anchor": "    eax = esp + 0x10;",
+  "pre": "loc_0013AF1C: ;"
  },
  {
   "file": "recomp_0008.c",
@@ -1591,7 +1301,8 @@
    "    { uint32_t _icall_esp = g_esp;"
   ],
   "match": null,
-  "anchor": "    PUSH32(esp, ecx);"
+  "anchor": "    PUSH32(esp, ecx);",
+  "pre": "    ecx = esp + 0x14;"
  },
  {
   "file": "recomp_0008.c",
@@ -1606,6 +1317,7 @@
    "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
   ],
   "close": [
+   "    }",
    "    }"
   ],
   "match": null,
@@ -1619,8 +1331,7 @@
    "    PUSH32(esp, 0x28);",
    "    PUSH32(esp, esi);",
    "    MEM8(esp + 0x44) = 7;",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(edx + 0x54), _icall_esp); /* indirect call */",
-   "    }"
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(edx + 0x54), _icall_esp); /* indirect call */"
   ]
  },
  {
@@ -1633,6 +1344,7 @@
    "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
   ],
   "close": [
+   "    }",
    "    }"
   ],
   "match": null,
@@ -1643,8 +1355,7 @@
    "    PUSH32(esp, ebp);",
    "    PUSH32(esp, 0x28);",
    "    PUSH32(esp, edx);",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x78), _icall_esp); /* indirect call */",
-   "    }"
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x78), _icall_esp); /* indirect call */"
   ]
  },
  {
@@ -1657,6 +1368,7 @@
    "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
   ],
   "close": [
+   "    }",
    "    }"
   ],
   "match": null,
@@ -1665,8 +1377,7 @@
    "    eax = MEM32(ecx);",
    "    { uint32_t _icall_esp = g_esp;",
    "    PUSH32(esp, ebx);",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x94), _icall_esp); /* indirect call */",
-   "    }"
+   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x94), _icall_esp); /* indirect call */"
   ]
  },
  {
@@ -1681,7 +1392,8 @@
    "    if (CMP_EQ(ebx, ebp) || !(ebx >= 0x00880000u && ebx < 0x04000000u)) goto loc_0013B06A; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_0013B067: ;"
+  "anchor": "loc_0013B067: ;",
+  "pre": "    esi = esi + 8;"
  },
  {
   "file": "recomp_0008.c",
@@ -1698,7 +1410,8 @@
    "    if (ecx < 0x40u) MEM32(esi + ecx * 4) = edi;"
   ],
   "match": null,
-  "anchor": "    edx = MEM32(esi + 0x104);"
+  "anchor": "    edx = MEM32(esi + 0x104);",
+  "pre": "    ecx = MEM32(esi + 0x104);"
  },
  {
   "file": "recomp_0008.c",
@@ -1717,6 +1430,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1725,28 +1445,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D770(); /* call 0x0013D770 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013DFE0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1765,6 +1465,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1773,28 +1480,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D820(); /* call 0x0013D820 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E030",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1813,6 +1500,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1821,28 +1515,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D8D0(); /* call 0x0013D8D0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E080",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1861,6 +1535,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1869,28 +1550,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D980(); /* call 0x0013D980 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E0D0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1909,6 +1570,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1917,28 +1585,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DA30(); /* call 0x0013DA30 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E120",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -1957,6 +1605,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -1965,28 +1620,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DAE0(); /* call 0x0013DAE0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E170",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2005,6 +1640,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2013,28 +1655,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DB90(); /* call 0x0013DB90 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E1C0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2053,6 +1675,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2061,28 +1690,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DC40(); /* call 0x0013DC40 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E210",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2101,6 +1710,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2109,28 +1725,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DCF0(); /* call 0x0013DCF0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E260",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2149,6 +1745,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2157,28 +1760,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D470(); /* call 0x0013D470 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013E2B0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2197,6 +1780,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2205,28 +1795,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140340(); /* call 0x00140340 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_001402F0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2245,6 +1815,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2253,28 +1830,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001407E0(); /* call 0x001407E0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00140790",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2293,6 +1850,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2301,28 +1865,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140C40(); /* call 0x00140C40 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00140BF0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2341,6 +1885,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2349,28 +1900,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140E70(); /* call 0x00140E70 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00140E20",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2389,6 +1920,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2397,28 +1935,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001410A0(); /* call 0x001410A0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00141050",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2437,6 +1955,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2445,28 +1970,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001415B0(); /* call 0x001415B0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00141560",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2485,6 +1990,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2493,28 +2005,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001417E0(); /* call 0x001417E0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00141790",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2533,6 +2025,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2541,28 +2040,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00141CF0(); /* call 0x00141CF0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00141CA0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2581,6 +2060,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2589,28 +2075,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00141FC0(); /* call 0x00141FC0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00141F70",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2629,6 +2095,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2637,28 +2110,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143C10(); /* call 0x00143C10 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00144180",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2677,6 +2130,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2685,28 +2145,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143CC0(); /* call 0x00143CC0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_001441D0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2725,6 +2165,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2733,28 +2180,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143D70(); /* call 0x00143D70 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00144220",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2773,6 +2200,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2781,28 +2215,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143E20(); /* call 0x00143E20 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00144270",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2821,6 +2235,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2829,28 +2250,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00144A40(); /* call 0x00144A40 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_00144B00",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0008.c",
@@ -2866,7 +2267,8 @@
    "    sub_001465F9(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 1);"
  },
  {
   "file": "recomp_0009.c",
@@ -2885,6 +2287,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2893,28 +2302,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00146870(); /* call 0x00146870 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_00146A60",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -2933,6 +2322,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2941,28 +2337,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00147F60(); /* call 0x00147F60 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_00148530",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -2981,6 +2357,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -2989,28 +2372,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00148010(); /* call 0x00148010 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_00148580",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3029,6 +2392,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3037,28 +2407,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B2B0(); /* call 0x0014B2B0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014B960",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3077,6 +2427,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3085,28 +2442,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B360(); /* call 0x0014B360 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014B9B0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3125,6 +2462,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3133,28 +2477,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B410(); /* call 0x0014B410 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014BA00",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3173,6 +2497,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3181,28 +2512,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B4C0(); /* call 0x0014B4C0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014BA50",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3221,6 +2532,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3229,28 +2547,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014ABB0(); /* call 0x0014ABB0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014BAA0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3269,6 +2567,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3277,28 +2582,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B570(); /* call 0x0014B570 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014BAF0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3317,6 +2602,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3325,28 +2617,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B620(); /* call 0x0014B620 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0014BB40",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0009.c",
@@ -3362,7 +2634,8 @@
    "    g_seh_ebp = ebp; sub_00158998(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0009.c",
@@ -3378,7 +2651,8 @@
    "    sub_0016754B(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0009.c",
@@ -3394,7 +2668,8 @@
    "    sub_00167550(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ecx);"
  },
  {
   "file": "recomp_0010.c",
@@ -3410,7 +2685,8 @@
    "    sub_0017DB44(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0010.c",
@@ -3426,7 +2702,8 @@
    "    sub_0017DC3A(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0010.c",
@@ -3442,7 +2719,8 @@
    "    g_seh_ebp = ebp; sub_0018BE76(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0010.c",
@@ -3458,7 +2736,8 @@
    "    sub_0018E641(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0xD);"
  },
  {
   "file": "recomp_0011.c",
@@ -3477,6 +2756,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3485,28 +2771,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00193FC0(); /* call 0x00193FC0 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "insert_before",
-  "function": "sub_00194290",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0011.c",
@@ -3525,6 +2791,13 @@
    "    if (eax != 0) {"
   ],
   "close": [
+   "    } else {",
+   "    /* Manual addition (not in original x86): when construction is",
+   "     * skipped above, explicitly zero the output slot instead of",
+   "     * leaving it holding whatever garbage was there before this",
+   "     * object's own allocation - consumers elsewhere assume \"0 or a",
+   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
+   "    MEM32(esi) = 0;",
    "    }"
   ],
   "match": null,
@@ -3533,28 +2806,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00194070(); /* call 0x00194070 */",
-   "    esp = esp + 8;",
-   "    } else {",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;"
+   "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "insert_before",
-  "function": "sub_001942E0",
-  "block": [
-   "    /* Manual addition (not in original x86): when construction is",
-   "     * skipped above, explicitly zero the output slot instead of",
-   "     * leaving it holding whatever garbage was there before this",
-   "     * object's own allocation - consumers elsewhere assume \"0 or a",
-   "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */"
-  ],
-  "match": null,
-  "anchor": "    MEM32(esi) = 0;"
  },
  {
   "file": "recomp_0011.c",
@@ -3570,7 +2823,8 @@
    "    g_seh_ebp = ebp; sub_0019E972(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 5);"
  },
  {
   "file": "recomp_0011.c",
@@ -3590,7 +2844,8 @@
    "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A0E9F; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_001A0E8D: ;"
+  "anchor": "loc_001A0E8D: ;",
+  "pre": "    MEM32(ebp + -124) = eax;"
  },
  {
   "file": "recomp_0011.c",
@@ -3610,7 +2865,8 @@
    "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A0F77; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_001A0F65: ;"
+  "anchor": "loc_001A0F65: ;",
+  "pre": "    MEM32(ebp + -116) = eax;"
  },
  {
   "file": "recomp_0011.c",
@@ -3630,7 +2886,8 @@
    "    if (CMP_EQ(ecx, eax) || eax == 0) goto loc_001A10AE; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_001A109C: ;"
+  "anchor": "loc_001A109C: ;",
+  "pre": "    MEM32(ebp + -128) = eax;"
  },
  {
   "file": "recomp_0011.c",
@@ -3646,7 +2903,8 @@
    "    g_seh_ebp = ebp; sub_001A3003(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3E1D58);"
  },
  {
   "file": "recomp_0011.c",
@@ -3662,7 +2920,8 @@
    "    sub_001A3B6A(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0xC0000011u);"
  },
  {
   "file": "recomp_0014.c",
@@ -3680,7 +2939,8 @@
    "    if (TEST_Z(esi, esi)) goto loc_001E8E5B; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_001E8E41: ;"
+  "anchor": "loc_001E8E41: ;",
+  "pre": "    esi = MEM32(edx + edi * 4);"
  },
  {
   "file": "recomp_0014.c",
@@ -3696,7 +2956,8 @@
    "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
   ],
   "match": null,
-  "anchor": "    ecx = esi;"
+  "anchor": "    ecx = esi;",
+  "pre": "    eax = MEM32(esi);"
  },
  {
   "file": "recomp_0014.c",
@@ -3709,7 +2970,8 @@
    "    if (TEST_Z(esi, esi)) goto loc_001E8E99; /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_001E8E7F: ;"
+  "anchor": "loc_001E8E7F: ;",
+  "pre": "    esi = MEM32(edx + edi * 4);"
  },
  {
   "file": "recomp_0014.c",
@@ -3721,7 +2983,8 @@
    "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
   ],
   "match": null,
-  "anchor": "    ecx = esi;"
+  "anchor": "    ecx = esi;",
+  "pre": "    eax = MEM32(esi);"
  },
  {
   "file": "recomp_0014.c",
@@ -3737,7 +3000,8 @@
    "    g_seh_ebp = ebp; sub_001ED5FA(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0015.c",
@@ -3751,7 +3015,8 @@
    "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) eax = 0;"
   ],
   "match": null,
-  "anchor": "    edx = MEM32(ebx);"
+  "anchor": "    edx = MEM32(ebx);",
+  "pre": "    eax = MEM32(0x5BB894);"
  },
  {
   "file": "recomp_0015.c",
@@ -3767,14 +3032,14 @@
    "    if (edx >= 0x00880000u && edx < 0x04000000u) {"
   ],
   "close": [
+   "    } else {",
+   "    esp = _icall_esp; eax = 0;",
    "    }"
   ],
   "match": null,
   "anchor": "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */",
   "wrapped": [
-   "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */",
-   "    } else {",
-   "    esp = _icall_esp; eax = 0;"
+   "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */"
   ]
  },
  {
@@ -3790,7 +3055,8 @@
    "    if (eax != 0 && !(eax >= 0x00880000u && eax < 0x04000000u)) eax = 0;"
   ],
   "match": null,
-  "anchor": "    eax = MEM32(eax + 0x28);"
+  "anchor": "    eax = MEM32(eax + 0x28);",
+  "pre": "loc_00200B2D: ;"
  },
  {
   "file": "recomp_0015.c",
@@ -3805,7 +3071,8 @@
    "    if (ecx == 0) ecx = 1;"
   ],
   "match": null,
-  "anchor": "    eax = edi;"
+  "anchor": "    eax = edi;",
+  "pre": "    ecx = ZX16(LO16(eax));"
  },
  {
   "file": "recomp_0015.c",
@@ -3821,7 +3088,8 @@
    "    if (ecx >= 0x00880000u && ecx < 0x04000000u) MEM32(ecx + edi * 4) = ebx;"
   ],
   "match": null,
-  "anchor": "    POP32(esp, edi);"
+  "anchor": "    POP32(esp, edi);",
+  "pre": "    MEM32(esi + 8) = eax;"
  },
  {
   "file": "recomp_0015.c",
@@ -3833,7 +3101,8 @@
    "    if (eax >= 0x00880000u && eax < 0x04000000u) MEM32(eax + edi * 4) = ebx;"
   ],
   "match": null,
-  "anchor": "    POP32(esp, edi);"
+  "anchor": "    POP32(esp, edi);",
+  "pre": "    eax = MEM32(esi + 0x10);"
  },
  {
   "file": "recomp_0015.c",
@@ -3855,7 +3124,8 @@
    "    sub_002085CA(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    eax = eax >> 2;"
  },
  {
   "file": "recomp_0015.c",
@@ -3875,7 +3145,8 @@
    "     * unwound on failure. See DEBUGGING_NOTES.md. */"
   ],
   "match": null,
-  "anchor": "    PUSH32(esp, edi);"
+  "anchor": "    PUSH32(esp, edi);",
+  "pre": "loc_00209650: ;"
  },
  {
   "file": "recomp_0015.c",
@@ -3898,7 +3169,8 @@
    "    if (TEST_NZ(eax, eax) && eax >= 0x00880000u && eax < 0x04000000u) goto loc_0020E56D; /* jne: not equal / not zero */"
   ],
   "match": null,
-  "anchor": "loc_0020E54F: ;"
+  "anchor": "loc_0020E54F: ;",
+  "pre": "    eax = MEM32(esp + 8);"
  },
  {
   "file": "recomp_0015.c",
@@ -3914,7 +3186,8 @@
    "    { uint32_t _icall_esp = g_esp;"
   ],
   "match": null,
-  "anchor": "    PUSH32(esp, ebx);"
+  "anchor": "    PUSH32(esp, ebx);",
+  "pre": "    edx = MEM32(eax);"
  },
  {
   "file": "recomp_0015.c",
@@ -3946,7 +3219,8 @@
    "    if (!(edi >= 0x00880000u && edi < 0x04000000u)) goto loc_002170DF;"
   ],
   "match": null,
-  "anchor": "    eax = MEM32(edi + 0x34);"
+  "anchor": "    eax = MEM32(edi + 0x34);",
+  "pre": "loc_00216FE7: ;"
  },
  {
   "file": "recomp_0015.c",
@@ -3962,7 +3236,8 @@
    "    sub_002171ED(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x3F5DDC);"
  },
  {
   "file": "recomp_0016.c",
@@ -3982,7 +3257,8 @@
    "    if (CMP_NE(MEM32(ebx), 0) && MEM32(ebx) >= 0x00010000u && MEM32(ebx) < 0x02000000u) goto loc_00223698; /* jne: not equal / not zero */"
   ],
   "match": null,
-  "anchor": "loc_00223620: ;"
+  "anchor": "loc_00223620: ;",
+  "pre": "    edi = MEM32(esp + 0x130);"
  },
  {
   "file": "recomp_0018.c",
@@ -3998,7 +3274,8 @@
    "    sub_002577E7(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0018.c",
@@ -4011,7 +3288,8 @@
    "    if (TEST_Z(eax, eax) || !(eax >= 0x00880000u && eax < 0x04000000u)) { g_seh_ebp = ebp; sub_00259CCD(); return; } /* je: equal / zero */"
   ],
   "match": null,
-  "anchor": "loc_00259CC8: ;"
+  "anchor": "loc_00259CC8: ;",
+  "pre": "    PUSH32(esp, esi);"
  },
  {
   "file": "recomp_0018.c",
@@ -4027,7 +3305,8 @@
    "    sub_00268B77(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ecx);"
  },
  {
   "file": "recomp_0018.c",
@@ -4043,7 +3322,8 @@
    "    sub_0027819A(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0019.c",
@@ -4059,7 +3339,8 @@
    "    sub_00278DF5(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0019.c",
@@ -4075,7 +3356,8 @@
    "    sub_00281DA8(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, edx);"
  },
  {
   "file": "recomp_0020.c",
@@ -4091,7 +3373,8 @@
    "    sub_002A9CD1(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x473B0C);"
  },
  {
   "file": "recomp_0021.c",
@@ -4107,7 +3390,8 @@
    "    g_seh_ebp = ebp; sub_002C2EF5(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, ecx);"
  },
  {
   "file": "recomp_0021.c",
@@ -4123,7 +3407,8 @@
    "    g_seh_ebp = ebp; sub_002C3599(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x40D398);"
  },
  {
   "file": "recomp_0021.c",
@@ -4139,7 +3424,8 @@
    "    sub_002C8629(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x40D51C);"
  },
  {
   "file": "recomp_0021.c",
@@ -4155,7 +3441,8 @@
    "    sub_002C9D0A(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x40D770);"
  },
  {
   "file": "recomp_0021.c",
@@ -4171,7 +3458,8 @@
    "    sub_002CEC50(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0021.c",
@@ -4187,7 +3475,8 @@
    "    sub_002CEF98(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x40F698);"
  },
  {
   "file": "recomp_0021.c",
@@ -4203,7 +3492,8 @@
    "    sub_002CF006(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x40F754);"
  },
  {
   "file": "recomp_0022.c",
@@ -4219,7 +3509,8 @@
    "    sub_002FC2C2(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x4C);"
  },
  {
   "file": "recomp_0022.c",
@@ -4235,7 +3526,8 @@
    "    sub_00307F11(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0);"
  },
  {
   "file": "recomp_0023.c",
@@ -4251,7 +3543,8 @@
    "    g_seh_ebp = ebp; sub_00314A9D(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, 0x42E918);"
  },
  {
   "file": "recomp_0024.c",
@@ -4267,7 +3560,8 @@
    "    sub_00321E40(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, eax);"
  },
  {
   "file": "recomp_0025.c",
@@ -4283,7 +3577,8 @@
    "    g_seh_ebp = ebp; sub_003424C3(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, MEM32(ebp + 0x10));"
  },
  {
   "file": "recomp_0025.c",
@@ -4299,7 +3594,8 @@
    "    g_seh_ebp = ebp; sub_00346210(); return;"
   ],
   "match": null,
-  "anchor": "}"
+  "anchor": "}",
+  "pre": "    PUSH32(esp, MEM32(ebp + 0x1C));"
  },
  {
   "file": "recomp_stubs_unresolved.c",

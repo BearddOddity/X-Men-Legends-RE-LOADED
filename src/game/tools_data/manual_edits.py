@@ -140,23 +140,46 @@ def extract_file(path):
                         "why": "wrapping guard whose closing brace was not found",
                     })
                     continue
-                # Record the wrapped region by CONTENT, not by an end-anchor
-                # line. Guards frequently sit back to back, and an anchor-based
-                # close lands in the wrong place when the following lines belong
-                # to a neighbouring guard - producing misnested or unbalanced
-                # braces. The enclosed lines are generator output, so they exist
-                # verbatim in a fresh tree and can be located exactly.
-                wrapped = [l for l in lines[i:close_at]
-                           if not any(l.lstrip().startswith(mk) for mk in MARKERS)]
+                # Split the guarded region into three parts:
+                #
+                #   prefix   = comment + `if (cond) {`          (hand-written)
+                #   wrapped  = the generated statements it guards
+                #   suffix   = `}` or `} else { ... }` + close  (hand-written)
+                #
+                # Recording `wrapped` by CONTENT rather than by an end-anchor
+                # matters: guards frequently sit back to back, and an anchor
+                # based close lands in the wrong place when the following lines
+                # belong to a neighbouring guard. The enclosed statements are
+                # generator output, so they exist verbatim in a fresh tree.
+                #
+                # The generated region ends at the first line beginning with
+                # `}` - either the plain close or `} else {` introducing a
+                # hand-written alternative branch. Everything from there to the
+                # matching close is hand-written and travels with the prefix.
+                j = i
+                while j < close_at and not lines[j].lstrip().startswith("}"):
+                    j += 1
                 edits.append({
                     "file": os.path.basename(path), "kind": "wrap",
                     "function": function_at(lines, start), "block": block,
-                    "close": [lines[close_at]], "match": None,
+                    "close": lines[j:close_at + 1], "match": None,
                     "anchor": anchor,
-                    "wrapped": wrapped,
+                    "wrapped": lines[i:j],
                 })
+                # Skip past the whole construct. The suffix often contains its
+                # own `Manual addition` comment (the else branch); without this
+                # the scanner would find that marker again and emit a second,
+                # standalone edit for text this wrap already carries - which
+                # then fails to apply because it is not independently anchored.
+                i = close_at + 1
                 continue
 
+            # Record the generated line that PRECEDED the edit too. Anchor lines
+            # are often not unique within a function, and the preceding line
+            # disambiguates which occurrence this edit belongs to.
+            p = start - 1
+            while p >= 0 and not lines[p].strip():
+                p -= 1
             edits.append({
                 "file": os.path.basename(path),
                 "kind": "insert_before",
@@ -164,6 +187,7 @@ def extract_file(path):
                 "block": block,
                 "match": None,
                 "anchor": anchor,
+                "pre": lines[p] if p >= 0 else None,
             })
             continue
         i += 1
@@ -300,31 +324,49 @@ def cmd_apply(args, dry_run=False):
             if lo is None:
                 failed.append((e, f"function {e['function']} not found"))
                 continue
-            hit = _find_anchor(lines, lo, hi, e["anchor"])
-            if hit is None:
-                failed.append((e, "anchor line not found in function"))
-                continue
-            # Idempotency must be POSITIONAL, not "does this text appear
-            # anywhere". Many guards are worded identically (all 50 dropped
-            # tail-call fixes share one comment), so a whole-file text search
-            # makes every duplicate look already-applied and silently drops it.
-            n = len(e["block"])
-            if hit >= n and lines[hit - n:hit] == e["block"]:
-                placed += 1  # genuinely already applied at this site
-                continue
+            hit = None
+            if e["kind"] != "wrap":
+                hit = _find_anchor(lines, lo, hi, e["anchor"], e.get("pre"))
+                if hit is None:
+                    failed.append((e, "anchor line not found in function"))
+                    continue
+                # Idempotency must be POSITIONAL, not "does this text appear
+                # anywhere". Many guards are worded identically (all 50 dropped
+                # tail-call fixes share one comment), so a whole-file text
+                # search makes every duplicate look already-applied and
+                # silently drops it. (wrap does its own check below, once the
+                # enclosed run has located the site.)
+                n = len(e["block"])
+                if hit >= n and lines[hit - n:hit] == e["block"]:
+                    placed += 1  # genuinely already applied at this site
+                    continue
 
             if e["kind"] == "wrap":
                 wrapped = e.get("wrapped")
                 if not wrapped:
                     failed.append((e, "wrapping guard recorded no enclosed lines"))
                     continue
-                # The enclosed lines must start exactly at the anchor, since the
-                # anchor IS the first wrapped line. Verify rather than search, so
-                # a mismatch is reported instead of silently wrapping the wrong
-                # region.
-                end = _match_run(lines, hit, hi, wrapped)
-                if end is None:
-                    failed.append((e, "enclosed lines not found at anchor"))
+                # Locate by the whole enclosed RUN, not by the anchor line. A
+                # single line like `PUSH32(esp, eax);` recurs many times in one
+                # function, so anchoring picks the first occurrence and wraps the
+                # wrong region; a multi-line run is far more distinctive.
+                hits = []
+                for i2 in range(lo, hi):
+                    end2 = _match_run(lines, i2, hi, wrapped)
+                    if end2 is not None:
+                        hits.append((i2, end2))
+                if not hits:
+                    failed.append((e, "enclosed lines not found in function"))
+                    continue
+                if len(hits) > 1:
+                    # Guessing here could wrap unrelated code. Report instead.
+                    failed.append((e, f"enclosed lines match {len(hits)} places - ambiguous"))
+                    continue
+                hit, end = hits[0]
+                # Idempotency, positionally: is the prefix already right above?
+                n = len(e["block"])
+                if hit >= n and lines[hit - n:hit] == e["block"]:
+                    placed += 1
                     continue
                 # Insert the closing brace first: doing the opening first would
                 # shift every later index by len(block).
@@ -407,13 +449,38 @@ def _match_run(lines, start, hi, run):
     return i if k == len(run) else None
 
 
-def _find_anchor(lines, lo, hi, anchor):
-    """Index of `anchor` within [lo, hi), exact first then normalised."""
-    hit = next((i for i in range(lo, hi) if lines[i] == anchor), None)
-    if hit is not None:
-        return hit
-    want = _normalise(anchor)
-    return next((i for i in range(lo, hi) if _normalise(lines[i]) == want), None)
+def _find_anchor(lines, lo, hi, anchor, pre=None):
+    """Index of `anchor` within [lo, hi), exact first then normalised.
+
+    Anchor lines are frequently NOT unique inside a function (`PUSH32(esp, eax);`
+    can occur a dozen times), so when a `pre` line is recorded - the generated
+    line that preceded the edit - candidates are filtered to those immediately
+    following it. A single unfiltered match is still accepted, since most edits
+    do have a unique anchor.
+    """
+    def candidates(cmp):
+        return [i for i in range(lo, hi) if cmp(lines[i])]
+
+    hits = candidates(lambda l: l == anchor)
+    if not hits:
+        want = _normalise(anchor)
+        hits = candidates(lambda l: _normalise(l) == want)
+    if not hits:
+        return None
+    if len(hits) > 1 and pre:
+        want_pre = _normalise(pre)
+        narrowed = []
+        for i in hits:
+            j = i - 1
+            while j >= lo and not lines[j].strip():
+                j -= 1
+            if j >= lo and _normalise(lines[j]) == want_pre:
+                narrowed.append(i)
+        if len(narrowed) == 1:
+            return narrowed[0]
+        if narrowed:
+            hits = narrowed
+    return hits[0]
 
 
 def _function_span(lines, name):

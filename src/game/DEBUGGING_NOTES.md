@@ -1951,13 +1951,20 @@ old `RECOMP_ICALL_SAFE(X, ...)` spelling still matches the new
 partially restored tree still compiles but is silently missing guards, which is
 far worse than an obvious failure.
 
-**Current status: 145 of 269 recorded edits re-apply mechanically.** The
-remaining 124 are the `Manual addition` family, which do not merely insert or
-wrap code - they restructure it into `if (...) { ... } else { ... }` around
-generated statements. That shape is not expressible as insert-before or
-wrap-region and is not handled. If you regenerate today, expect to re-apply
-those by hand from this document and from `manual_edits.json` (which records
-each one's text and location even when it cannot auto-apply).
+**Current status: 146 of 209 recorded edits re-apply mechanically (70%).**
+
+`if (...) { ... } else { ... }` guards ARE handled: the extractor splits them
+into prefix / enclosed-generated-lines / suffix, and locates the site by
+matching the whole enclosed run (a single anchor line such as
+`PUSH32(esp, eax);` recurs many times in one function and picks the wrong
+occurrence). Ambiguous matches are reported rather than guessed at.
+
+The remaining **63 cannot be auto-applied**: those guards restructure code
+*across a label boundary*, so the enclosed run does not exist verbatim in a
+freshly generated tree. Handling them properly needs a C-aware differ, which is
+more machinery than the payoff justifies. `verify` names every one of them, and
+`manual_edits.json` records each one's exact text and location, so re-applying
+them is mechanical hand work rather than archaeology.
 
 ### Regression guard
 
