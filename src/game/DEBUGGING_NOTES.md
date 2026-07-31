@@ -2397,3 +2397,85 @@ replacements for these two would be narrower and safer than trying to make the
 lifter model a function that rewrites its own return address.
 
 **Status: 48 kernel calls, stable, 2 failed indirect calls (from 12).**
+
+---
+
+## `__SEH_epilog` restored registers from a drifted esp (48 -> 54, 0 failed icalls)
+
+### Tracing rather than reading
+
+Reading `__SEH_prolog`/`__SEH_epilog` against the original disassembly had
+suggested the lift was faithful - the `[esp+0x10]` argument offsets, the
+`[ebp-16]` registration record address and the epilog's pop order all matched.
+It was. The bug was not in *what* they do but in *when* the values are read.
+
+Printing `esi` at entry and exit of every function in the chain settled it in
+one run:
+
+```
+enter sub_000119E0 esi=0044A598   leave esi=0044A598   ok
+enter sub_003432A8 esi=0044A598   leave esi=0044A598   ok   (__SEH_prolog)
+enter sub_003432E3 esi=0044A598   leave esi=00F81000   CLOBBERED
+```
+
+### The bug
+
+`__SEH_epilog` restores the callee-saved registers by popping:
+
+```c
+POP32(esp, ecx);   /* return address */
+POP32(esp, edi);
+POP32(esp, esi);
+POP32(esp, ebx);
+esp = ebp;
+```
+
+On real hardware that is correct: the function body leaves `esp` exactly where
+`__SEH_prolog` left it, so the pops land on the save area. In this recomp `esp`
+is simulated and drifts - measured **12 bytes** off at this call - so the pops
+read four unrelated stack slots straight into `ebx`, `esi` and `edi`.
+
+Nothing near the epilog looks wrong; the damage surfaces far away. Here it
+landed in `_initterm`'s table cursor, which then walked the stack calling
+whatever resembled a pointer - including the `_except_handler3` address stored
+in a registration record, which is what made the whole thing look like
+exception dispatch.
+
+### The fix
+
+`__SEH_prolog` already records the exact save-area address at `[ebp-24]`,
+written right after pushing `ebx/esi/edi` and before pushing the return
+address. So the layout is fixed and known:
+
+```
+[save-4] = return address
+[save+0] = edi
+[save+4] = esi
+[save+8] = ebx
+```
+
+Restoring from there instead of from `esp` makes the epilog independent of any
+esp drift in the body. Dropping the four `POP32`s does not change the final
+`esp`, because `esp = ebp` on the next line overwrites it regardless - only the
+restored *values* ever mattered.
+
+**48 -> 54 kernel calls**, stable across two runs, and past the previous best
+of 53. **Failed indirect calls went to zero** (12 at the start of this stretch,
+2 after seeding). Every function pointer in the boot path now resolves.
+
+### Why this was invisible until now
+
+`sub_003556E0` - the initializer whose call chain reaches this epilog - is one
+of the functions seeded in Phase B. The path had never executed before, so the
+epilog had never been exercised with a drifted esp on a live cursor. Seeding
+the missing functions is what made this bug reachable, and fixing it is what
+turned the 53 -> 48 dip into 54.
+
+### The general lesson
+
+A lift can be *faithful to the instructions* and still wrong, because the
+recomp's simulated `esp` is not the real `esp`. Any lifted code that reads
+values relative to `esp` across a function body is exposed to drift. Where the
+original stored an explicit frame or save-area pointer, prefer restoring
+through that pointer - it is what the original author put there for exactly
+this kind of recovery.

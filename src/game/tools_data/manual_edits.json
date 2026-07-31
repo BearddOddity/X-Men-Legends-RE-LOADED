@@ -3735,6 +3735,32 @@
  {
   "file": "recomp_0025.c",
   "kind": "insert_before",
+  "function": "sub_003432E3",
+  "block": [
+   "    /* Manual fix (not in original x86): __SEH_epilog restored ebx/esi/edi by",
+   "     * popping at the current esp. On real hardware that is correct, because",
+   "     * the function body leaves esp exactly where __SEH_prolog left it. In this",
+   "     * recomp esp is simulated and drifts - measured 12 bytes off here - so the",
+   "     * pops loaded garbage into the callee-saved registers. That garbage",
+   "     * propagated all the way out to _initterm's table cursor in esi, which",
+   "     * then walked the stack and called whatever looked like a pointer.",
+   "     *",
+   "     * __SEH_prolog stores the exact save-area address at [ebp-24], right after",
+   "     * pushing ebx/esi/edi and before pushing the return address, so the layout",
+   "     * is [save+0]=edi, [save+4]=esi, [save+8]=ebx, [save-4]=return address.",
+   "     * Restoring from there is independent of any esp drift in the body.",
+   "     *",
+   "     * The dropped POP32s do not change the final esp: `esp = ebp` below",
+   "     * overwrites it regardless, so only the restored values ever mattered. */",
+   "    { uint32_t _save = MEM32(ebp + -24);"
+  ],
+  "match": null,
+  "anchor": "      ecx = MEM32(_save - 4);",
+  "pre": "    MEM32(0) = ecx;"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "insert_before",
   "function": "sub_0034620D",
   "block": [
    "    /* Manual fix (not in original x86): the lifter cut this",
