@@ -131,13 +131,33 @@ static void print_rip(const char *what, uintptr_t rip)
         what, (unsigned long long)rip, name);
 }
 
-/* Walk the raw stack for anything that looks like a return address into our
- * own image. Resolve the printed RVAs against build/*.map, or let
- * tools_data/triage_crash.py do it. */
+/* Print the call stack. Resolve the printed RVAs against build/*.map, or let
+ * tools_data/triage_crash.py do it.
+ *
+ * Prefer CaptureStackBackTrace: it follows the real frame chain, so every
+ * entry is a genuine caller. Scanning raw stack slots for anything that looks
+ * like a return address also picks up *stale* values left by earlier calls,
+ * and those had already sent one investigation chasing functions that were
+ * never on the live path. The raw scan stays as a fallback, clearly labelled,
+ * because deep recursion can exhaust what CaptureStackBackTrace will walk. */
 static void dump_native_stack(const uintptr_t *sp)
 {
     module_range();
-    fprintf(stderr, "  Native stack (resolve RVAs against build/*.map):\n");
+
+    void *frames[62];
+    USHORT n = CaptureStackBackTrace(0, 62, frames, NULL);
+    if (n) {
+        fprintf(stderr, "  Call stack, innermost first "
+                        "(resolve RVAs against build/*.map):\n");
+        for (USHORT i = 0; i < n; i++) {
+            uintptr_t a = (uintptr_t)frames[i];
+            if (in_module(a))
+                fprintf(stderr, "    [%2u] RVA 0x%llX\n", i,
+                    (unsigned long long)(a - g_mod_base));
+        }
+    }
+
+    fprintf(stderr, "  Raw stack scan (may include stale return addresses):\n");
     int found = 0;
     for (int i = 0; i < 256; i++) {
         if (!in_module(sp[i])) continue;

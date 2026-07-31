@@ -86,5 +86,16 @@
     "commit": "6cb3399",
     "message": "Fix __SEH_epilog restoring registers from a drifted esp (48 -> 54)",
     "note": "Past the old best of 53, and zero failed indirect calls for the first time. Only reachable because the seeded initializers made this path execute."
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 0,
+    "heap_allocs": 3,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF10",
+    "date": "2026-07-31",
+    "message": "Map the registration recursion; add add_probe.py (54 held)",
+    "note": "No behaviour change: this stretch was diagnosis plus tooling. Four plausible causes eliminated by probing. Crash handler now uses CaptureStackBackTrace, since the raw stack scan was reporting stale frames as callers.",
+    "commit": "1c407f5"
   }
 ]

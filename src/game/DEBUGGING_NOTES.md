@@ -2544,3 +2544,71 @@ Fixed with an invariant rather than a bigger parser: **whatever is removed must
 be brace-balanced on its own.** If it is not, the removal would break the
 surrounding code, so refuse to write and say why. Covered by a check in the
 tool's own test path.
+
+### Mapping the registration recursion (54 held)
+
+The cycle, confirmed with a real frame walk rather than a raw stack scan:
+
+```
+sub_002235D0  (generic class registrar)
+  -> sub_002226E0   ("ensure class B", hardcodes push 0x2221E0)
+    -> sub_00209650 (calls the registrar it is handed, via `call [esp+8]`)
+      -> sub_002221E0 (thunk: pushes 11 constants incl. slot 0x5BC274)
+        -> sub_002235D0 ...
+```
+
+Probing the entry ICALL of `sub_00209650` shows the argument settling on
+`0x002221E0` - class B's own registrar - while B is mid-registration:
+
+```
+[DEPFN] sub_00209650 arg=002225B0     <- first, a different class
+[DEPFN] sub_00209650 arg=002221E0     <- then B, forever
+[SLOT]  slot=005BC274 cached=00000000 <- never becomes non-zero
+```
+
+Termination should come from `sub_002235D0`'s cache check on slot `0x5BC274`,
+but the slot is only written *after* the create call returns, and the create
+call is what recurses.
+
+### Four hypotheses killed by probing, not by reading
+
+Worth recording because each looked convincing:
+
+1. **The hand plausibility guard on the cache check.** Probed: `guard_takes`
+   and `orig_takes` agree at every depth. Inert here. Left alone (Rule #10).
+2. **`sub_00209650`'s dependency-array loop.** Probed: never entered, the count
+   is <= 0. The recursion goes through the *entry* ICALL instead.
+3. **`sub_00209650`'s two virtual calls.** Probed: neither fires.
+4. **`cmp byte ptr [eax], 0` in `sub_002226E0` reading the fake TIB.** The
+   theory was that `MEM32(0x5BC508)` is NULL, so byte 0 comes from the fake TIB
+   (which holds `0xFFFFFFFF`) and the branch inverts. Probed: the pointer is a
+   real heap object `0x00F81288` whose first dword is a vtable `0x003F4770`, so
+   byte 0 is `0x70` legitimately. Disassembling confirmed the lift is faithful.
+   The branch behaves exactly as on hardware.
+
+The stack walk itself misled the first pass: the old raw-slot scan reported
+`sub_00209650` and friends as callers, and they *were* on the stack - as stale
+values. Fixed by preferring `CaptureStackBackTrace`, keeping the raw scan below
+it under an explicit "may include stale return addresses" heading.
+
+Remaining question: what sets slot `0x5BC274` before the recursion closes.
+The only other writer is `sub_001F3210`, a specialised registrar for the same
+class that calls `sub_002226E0` and stores the result directly. Whether that
+path is meant to run first is the next thing to establish.
+
+### Tooling: `add_probe.py`
+
+Probes were being pasted through shell heredocs, and the shell mangles
+backslash escapes, so `\n` inside a C string arrived as a real newline and the
+file stopped compiling - **four times in one day**. Twice is a class (Rule #9).
+
+`add_probe.py` builds the probe in Python, where the escaping is correct by
+construction, enforces the `/* PROBE */` convention that `strip_probes.py`
+depends on, checks that the `--fmt` conversions match the `--args` count, and
+refuses to write unless the anchor line matches exactly once.
+
+```
+py -3 tools_data/add_probe.py src/recomp/gen/recomp_0015.c \
+    --after "loc_00209650: ;" --tag DEPFN \
+    --fmt "arg=%08X" --args "MEM32(esp + 4)" --limit 12
+```

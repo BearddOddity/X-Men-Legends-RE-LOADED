@@ -67,9 +67,17 @@ def parse_crash(path):
     # The crash handler's own stack walk, which names the recompiled caller
     # when the fault itself happened inside a system DLL.
     tail = text.split("[CRASH]", 1)[1] if "[CRASH]" in text else ""
-    tail = tail.split("Native stack", 1)
-    crash["stack"] = ([int(x, 16) for x in re.findall(r"RVA 0x([0-9A-Fa-f]+)", tail[1])]
-                      if len(tail) > 1 else [])
+    # Prefer the real frame walk; the raw scan below it contains stale
+    # return addresses and has already misled one investigation.
+    if "Call stack, innermost first" in tail:
+        seg = tail.split("Call stack, innermost first", 1)[1]
+        seg = seg.split("Raw stack scan", 1)[0]
+        crash["stack_is_real"] = True
+    else:
+        seg = tail.split("Native stack", 1)
+        seg = seg[1] if len(seg) > 1 else ""
+        crash["stack_is_real"] = False
+    crash["stack"] = [int(x, 16) for x in re.findall(r"RVA 0x([0-9A-Fa-f]+)", seg)]
     va = re.search(r"Xbox VA of fault: 0x([0-9A-Fa-f]+)", text)
     crash["fault_va"] = int(va.group(1), 16) if va else None
     regs = {}
