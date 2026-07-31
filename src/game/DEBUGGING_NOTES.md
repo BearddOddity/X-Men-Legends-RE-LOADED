@@ -1650,3 +1650,24 @@ D3D-dependent paths that currently no-ops.
 Next lead: find what writes `+0x394` on that object (a plain grep for `+ 0x394`
 is too noisy - the offset is widely reused; scope it to code that also touches
 `0x5BC508`).
+
+### Workaround applied: plausibility guard on `sub_00216FD0`'s argument
+
+Since the upstream cause (`MEM32(0x5BC508) + 0x394` being 0) is still unknown,
+`sub_00216FD0` now rejects an argument that is not a plausible heap pointer and
+takes its own existing no-op exit - the same path already taken when the
+argument is 0. Only 2 call sites, so the blast radius is small.
+
+Deliberately does **not** fall through to the construct-and-store branch: that
+would write through `MEM32(edi + 0x34)` into read-only descriptor data and
+corrupt a vtable.
+
+Result: **39 -> 40 kernel calls**, stable across runs, and the crash moves to a
+genuinely different site with much healthier register state - `ecx`, `ebx` and
+`esi` are all valid heap pointers now, and only `edi` is bad (`0xFFFFFFF8`,
+i.e. `0 - 8`, so something computed `ptr - 8` from a null). New crash is at
+map RVA `0x962DB8`.
+
+This is a **workaround, not a root fix.** The real question - what should
+initialise `+0x394` on the object at `0x5BC508` - is still open, and is likely
+one of the inert D3D paths. Revisit once the D3D shim does real work.
