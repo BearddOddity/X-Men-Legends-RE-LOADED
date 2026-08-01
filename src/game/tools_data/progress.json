@@ -119,5 +119,16 @@
     "message": "Stub the class registrar; boot advances well past registration",
     "note": "Kernel count is BLIND here - crash, spin loop and real progress all scored 54, because this stretch makes no kernel calls. Real signal is init depth: sub_00239E50 goes +0x19F -> +0x30D with two new frames below it. Stub is a scope decision, not a fix; three narrower workarounds each made things worse.",
     "commit": "13b18b4"
+  },
+  {
+    "kernel_calls": 70,
+    "failed_icalls": 25,
+    "heap_allocs": 7,
+    "crash_in": "sub_001F7560+0x2F8",
+    "fault_va": "0xFFFFFFD4",
+    "date": "2026-08-01",
+    "message": "Guard refcount release against a NULL object (54 -> 70)",
+    "note": "First real advance since the registrar stub. Call stack is now 11+ frames deep in previously unreached code.",
+    "commit": "a0905bb"
   }
 ]
