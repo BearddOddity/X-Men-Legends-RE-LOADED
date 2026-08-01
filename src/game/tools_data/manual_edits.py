@@ -281,6 +281,25 @@ def cmd_extract(args):
     return 0
 
 
+def _braces_balanced(lines):
+    """True if every generated function in `lines` has balanced braces.
+
+    Comments are stripped first, so a `{` inside a guard's explanation does not
+    count. This is the safety net deciding whether a partially-applied file is
+    safe to write.
+    """
+    depth, in_func = 0, False
+    for l in lines:
+        if FUNC_RE.match(l):
+            if in_func and depth != 0:
+                return False
+            in_func, depth = True, 0
+        code = re.sub(r"/\*.*?\*/", "", l)
+        code = re.sub(r"/\*.*$", "", code)
+        depth += code.count("{") - code.count("}")
+    return depth == 0
+
+
 def cmd_apply(args, dry_run=False):
     edits = json.load(open(args.store, encoding="utf-8"))
     placed, failed = 0, []
@@ -363,6 +382,12 @@ def cmd_apply(args, dry_run=False):
                     failed.append((e, f"enclosed lines match {len(hits)} places - ambiguous"))
                     continue
                 hit, end = hits[0]
+                live = _wrap_crosses_live_label(lines, lo, hi, hit, end)
+                if live:
+                    failed.append((e, f"enclosed run spans {live}, which is still "
+                                      "a goto target - wrapping it would let that "
+                                      "path skip the guard"))
+                    continue
                 # Idempotency, positionally: is the prefix already right above?
                 n = len(e["block"])
                 if hit >= n and lines[hit - n:hit] == e["block"]:
@@ -382,9 +407,53 @@ def cmd_apply(args, dry_run=False):
 
     # Write nothing unless EVERY edit placed. A partially-restored tree compiles
     # but is silently missing guards, which is worse than an obvious failure.
-    if not failed and not dry_run:
+    #
+    # --partial relaxes that for the one case where it is the right call: after
+    # a full regeneration, where a handful of edits are replacements the
+    # insert-before-anchor model cannot express and must be redone by hand.
+    # Refusing everything then discards 200+ good placements to protect a
+    # handful.
+    #
+    # The discriminator is BRACE BALANCE, not "did every edit place". A
+    # wrapping guard inserts an opening brace and its matching close as one
+    # operation, so a file where some wraps placed and others did not ends up
+    # with unmatched braces and will not compile - that happened here, +2. An
+    # insert-before-anchor edit only adds a comment block and cannot unbalance
+    # anything, so a file whose only failures are of that kind is still valid.
+    if not dry_run:
+        bad = {e["file"] for e, _ in failed}
         for path, lines in pending.items():
-            open(path, "w", encoding="utf-8").write("\n".join(lines))
+            # The discriminator is the failed edit's KIND, which is already
+            # recorded - no brace parsing needed.
+            #
+            # A `wrap` inserts an opening brace and its matching close as one
+            # operation, so a file where some wraps placed and others did not
+            # has unmatched braces and will not compile (observed: +2). Every
+            # other kind only inserts or replaces a comment block and cannot
+            # unbalance anything.
+            #
+            # So a file is written unless one of ITS failures was a wrap. That
+            # keeps the ~100 guards in files that failed only on
+            # insert-before-anchor edits, instead of discarding them to protect
+            # a file that was never at risk.
+            ok = os.path.basename(path) not in bad
+            if not ok and getattr(args, "partial", False):
+                ok = not any(e["kind"] == "wrap" for e, _ in failed
+                             if e["file"] == os.path.basename(path))
+                if not ok and getattr(args, "force", False):
+                    # --force writes even the wrap-affected files. Use it only
+                    # with `check-braces` afterwards, which names any function
+                    # left unbalanced so it can be repaired by hand. Preferable
+                    # to discarding ~100 good guards in a file that failed on a
+                    # handful of wraps.
+                    print(f"  {os.path.basename(path)}: WRITTEN under --force; "
+                          f"run `check-braces` and repair by hand")
+                    ok = True
+                elif not ok:
+                    print(f"  {os.path.basename(path)}: left as generated - a "
+                          f"failed wrap would unbalance its braces")
+            if ok:
+                open(path, "w", encoding="utf-8").write("\n".join(lines))
 
     total = len(edits)
     verb = "would place" if dry_run else "placed"
@@ -427,6 +496,30 @@ def _normalise(line):
     return s
 
 
+_LABEL = re.compile(r"^loc_[0-9A-Fa-f]+: ;\s*$")
+
+
+def _wrap_crosses_live_label(lines, lo, hi, start, end):
+    """Name a label inside [start,end) that something still jumps to.
+
+    Wrapping code in an `if/else` is only behaviour-preserving while nothing
+    branches into the middle of it. C permits a goto into a block, but it would
+    skip the condition we just added, so the guard silently would not apply on
+    that path. Report instead of guessing.
+    """
+    for i in range(start, end):
+        m = _LABEL.match(lines[i])
+        if not m:
+            continue
+        label = lines[i].split(":")[0].strip()
+        for j in range(lo, hi):
+            if j == i:
+                continue
+            if ("goto " + label) in lines[j]:
+                return label
+    return None
+
+
 def _match_run(lines, start, hi, run):
     """End index of `run` if it appears at `start` (blank lines tolerated).
 
@@ -437,6 +530,14 @@ def _match_run(lines, start, hi, run):
     i, k = start, 0
     while k < len(run) and i < hi:
         if not lines[i].strip() and run[k].strip():
+            i += 1
+            continue
+        # Skip label-only lines on the file side too. A hand edit restructures
+        # the code it wraps, so the recorded run often has no label where the
+        # freshly generated tree emits one - that alone broke 69 of 222
+        # re-applications after the full regeneration. Whether wrapping across
+        # a label is *safe* is checked separately by _wrap_crosses_live_label().
+        if _LABEL.match(lines[i]) and not _LABEL.match(run[k]):
             i += 1
             continue
         # Compare normalised: the generator's spelling of a line can change
@@ -496,10 +597,17 @@ def _function_span(lines, name):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["extract", "apply", "verify"])
+    ap.add_argument("command",
+                    choices=["extract", "apply", "verify", "check-braces"])
     ap.add_argument("-o", "--store", default=DEFAULT_STORE)
     ap.add_argument("-i", "--input", dest="store_in")
     ap.add_argument("--gen-dir", default=DEFAULT_GEN)
+    ap.add_argument("--force", action="store_true",
+                    help="with --partial, also write wrap-affected files; "
+                         "follow with `check-braces`")
+    ap.add_argument("--partial", action="store_true",
+                    help="write the edits that placed and list the rest "
+                         "as a to-do (default refuses a partial restore)")
     args = ap.parse_args()
     if args.store_in:
         args.store = args.store_in
@@ -508,6 +616,24 @@ def main():
         return cmd_extract(args)
     if args.command == "apply":
         return cmd_apply(args, dry_run=False)
+    if args.command == "check-braces":
+        bad = 0
+        for path in sorted(glob.glob(os.path.join(args.gen_dir, "recomp_*.c"))):
+            lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
+            starts = [(i, m.group(1)) for i, l in enumerate(lines)
+                      if (m := FUNC_RE.match(l))]
+            for n, (i, name) in enumerate(starts):
+                end = starts[n + 1][0] if n + 1 < len(starts) else len(lines)
+                d = 0
+                for l in lines[i:end]:
+                    code = re.sub(r"/\*.*?\*/", "", l)
+                    d += code.count("{") - code.count("}")
+                if d:
+                    print(f"{os.path.basename(path)}:{i + 1} {name}: "
+                          f"brace delta {d:+d}")
+                    bad += 1
+        print("all functions balanced" if not bad else f"{bad} unbalanced")
+        return 1 if bad else 0
     return cmd_apply(args, dry_run=True)
 
 

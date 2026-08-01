@@ -141,5 +141,16 @@
     "message": "Vtable + refcount sibling guards (70 held)",
     "note": "Two guards past the 54->70 jump. Testing Rule #14.",
     "commit": "4c18391"
+  },
+  {
+    "kernel_calls": 70,
+    "failed_icalls": 23,
+    "heap_allocs": 7,
+    "crash_in": "sub_0013AE50+0xB22",
+    "fault_va": "0xFFFF000C",
+    "date": "2026-08-01",
+    "message": "Full regeneration: lifter esp fix now at 17,146 sites (70 held)",
+    "note": "Behaviour-neutral migration, which is the good outcome: 70 kernel calls both runs, same crash site, failed icalls 24 -> 23. The point is latent-bug removal - the lifter's esp-relative ICALL fix now applies everywhere instead of at 38 hand-patched sites. Two wrap guards were dropped as unrepairable (sub_002041D0, sub_0020E547) and will resurface as their own crashes if they mattered.",
+    "commit": "2f251f3"
   }
 ]

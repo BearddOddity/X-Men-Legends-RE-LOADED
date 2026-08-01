@@ -102,6 +102,76 @@ def scan():
     return total, hits
 
 
+def apply_fix(hits, only=None):
+    """Move each save point below the callee-saved pushes it wrongly spans.
+
+    The transformation is purely mechanical - the same edit was made by hand
+    five times, and a full regeneration wipes all of them, so it belongs in the
+    detector that already knows exactly which sites qualify (Rule #4/#9).
+
+        {  uint32_t _icall_esp = g_esp;      ->   {
+        PUSH32(esp, esi);   /* save */           PUSH32(esp, esi);
+        PUSH32(esp, edi);   /* save */           PUSH32(esp, edi);
+        PUSH32(esp, edx);   /* argument */       uint32_t _icall_esp = g_esp;
+        ... RECOMP_ICALL_SAFE(...)               PUSH32(esp, edx);
+                                                 ... RECOMP_ICALL_SAFE(...)
+    """
+    by_file = {}
+    for h in hits:
+        if only and h["func"] not in only:
+            continue
+        by_file.setdefault(h["file"], []).append(h)
+
+    total = 0
+    for fname, group in by_file.items():
+        path = os.path.join(GEN, fname)
+        lines = open(path, encoding="utf-8", errors="ignore").read().split("\n")
+        # Descending, so earlier line numbers stay valid as we edit.
+        for h in sorted(group, key=lambda x: -x["line"]):
+            i = h["line"] - 1
+            if "_icall_esp = g_esp" not in lines[i]:
+                print(f"  SKIP {fname}:{h['line']} - not a save-point line")
+                continue
+            n = len(h["saves"])
+            indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+            note = (f"{indent}/* Manual fix (not in original x86): _icall_esp "
+                    f"captured below the\n"
+                    f"{indent} * callee-saved push"
+                    f"{'es' if n > 1 else ''} of "
+                    f"{', '.join(h['saves'])}, which are register saves (the\n"
+                    f"{indent} * epilogue pops them), not call arguments. With the "
+                    f"save point above\n"
+                    f"{indent} * them, a failed ICALL rolled esp back past the "
+                    f"saves and left it\n"
+                    f"{indent} * {n * 4} bytes high for the rest of the function. "
+                    f"Applied by\n"
+                    f"{indent} * tools_data/find_icall_esp_saves.py --fix. */")
+            # Find the Nth actual PUSH32 after the save point rather than
+            # assuming it is N lines down. A previously applied manual comment
+            # sits between them at some sites, and counting blindly inserted
+            # this note *inside* that comment, producing nested `/*` and a file
+            # that would not compile.
+            seen, k = 0, i + 1
+            while k < len(lines) and seen < n:
+                if PUSH.match(lines[k]):
+                    seen += 1
+                k += 1
+            if seen < n:
+                print(f"  SKIP {fname}:{h['line']} - could not locate {n} save "
+                      f"push(es) below the save point")
+                continue
+            lines[i] = indent + "{"
+            lines[k:k] = note.split("\n") + [
+                indent + "uint32_t _icall_esp = g_esp;"]
+            total += 1
+            print(f"  fixed {fname}:{h['line']}  {h['func']}  "
+                  f"saves={','.join(h['saves'])}")
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write("\n".join(lines))
+    print(f"\napplied {total} fix(es); rebuild and verify twice (Rules #1, #7)")
+    return 0
+
+
 def live_callers():
     """Functions that actually suffered a failed indirect call last run.
 
@@ -132,6 +202,17 @@ def main(argv):
     total, hits = scan()
     print(f"icall save points scanned            : {total}")
     print(f"sites capturing across register saves: {len(hits)}")
+
+    if "--fix" in argv:
+        only = None
+        for i, a in enumerate(argv):
+            if a == "--only" and i + 1 < len(argv):
+                only = set(argv[i + 1].split(","))
+        if not only:
+            raise SystemExit("--fix requires --only FUNC[,FUNC...]; Rule #6 - "
+                             "never sweep this pattern tree-wide, most "
+                             "single-register hits are genuine arguments")
+        return apply_fix(hits, only)
 
     if "--live" in argv:
         names = live_callers()

@@ -2716,3 +2716,58 @@ registry will hand out NULLs to anything that queries it, and that is expected
 to surface as its own crash later. Revisit once the registration order is
 understood - the open question is narrow: what registers these classes first,
 given `sub_001F3210` (the only direct writer of `0x5BC274`) never runs.
+
+---
+
+## The full regeneration (70 held, behaviour-neutral)
+
+### Why bother
+
+The lifter's esp-relative ICALL fix existed but only reached the tree through
+38 hand-patched sites. A regeneration applies it everywhere:
+**74 -> 34,292 `_icall_target` mentions**, i.e. 17,146 call sites. Both of the
+day's largest wins (the `_icall_esp` register-save bug, the `__SEH_epilog` esp
+drift) were esp-accounting bugs, so the latent population was worth clearing.
+
+The regeneration also folded in the nine seeded functions natively - it was run
+against `seeded_functions.json`, so `recomp_dispatch.c` now maps **26,514** VAs
+rather than 26,505, and `gen/recomp_seed.c` is obsolete.
+
+### The result
+
+**70 kernel calls across two runs, same crash site, failed indirect calls
+24 -> 23.** Behaviour-neutral, which is the right outcome for a migration: the
+value is the latent fixes, not an immediate jump.
+
+### What the migration actually cost, and what now automates it
+
+`manual_edits.py apply` placed 153 of 222 on the first attempt. Every fix below
+came from a hand repair that was then fed back into a tool, so the next
+regeneration is mechanical:
+
+| symptom | cause | now handled by |
+|---|---|---|
+| 69 edits "enclosed lines not found" | the fresh tree emits a label + blank line inside the run; the recorded run has neither | `manual_edits.py` skips label lines when matching, and refuses to wrap across a label that is still a `goto` target |
+| nothing written at all | apply is all-or-nothing by design | `--partial` (file-atomic) plus `--force` |
+| file written with `+2` unmatched braces | a wrap placed its opening but not its close | `check-braces`, and `repair_wraps.py` |
+| unclosed guard, no recorded wrap to close it | the enclosed run moved too far | `repair_wraps.py --drop-unclosed` - drops the guard back to generated code, a known logged loss |
+| `+1` from a duplicated block opening | the guard's recorded block carries `{ uint32_t _icall_esp = g_esp;`, so re-applying leaves the generated copy orphaned | `repair_wraps.py` detects and removes the orphan |
+| a note inserted *inside* an existing comment | `--fix` assumed the N lines after the save point were the pushes | `find_icall_esp_saves.py --fix` now finds the Nth actual `PUSH32` |
+| `LNK2005 already defined` ×5 | hand-written overrides in `recomp_manual.c` collide with regenerated bodies; the old tree had deleted those bodies, and `replace_line` can only restore a stub it can already find | `stub_overridden.py`, which reads the override sources themselves so adding an override needs no bookkeeping |
+| `_guard_iter` undeclared | a guard's counter declaration is a separate edit that did not re-apply | hand-fixed; the pattern is "manual block references an identifier no longer declared" |
+
+### Two known losses
+
+`repair_wraps.py --drop-unclosed` removed one guard each from `sub_002041D0`
+and `sub_0020E547`. Both were pointer-plausibility guards. If they mattered
+they will resurface as their own crashes, which is preferable to a tree that
+does not compile - and far preferable to a hand "repair" that silently deletes
+a generated line, which happened once here (a `ecx = esi` thiscall setup) and
+had to be caught by diffing against the pristine regeneration.
+
+### The lesson worth keeping
+
+Every one of those tool fixes was written **after** hitting the problem by
+hand - which is Rule #15 working as intended, and also a reminder that the
+first regeneration of a heavily hand-edited tree is going to be expensive no
+matter what. The second should not be.

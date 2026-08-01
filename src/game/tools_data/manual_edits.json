@@ -10,10 +10,11 @@
    "     * function's own \"Original\" end address equals sub_00011AB4's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00011AB4(); return;"
+   "    sub_00011AB4(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3C701C);"
  },
  {
@@ -27,10 +28,11 @@
    "     * function's own \"Original\" end address equals sub_0002E235's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0002E235(); return;"
+   "    sub_0002E235(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3F800000);"
  },
  {
@@ -44,10 +46,11 @@
    "     * function's own \"Original\" end address equals sub_0004360B's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0004360B(); return;"
+   "    sub_0004360B(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -61,10 +64,11 @@
    "     * function's own \"Original\" end address equals sub_0005EF42's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0005EF42(); return;"
+   "    sub_0005EF42(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ecx);"
  },
  {
@@ -78,10 +82,11 @@
    "     * function's own \"Original\" end address equals sub_000611C7's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000611C7(); return;"
+   "    sub_000611C7(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3C806C);"
  },
  {
@@ -95,10 +100,11 @@
    "     * function's own \"Original\" end address equals sub_00082609's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00082609(); return;"
+   "    sub_00082609(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -112,10 +118,11 @@
    "     * function's own \"Original\" end address equals sub_000B0EEB's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000B0EEB(); return;"
+   "    sub_000B0EEB(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -129,10 +136,11 @@
    "     * function's own \"Original\" end address equals sub_000C06C6's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C06C6(); return;"
+   "    sub_000C06C6(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -146,10 +154,11 @@
    "     * function's own \"Original\" end address equals sub_000C07E2's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C07E2(); return;"
+   "    sub_000C07E2(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -163,10 +172,11 @@
    "     * function's own \"Original\" end address equals sub_000C08AD's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C08AD(); return;"
+   "    sub_000C08AD(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -180,10 +190,11 @@
    "     * function's own \"Original\" end address equals sub_000C12D3's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C12D3(); return;"
+   "    sub_000C12D3(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3CD03C);"
  },
  {
@@ -197,10 +208,11 @@
    "     * function's own \"Original\" end address equals sub_000D96C2's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000D96C2(); return;"
+   "    sub_000D96C2(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ecx);"
  },
  {
@@ -214,10 +226,11 @@
    "     * function's own \"Original\" end address equals sub_000DA83D's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_000DA83D(); return;"
+   "    g_seh_ebp = ebp; sub_000DA83D(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 1);"
  },
  {
@@ -231,10 +244,11 @@
    "     * function's own \"Original\" end address equals sub_000DDBBA's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000DDBBA(); return;"
+   "    sub_000DDBBA(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x18);"
  },
  {
@@ -248,11 +262,26 @@
    "     * function's own \"Original\" end address equals sub_0010A858's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0010A858(); return;"
+   "    sub_0010A858(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ebx);"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001186A0",
+  "block": [
+   "    /* Manual addition (not in original x86): iteration counter for the",
+   "     * tree-node-pool walk guard at loc_001186B3. Per-call, not static - this",
+   "     * function is called repeatedly for legitimate searches, so a persistent",
+   "     * counter would eventually misfire during normal use. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _guard_iter = 0;",
+  "pre": "    int _flags = 0; /* fallback flag var */"
  },
  {
   "file": "recomp_0007.c",
@@ -306,6 +335,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00119900(); /* call 0x00119900 */",
+   "",
+   "loc_001198EF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -341,6 +372,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00119A00(); /* call 0x00119A00 */",
+   "",
+   "loc_001199EF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -376,6 +409,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011BDE0(); /* call 0x0011BDE0 */",
+   "",
+   "loc_0011BECF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -411,6 +446,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011D2C0(); /* call 0x0011D2C0 */",
+   "",
+   "loc_0011D4AF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -446,6 +483,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0011D370(); /* call 0x0011D370 */",
+   "",
+   "loc_0011D4FF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -483,10 +522,11 @@
    "     * function's own \"Original\" end address equals sub_0011EB6A's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0011EB6A(); return;"
+   "    sub_0011EB6A(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0xA4000);"
  },
  {
@@ -500,10 +540,11 @@
    "     * function's own \"Original\" end address equals sub_0011F881's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0011F881(); return;"
+   "    sub_0011F881(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 1);"
  },
  {
@@ -517,11 +558,30 @@
    "     * function's own \"Original\" end address equals sub_00120181's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00120181(); return;"
+   "    sub_00120181(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 1);"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_00123600",
+  "block": [
+   "    /* Manual guard (not in original x86): this is a refcount release -",
+   "     * `--this->refs; if (refs == 0) destroy(this->owner);` - and `ecx` is the",
+   "     * object. With the class registrar stubbed, callers can hold a NULL or",
+   "     * near-NULL object, so `MEM32(ecx + 4)` faults (observed at 0xFFFFFFFD).",
+   "     * Releasing a reference to an object that does not exist is a no-op, so",
+   "     * return rather than decrementing through a bad pointer. cdecl, nothing",
+   "     * pushed yet, so popping the return address alone is balanced. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) { esp += 4; return; }"
+  ],
+  "match": null,
+  "anchor": "    MEM32(ecx + 4) = MEM32(ecx + 4) - 1;",
+  "pre": "loc_00123600: ;"
  },
  {
   "file": "recomp_0007.c",
@@ -555,6 +615,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00124010(); /* call 0x00124010 */",
+   "",
+   "loc_001241CF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -590,6 +652,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130510(); /* call 0x00130510 */",
+   "",
+   "loc_001306AF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -625,6 +689,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001305C0(); /* call 0x001305C0 */",
+   "",
+   "loc_001306FF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -660,6 +726,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130AC0(); /* call 0x00130AC0 */",
+   "",
+   "loc_00130FAF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -695,6 +763,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130E10(); /* call 0x00130E10 */",
+   "",
+   "loc_0013106F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -730,6 +800,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00130EC0(); /* call 0x00130EC0 */",
+   "",
+   "loc_001310BF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -765,6 +837,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00132460(); /* call 0x00132460 */",
+   "",
+   "loc_0013244F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -800,6 +874,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00133880(); /* call 0x00133880 */",
+   "",
+   "loc_00134C1F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -835,6 +911,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00133930(); /* call 0x00133930 */",
+   "",
+   "loc_00134C6F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -870,6 +948,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001394C0(); /* call 0x001394C0 */",
+   "",
+   "loc_0013991F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -905,6 +985,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00139570(); /* call 0x00139570 */",
+   "",
+   "loc_0013996F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -940,6 +1022,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00139620(); /* call 0x00139620 */",
+   "",
+   "loc_001399BF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -975,6 +1059,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A5F0(); /* call 0x0013A5F0 */",
+   "",
+   "loc_0013ABFF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1010,6 +1096,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A6A0(); /* call 0x0013A6A0 */",
+   "",
+   "loc_0013AC4F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1045,6 +1133,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A750(); /* call 0x0013A750 */",
+   "",
+   "loc_0013AC9F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1080,6 +1170,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A800(); /* call 0x0013A800 */",
+   "",
+   "loc_0013ACEF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1115,6 +1207,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A8B0(); /* call 0x0013A8B0 */",
+   "",
+   "loc_0013AD3F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1150,6 +1244,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013A960(); /* call 0x0013A960 */",
+   "",
+   "loc_0013AD8F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1185,6 +1281,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013AA10(); /* call 0x0013AA10 */",
+   "",
+   "loc_0013ADDF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1216,7 +1314,7 @@
   ],
   "match": null,
   "anchor": "    eax = esp + 0x10;",
-  "pre": "loc_0013AF1C: ;"
+  "pre": "    MEM32(edx + 0xC) = eax;"
  },
  {
   "file": "recomp_0008.c",
@@ -1291,100 +1389,6 @@
   "kind": "insert_before",
   "function": "sub_0013AE50",
   "block": [
-   "    /* Manual guard (not in original x86): edx is data read through an",
-   "     * already-valid pointer (eax) - can still be garbage (observed:",
-   "     * 0xBF800000 = -1.0f, a float-matrix field misread as a vtable",
-   "     * pointer). Same lesson as sub_001E8E20/sub_00200B18/sub_0020E547 -",
-   "     * see DEBUGGING_NOTES.md. MEM32(edx + 0x80) below would fault",
-   "     * natively before RECOMP_ICALL_SAFE's own check can run. */",
-   "    if (edx >= 0x00880000u && edx < 0x04000000u) {",
-   "    { uint32_t _icall_esp = g_esp;"
-  ],
-  "match": null,
-  "anchor": "    PUSH32(esp, ecx);",
-  "pre": "    ecx = esp + 0x14;"
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "wrap",
-  "function": "sub_0013AE50",
-  "block": [
-   "    /* Manual guard (not in original x86): edi+4 is another D3D-null",
-   "     * pattern object pointer field (see DEBUGGING_NOTES.md) that can",
-   "     * hold garbage instead of null/valid, and gets dereferenced directly",
-   "     * as MEM32(ecx) with no null check. Skip the ICALL if it doesn't",
-   "     * look like a real heap pointer. */",
-   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
-  ],
-  "close": [
-   "    }",
-   "    }"
-  ],
-  "match": null,
-  "anchor": "    edx = MEM32(ecx);",
-  "wrapped": [
-   "    edx = MEM32(ecx);",
-   "    { uint32_t _icall_esp = g_esp;",
-   "    PUSH32(esp, eax);",
-   "    PUSH32(esp, 0x3F800000);",
-   "    PUSH32(esp, ebp);",
-   "    PUSH32(esp, 0x28);",
-   "    PUSH32(esp, esi);",
-   "    MEM8(esp + 0x44) = 7;",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(edx + 0x54), _icall_esp); /* indirect call */"
-  ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "wrap",
-  "function": "sub_0013AE50",
-  "block": [
-   "    /* Manual guard (not in original x86) - see loc_0013AFF9 above; edi+8",
-   "     * is the same kind of D3D-null-pattern pointer field. */",
-   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
-  ],
-  "close": [
-   "    }",
-   "    }"
-  ],
-  "match": null,
-  "anchor": "    eax = MEM32(ecx);",
-  "wrapped": [
-   "    eax = MEM32(ecx);",
-   "    { uint32_t _icall_esp = g_esp;",
-   "    PUSH32(esp, ebp);",
-   "    PUSH32(esp, 0x28);",
-   "    PUSH32(esp, edx);",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x78), _icall_esp); /* indirect call */"
-  ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "wrap",
-  "function": "sub_0013AE50",
-  "block": [
-   "    /* Manual guard (not in original x86) - see the identical guard at",
-   "     * loc_0013AFF9 above. */",
-   "    if (ecx >= 0x00880000u && ecx < 0x04000000u) {"
-  ],
-  "close": [
-   "    }",
-   "    }"
-  ],
-  "match": null,
-  "anchor": "    eax = MEM32(ecx);",
-  "wrapped": [
-   "    eax = MEM32(ecx);",
-   "    { uint32_t _icall_esp = g_esp;",
-   "    PUSH32(esp, ebx);",
-   "    PUSH32(esp, 0); RECOMP_ICALL_SAFE(MEM32(eax + 0x94), _icall_esp); /* indirect call */"
-  ]
- },
- {
-  "file": "recomp_0008.c",
-  "kind": "insert_before",
-  "function": "sub_0013AE50",
-  "block": [
    "    /* Manual guard (not in original x86): ebx (edi+4) is the same",
    "     * D3D-null-pattern pointer field guarded earlier in this function -",
    "     * see loc_0013AFF9 above and DEBUGGING_NOTES.md. Treat a garbage",
@@ -1393,7 +1397,26 @@
   ],
   "match": null,
   "anchor": "loc_0013B067: ;",
-  "pre": "    esi = esi + 8;"
+  "pre": "    if (CMP_EQ(ebx, ebp)) goto loc_0013B06A; /* je: equal / zero */"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): same defect as the ebx guard at",
+   "     * loc_0013B063 four lines above, one block later and on the release side.",
+   "     * The original only compares against ebp (\"null\"), which is correct on",
+   "     * hardware because the slot holds either null or a real object. Here the",
+   "     * stubbed class registrar can leave garbage there - observed",
+   "     * ecx = 0xFFFFFF05, so the refcount decrement at loc_0013B070 faulted at",
+   "     * 0xFFFFFF09. Treat a non-heap-pointer the same as null and skip the",
+   "     * release, matching the existing guard's shape exactly. */",
+   "    if (CMP_EQ(ecx, ebp) || !(ecx >= 0x00880000u && ecx < 0x04000000u)) goto loc_0013B085; /* je: equal / zero */"
+  ],
+  "match": null,
+  "anchor": "loc_0013B070: ;",
+  "pre": "    if (CMP_EQ(ecx, ebp)) goto loc_0013B085; /* je: equal / zero */"
  },
  {
   "file": "recomp_0008.c",
@@ -1411,7 +1434,7 @@
   ],
   "match": null,
   "anchor": "    edx = MEM32(esi + 0x104);",
-  "pre": "    ecx = MEM32(esi + 0x104);"
+  "pre": "    MEM32(esi + ecx * 4) = edi;"
  },
  {
   "file": "recomp_0008.c",
@@ -1445,6 +1468,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D770(); /* call 0x0013D770 */",
+   "",
+   "loc_0013E01F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1480,6 +1505,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D820(); /* call 0x0013D820 */",
+   "",
+   "loc_0013E06F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1515,6 +1542,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D8D0(); /* call 0x0013D8D0 */",
+   "",
+   "loc_0013E0BF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1550,6 +1579,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D980(); /* call 0x0013D980 */",
+   "",
+   "loc_0013E10F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1585,6 +1616,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DA30(); /* call 0x0013DA30 */",
+   "",
+   "loc_0013E15F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1620,6 +1653,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DAE0(); /* call 0x0013DAE0 */",
+   "",
+   "loc_0013E1AF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1655,6 +1690,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DB90(); /* call 0x0013DB90 */",
+   "",
+   "loc_0013E1FF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1690,6 +1727,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DC40(); /* call 0x0013DC40 */",
+   "",
+   "loc_0013E24F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1725,6 +1764,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013DCF0(); /* call 0x0013DCF0 */",
+   "",
+   "loc_0013E29F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1760,6 +1801,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0013D470(); /* call 0x0013D470 */",
+   "",
+   "loc_0013E2EF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1795,6 +1838,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140340(); /* call 0x00140340 */",
+   "",
+   "loc_0014032F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1830,6 +1875,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001407E0(); /* call 0x001407E0 */",
+   "",
+   "loc_001407CF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1865,6 +1912,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140C40(); /* call 0x00140C40 */",
+   "",
+   "loc_00140C2F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1900,6 +1949,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00140E70(); /* call 0x00140E70 */",
+   "",
+   "loc_00140E5F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1935,6 +1986,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001410A0(); /* call 0x001410A0 */",
+   "",
+   "loc_0014108F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -1970,6 +2023,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001415B0(); /* call 0x001415B0 */",
+   "",
+   "loc_0014159F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2005,6 +2060,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_001417E0(); /* call 0x001417E0 */",
+   "",
+   "loc_001417CF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2040,6 +2097,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00141CF0(); /* call 0x00141CF0 */",
+   "",
+   "loc_00141CDF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2075,6 +2134,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00141FC0(); /* call 0x00141FC0 */",
+   "",
+   "loc_00141FAF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2110,6 +2171,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143C10(); /* call 0x00143C10 */",
+   "",
+   "loc_001441BF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2145,6 +2208,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143CC0(); /* call 0x00143CC0 */",
+   "",
+   "loc_0014420F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2180,6 +2245,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143D70(); /* call 0x00143D70 */",
+   "",
+   "loc_0014425F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2215,6 +2282,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00143E20(); /* call 0x00143E20 */",
+   "",
+   "loc_001442AF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2250,6 +2319,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00144A40(); /* call 0x00144A40 */",
+   "",
+   "loc_00144B3F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2264,10 +2335,11 @@
    "     * function's own \"Original\" end address equals sub_001465F9's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_001465F9(); return;"
+   "    sub_001465F9(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 1);"
  },
  {
@@ -2302,6 +2374,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00146870(); /* call 0x00146870 */",
+   "",
+   "loc_00146A9F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2337,6 +2411,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00147F60(); /* call 0x00147F60 */",
+   "",
+   "loc_0014856F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2372,6 +2448,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00148010(); /* call 0x00148010 */",
+   "",
+   "loc_001485BF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2407,6 +2485,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B2B0(); /* call 0x0014B2B0 */",
+   "",
+   "loc_0014B99F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2442,6 +2522,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B360(); /* call 0x0014B360 */",
+   "",
+   "loc_0014B9EF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2477,6 +2559,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B410(); /* call 0x0014B410 */",
+   "",
+   "loc_0014BA3F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2512,6 +2596,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B4C0(); /* call 0x0014B4C0 */",
+   "",
+   "loc_0014BA8F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2547,6 +2633,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014ABB0(); /* call 0x0014ABB0 */",
+   "",
+   "loc_0014BADF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2582,6 +2670,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B570(); /* call 0x0014B570 */",
+   "",
+   "loc_0014BB2F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2617,6 +2707,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_0014B620(); /* call 0x0014B620 */",
+   "",
+   "loc_0014BB7F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2631,10 +2723,11 @@
    "     * function's own \"Original\" end address equals sub_00158998's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00158998(); return;"
+   "    g_seh_ebp = ebp; sub_00158998(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -2648,10 +2741,11 @@
    "     * function's own \"Original\" end address equals sub_0016754B's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0016754B(); return;"
+   "    sub_0016754B(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -2665,10 +2759,11 @@
    "     * function's own \"Original\" end address equals sub_00167550's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00167550(); return;"
+   "    sub_00167550(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ecx);"
  },
  {
@@ -2682,10 +2777,11 @@
    "     * function's own \"Original\" end address equals sub_0017DB44's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0017DB44(); return;"
+   "    sub_0017DB44(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -2699,10 +2795,11 @@
    "     * function's own \"Original\" end address equals sub_0017DC3A's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0017DC3A(); return;"
+   "    sub_0017DC3A(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -2716,10 +2813,11 @@
    "     * function's own \"Original\" end address equals sub_0018BE76's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_0018BE76(); return;"
+   "    g_seh_ebp = ebp; sub_0018BE76(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -2733,10 +2831,11 @@
    "     * function's own \"Original\" end address equals sub_0018E641's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0018E641(); return;"
+   "    sub_0018E641(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0xD);"
  },
  {
@@ -2771,6 +2870,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00193FC0(); /* call 0x00193FC0 */",
+   "",
+   "loc_001942CF: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2806,6 +2907,8 @@
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
    "    PUSH32(esp, 0); sub_00194070(); /* call 0x00194070 */",
+   "",
+   "loc_0019431F: ;",
    "    esp = esp + 8;"
   ]
  },
@@ -2820,11 +2923,32 @@
    "     * function's own \"Original\" end address equals sub_0019E972's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_0019E972(); return;"
+   "    g_seh_ebp = ebp; sub_0019E972(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 5);"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0019F765: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_0019F765\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001A016A: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001A016A\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  },
  {
   "file": "recomp_0011.c",
@@ -2865,7 +2989,7 @@
   ],
   "match": null,
   "anchor": "loc_001A0D1E: ;",
-  "pre": "    MEM32(ebp + -68) = eax;"
+  "pre": "    if (CMP_EQ(edx, eax)) goto loc_001A0D5B; /* je: equal / zero */"
  },
  {
   "file": "recomp_0011.c",
@@ -2885,7 +3009,7 @@
   ],
   "match": null,
   "anchor": "loc_001A0D35: ;",
-  "pre": "    MEM32(ebp + -68) = ecx;"
+  "pre": "    if (CMP_EQ(edx, ecx)) goto loc_001A0D5B; /* je: equal / zero */"
  },
  {
   "file": "recomp_0011.c",
@@ -2906,7 +3030,7 @@
   ],
   "match": null,
   "anchor": "loc_001A0E8D: ;",
-  "pre": "    MEM32(ebp + -124) = eax;"
+  "pre": "    if (CMP_EQ(ecx, eax)) goto loc_001A0E9F; /* je: equal / zero */"
  },
  {
   "file": "recomp_0011.c",
@@ -2927,7 +3051,7 @@
   ],
   "match": null,
   "anchor": "loc_001A0F65: ;",
-  "pre": "    MEM32(ebp + -116) = eax;"
+  "pre": "    if (CMP_EQ(ecx, eax)) goto loc_001A0F77; /* je: equal / zero */"
  },
  {
   "file": "recomp_0011.c",
@@ -2948,7 +3072,7 @@
   ],
   "match": null,
   "anchor": "loc_001A109C: ;",
-  "pre": "    MEM32(ebp + -128) = eax;"
+  "pre": "    if (CMP_EQ(ecx, eax)) goto loc_001A10AE; /* je: equal / zero */"
  },
  {
   "file": "recomp_0011.c",
@@ -2961,10 +3085,11 @@
    "     * function's own \"Original\" end address equals sub_001A3003's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_001A3003(); return;"
+   "    g_seh_ebp = ebp; sub_001A3003(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3E1D58);"
  },
  {
@@ -2978,10 +3103,11 @@
    "     * function's own \"Original\" end address equals sub_001A3B6A's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_001A3B6A(); return;"
+   "    sub_001A3B6A(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0xC0000011u);"
  },
  {
@@ -3001,7 +3127,7 @@
   ],
   "match": null,
   "anchor": "loc_001E8E41: ;",
-  "pre": "    esi = MEM32(edx + edi * 4);"
+  "pre": "    if (TEST_Z(esi, esi)) goto loc_001E8E5B; /* je: equal / zero */"
  },
  {
   "file": "recomp_0014.c",
@@ -3032,7 +3158,7 @@
   ],
   "match": null,
   "anchor": "loc_001E8E7F: ;",
-  "pre": "    esi = MEM32(edx + edi * 4);"
+  "pre": "    if (TEST_Z(esi, esi)) goto loc_001E8E99; /* je: equal / zero */"
  },
  {
   "file": "recomp_0014.c",
@@ -3058,11 +3184,32 @@
    "     * function's own \"Original\" end address equals sub_001ED5FA's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_001ED5FA(); return;"
+   "    g_seh_ebp = ebp; sub_001ED5FA(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001F84D0: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001F84D0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001F8890: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001F8890\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  },
  {
   "file": "recomp_0015.c",
@@ -3098,9 +3245,9 @@
    "    }"
   ],
   "match": null,
-  "anchor": "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */",
+  "anchor": "    uint32_t _icall_target = MEM32(edx + 0x50); PUSH32(esp, 0); RECOMP_ICALL_SAFE(_icall_target, _icall_esp); /* indirect call */",
   "wrapped": [
-   "    RECOMP_ICALL_SAFE(MEM32(edx + 0x50), _icall_esp); /* indirect call */"
+   "    uint32_t _icall_target = MEM32(edx + 0x50); PUSH32(esp, 0); RECOMP_ICALL_SAFE(_icall_target, _icall_esp); /* indirect call */"
   ]
  },
  {
@@ -3138,33 +3285,6 @@
  {
   "file": "recomp_0015.c",
   "kind": "insert_before",
-  "function": "sub_002041D0",
-  "block": [
-   "    /* Manual fix (not in original x86): stale deferred flag test. The lifter",
-   "     * defers a flag-producing instruction and re-evaluates the comparison",
-   "     * inline at the jcc, which is only valid while nothing in between writes",
-   "     * the tested register. Real x86 here is:",
-   "     *",
-   "     *     test cl, cl        ; flags come from cl HERE",
-   "     *     mov  ecx, esi      ; ecx clobbered",
-   "     *     jne  0x2041f8      ; still branches on the pre-clobber flags",
-   "     *",
-   "     * The generated form re-read LO8(ecx) *after* `ecx = esi`, so it tested the",
-   "     * low byte of the object pointer instead of the flag byte and could take",
-   "     * the wrong branch - reaching an indirect call through a NULL vtable, whose",
-   "     * result then became a garbage `this` (see DEBUGGING_NOTES.md).",
-   "     *",
-   "     * Capture the operand before the clobber, exactly as the hardware does.",
-   "     * tools_data/find_stale_flag_tests.py finds the other sites of this shape. */",
-   "    { uint32_t _flag_cl = LO8(ecx);"
-  ],
-  "match": null,
-  "anchor": "      ecx = esi;",
-  "pre": "    eax = MEM32(esi);"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
   "function": "sub_002068B0",
   "block": [
    "    /* Manual guard (not in original x86): ecx is the array's backing",
@@ -3177,7 +3297,7 @@
   ],
   "match": null,
   "anchor": "    POP32(esp, edi);",
-  "pre": "    MEM32(esi + 8) = eax;"
+  "pre": "    MEM32(ecx + edi * 4) = ebx;"
  },
  {
   "file": "recomp_0015.c",
@@ -3190,7 +3310,7 @@
   ],
   "match": null,
   "anchor": "    POP32(esp, edi);",
-  "pre": "    eax = MEM32(esi + 0x10);"
+  "pre": "    MEM32(eax + edi * 4) = ebx;"
  },
  {
   "file": "recomp_0015.c",
@@ -3209,11 +3329,22 @@
    "     * left holding this function's scratch values instead of being",
    "     * restored - observed corrupting a caller's \"edi\" to 0xCCCCCCCC and",
    "     * crashing sub_00216FD0. */",
-   "    sub_002085CA(); return;"
+   "    sub_002085CA(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    eax = eax >> 2;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_002085CA: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_002085CA\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  },
  {
   "file": "recomp_0015.c",
@@ -3234,7 +3365,55 @@
   ],
   "match": null,
   "anchor": "    PUSH32(esp, edi);",
-  "pre": "loc_00209650: ;"
+  "pre": "    {"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00209650",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00209650",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of esi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, esi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_00209650",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0015.c",
@@ -3258,24 +3437,7 @@
   ],
   "match": null,
   "anchor": "loc_0020E54F: ;",
-  "pre": "    eax = MEM32(esp + 8);"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_0020E547",
-  "block": [
-   "    /* Manual guard (not in original x86): edx is data read through an",
-   "     * already-valid pointer (eax) - can still be garbage, same lesson",
-   "     * as sub_001E8E20/sub_00200B18 (see DEBUGGING_NOTES.md).",
-   "     * MEM32(edx + 0xCC) below would fault natively before",
-   "     * RECOMP_ICALL_SAFE's own check can run. */",
-   "    if (edx >= 0x00880000u && edx < 0x04000000u) {",
-   "    { uint32_t _icall_esp = g_esp;"
-  ],
-  "match": null,
-  "anchor": "    PUSH32(esp, ebx);",
-  "pre": "    edx = MEM32(eax);"
+  "pre": "    if (TEST_NZ(eax, eax)) goto loc_0020E56D; /* jne: not equal / not zero */"
  },
  {
   "file": "recomp_0015.c",
@@ -3321,11 +3483,64 @@
    "     * function's own \"Original\" end address equals sub_002171ED's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002171ED(); return;"
+   "    sub_002171ED(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x3F5DDC);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
+   "    /* Manual guard (not in original x86): the engine's class registrar is",
+   "     * stubbed out. This is a deliberate scope decision, not a fix.",
+   "     *",
+   "     * Registering any class routes through sub_002226E0, which hardcodes",
+   "     * `push 0x2221E0` and re-enters this function for a class whose cache slot",
+   "     * is only written after the create call that recurses - unbounded",
+   "     * recursion until the simulated esp goes negative. Both slots involved",
+   "     * (0x5BC274, 0x5BC2FC) are BSS, so they start at 0 on real hardware too;",
+   "     * something must register these classes in an order we have not found.",
+   "     * Three narrower workarounds were tried and each made things worse: a",
+   "     * re-entrancy guard turned the overflow into a NULL-object crash, and",
+   "     * suppressing that NULL turned it into a 312-million-iteration spin loop.",
+   "     *",
+   "     * Skipping the subsystem outright is what actually moves the boot forward.",
+   "     * The top-level init sub_00239E50 goes from +0x19F to +0x30D and two new",
+   "     * frames appear beyond it, so a large amount of startup that was",
+   "     * previously unreachable now runs. Nothing on the boot path has yet needed",
+   "     * a registered class; anything that queries the registry will get NULL and",
+   "     * is expected to surface as its own crash later.",
+   "     *",
+   "     * cdecl - the caller cleans its own arguments - and no stack has been",
+   "     * touched yet, so popping the return address alone is balanced.",
+   "     *",
+   "     * Revisit once the registration order is understood. See",
+   "     * DEBUGGING_NOTES.md. */",
+   "    { eax = 0; esp += 4; return; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(0x5BC544);",
+  "pre": "loc_002235D0: ;"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved pushes of ebx, ebp, esi, edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 16 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    /* Manual fix (not in original x86): the lifter captured _icall_esp before",
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0016.c",
@@ -3343,8 +3558,24 @@
    "     * function pointer. Only `push edx` is an argument, so save esp here. */"
   ],
   "match": null,
+  "anchor": "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
+  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_002235D0",
+  "block": [
+   "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
+   "     * cleans up with the `esp = esp + 4` at loc_002237AD just below. With",
+   "     * _icall_esp captured above the argument push, a failed call popped the",
+   "     * argument via RECOMP_ICALL_SAFE and then the caller popped it again,",
+   "     * leaving esp 4 bytes high. Capture below the push so the failure path",
+   "     * only discards the return address and the caller does the cleanup. */"
+  ],
+  "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "    PUSH32(esp, edi);"
+  "pre": "     * function pointer. Only `push edx` is an argument, so save esp here. */"
  },
  {
   "file": "recomp_0016.c",
@@ -3365,23 +3596,39 @@
   ],
   "match": null,
   "anchor": "loc_00223620: ;",
-  "pre": "    edi = MEM32(esp + 0x130);"
+  "pre": "    if (CMP_NE(MEM32(ebx), 0)) goto loc_00223698; /* jne: not equal / not zero */"
  },
  {
   "file": "recomp_0016.c",
   "kind": "insert_before",
   "function": "sub_002235D0",
   "block": [
-   "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
-   "     * cleans up with the `esp = esp + 4` at loc_002237AD just below. With",
-   "     * _icall_esp captured above the argument push, a failed call popped the",
-   "     * argument via RECOMP_ICALL_SAFE and then the caller popped it again,",
-   "     * leaving esp 4 bytes high. Capture below the push so the failure path",
-   "     * only discards the return address and the caller does the cleanup. */"
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of esi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
   "pre": "    PUSH32(esp, esi);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00226250",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved pushes of esi, edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 8 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    /* Manual fix (not in original x86): esi/edi are callee-saved register",
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0016.c",
@@ -3395,6 +3642,22 @@
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00236500",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved pushes of esi, edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 8 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    /* Manual fix (not in original x86): esi/edi here are callee-saved",
   "pre": "    PUSH32(esp, edi);"
  },
  {
@@ -3410,7 +3673,23 @@
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "    PUSH32(esp, edi);"
+  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00236500",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of esi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, esi);"
  },
  {
   "file": "recomp_0018.c",
@@ -3423,10 +3702,11 @@
    "     * function's own \"Original\" end address equals sub_002577E7's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002577E7(); return;"
+   "    sub_002577E7(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -3441,7 +3721,7 @@
   ],
   "match": null,
   "anchor": "loc_00259CC8: ;",
-  "pre": "    PUSH32(esp, esi);"
+  "pre": "    if (TEST_Z(eax, eax)) { g_seh_ebp = ebp; sub_00259CCD(); return; } /* je: equal / zero */"
  },
  {
   "file": "recomp_0018.c",
@@ -3454,10 +3734,11 @@
    "     * function's own \"Original\" end address equals sub_00268B77's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00268B77(); return;"
+   "    sub_00268B77(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ecx);"
  },
  {
@@ -3471,10 +3752,11 @@
    "     * function's own \"Original\" end address equals sub_0027819A's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0027819A(); return;"
+   "    sub_0027819A(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -3488,10 +3770,11 @@
    "     * function's own \"Original\" end address equals sub_00278DF5's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00278DF5(); return;"
+   "    sub_00278DF5(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -3505,10 +3788,11 @@
    "     * function's own \"Original\" end address equals sub_00281DA8's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00281DA8(); return;"
+   "    sub_00281DA8(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, edx);"
  },
  {
@@ -3522,10 +3806,11 @@
    "     * function's own \"Original\" end address equals sub_002A9CD1's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002A9CD1(); return;"
+   "    sub_002A9CD1(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x473B0C);"
  },
  {
@@ -3539,10 +3824,11 @@
    "     * function's own \"Original\" end address equals sub_002C2EF5's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_002C2EF5(); return;"
+   "    g_seh_ebp = ebp; sub_002C2EF5(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, ecx);"
  },
  {
@@ -3556,10 +3842,11 @@
    "     * function's own \"Original\" end address equals sub_002C3599's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_002C3599(); return;"
+   "    g_seh_ebp = ebp; sub_002C3599(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x40D398);"
  },
  {
@@ -3573,10 +3860,11 @@
    "     * function's own \"Original\" end address equals sub_002C8629's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002C8629(); return;"
+   "    sub_002C8629(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x40D51C);"
  },
  {
@@ -3590,10 +3878,11 @@
    "     * function's own \"Original\" end address equals sub_002C9D0A's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002C9D0A(); return;"
+   "    sub_002C9D0A(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x40D770);"
  },
  {
@@ -3607,10 +3896,11 @@
    "     * function's own \"Original\" end address equals sub_002CEC50's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CEC50(); return;"
+   "    sub_002CEC50(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -3624,10 +3914,11 @@
    "     * function's own \"Original\" end address equals sub_002CEF98's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CEF98(); return;"
+   "    sub_002CEF98(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x40F698);"
  },
  {
@@ -3641,10 +3932,11 @@
    "     * function's own \"Original\" end address equals sub_002CF006's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CF006(); return;"
+   "    sub_002CF006(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x40F754);"
  },
  {
@@ -3658,10 +3950,11 @@
    "     * function's own \"Original\" end address equals sub_002FC2C2's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002FC2C2(); return;"
+   "    sub_002FC2C2(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x4C);"
  },
  {
@@ -3675,10 +3968,11 @@
    "     * function's own \"Original\" end address equals sub_00307F11's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00307F11(); return;"
+   "    sub_00307F11(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0);"
  },
  {
@@ -3692,10 +3986,11 @@
    "     * function's own \"Original\" end address equals sub_00314A9D's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00314A9D(); return;"
+   "    g_seh_ebp = ebp; sub_00314A9D(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, 0x42E918);"
  },
  {
@@ -3709,10 +4004,11 @@
    "     * function's own \"Original\" end address equals sub_00321E40's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00321E40(); return;"
+   "    sub_00321E40(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, eax);"
  },
  {
@@ -3726,10 +4022,11 @@
    "     * function's own \"Original\" end address equals sub_003424C3's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_003424C3(); return;"
+   "    g_seh_ebp = ebp; sub_003424C3(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, MEM32(ebp + 0x10));"
  },
  {
@@ -3769,10 +4066,11 @@
    "     * function's own \"Original\" end address equals sub_00346210's",
    "     * start address). See DEBUGGING_NOTES.md - one instance of a",
    "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00346210(); return;"
+   "    g_seh_ebp = ebp; sub_00346210(); return;",
+   "}"
   ],
   "match": null,
-  "anchor": "}",
+  "anchor": "/**",
   "pre": "    PUSH32(esp, MEM32(ebp + 0x1C));"
  },
  {
