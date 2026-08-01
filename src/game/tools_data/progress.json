@@ -185,5 +185,16 @@
     "message": "Bound the node index in sub_001186A0's pool walk (82 held)",
     "note": "Crash moved out of sub_001186A0. The existing guard capped iterations but never validated the index itself; eax held a float bit pattern so eax<<4 wrapped.",
     "commit": "623140e"
+  },
+  {
+    "kernel_calls": 82,
+    "failed_icalls": 27,
+    "heap_allocs": 7,
+    "crash_in": "sub_0013AE50+0x3C1",
+    "fault_va": "0xBC311030",
+    "date": "2026-08-01",
+    "message": "Two guard attempts on sub_0013AE50 both regressed; reverted (82 held)",
+    "note": "Entry guard 82->74, narrow block guard 82->70. Both reverted per Rule #14. Skipping work in this function loses side effects later code depends on - the object is bad but the work is not optional.",
+    "commit": "1000c4d"
   }
 ]

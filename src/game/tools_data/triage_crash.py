@@ -87,7 +87,32 @@ def parse_crash(path):
     crash["kernel_calls"] = len(re.findall(r"\[KERNEL\] #", text))
     crash["icall_fails"] = re.findall(r"Failed to resolve VA 0x([0-9A-Fa-f]+)", text)
     crash["icalls"] = parse_icalls(text)
+    crash["esp_escape"] = find_esp_escape(text)
     return crash
+
+
+STACK_LO, STACK_HI = 0x00780000, 0x00F80000
+
+
+def find_esp_escape(text):
+    """First kernel call whose esp is outside the 8 MB simulated stack.
+
+    The bridge already logs esp on every kernel call, so the moment the
+    simulated stack pointer leaves its region is sitting in the log for free -
+    it just was never checked. Finding it by hand with awk located a runaway
+    between calls #70 and #71 in one go, which is exactly the sort of thing
+    that should not need re-deriving.
+
+    Returns (call_number, last_good_esp, first_bad_esp) or None.
+    """
+    calls = re.findall(r"\[KERNEL\] #(\d+):[^\n]*esp=0x([0-9A-Fa-f]+)", text)
+    prev = None
+    for num, esp in calls:
+        v = int(esp, 16)
+        if not (STACK_LO <= v < STACK_HI):
+            return int(num), prev, v
+        prev = v
+    return None
 
 
 def parse_icalls(text):
@@ -207,6 +232,14 @@ def main(argv):
         return 1
 
     print(f"progress     : {crash['kernel_calls']} kernel calls before the crash")
+    esc = crash.get("esp_escape")
+    if esc:
+        num, good, bad = esc
+        print(f"STACK ESCAPE : esp left the 8 MB stack at kernel call #{num}"
+              + (f"  (0x{good:08X} -> 0x{bad:08X})" if good else f"  (0x{bad:08X})"))
+        print("               everything after this runs on a corrupt frame -")
+        print("               guards placed downstream fight the symptom, not")
+        print("               the cause. Find what runs away here first.")
     print(f"access       : {crash['access']} at Xbox VA 0x{crash['fault_va']:08X}")
 
     syms = load_map()

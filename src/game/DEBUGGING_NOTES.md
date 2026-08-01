@@ -2771,3 +2771,70 @@ Every one of those tool fixes was written **after** hitting the problem by
 hand - which is Rule #15 working as intended, and also a reminder that the
 first regeneration of a heavily hand-edited tree is going to be expensive no
 matter what. The second should not be.
+
+---
+
+## 82 kernel calls, and why guards stopped helping
+
+### The jump to 82 came from a migration artifact, not a new guard
+
+`repair_wraps.py --dedup-guarded` found four sites where a guard that
+*replaces* a statement had been re-applied as an *insert*:
+
+```c
+    MEM32(esi + ecx * 4) = edi;        <- the original, still running
+    /* Manual guard ... */
+    if (ecx < 0x40u) MEM32(esi + ecx * 4) = edi;
+```
+
+The guard is plainly visible in the source and completely dead - the unguarded
+line above runs first and faults exactly as it did before the guard existed.
+Removing the four originals: **70 -> 82**.
+
+This is the nastiest failure mode of the whole migration, because reading the
+source tells you the guard is present.
+
+### Then two guards in a row made things worse
+
+| attempt | result |
+|---|---|
+| guard `sub_0013AE50` at entry on its `this` | 82 -> **74** |
+| guard only the faulting block inside it | 82 -> **70** |
+
+Both reverted immediately (Rule #14). Skipping work in that function loses side
+effects later code depends on - the object is bad, but the work is not optional.
+
+### The reason guards stopped working
+
+`esp` is **outside the simulated stack** at the crash - `0x005023D8`, in
+`.data`. The kernel bridge logs `esp` on every call, so the moment it escapes
+was already in the log and just was never checked:
+
+```
+#70  esp=0x00F7FC08          <- valid stack
+#71  esp=0x00545F64          <- .data
+```
+
+Between those two calls the log shows a spin loop: **2,557 indirect calls**,
+1,000 of them failing, on targets `0x00000004` and `0x3F800000` - the latter
+being the float `1.0f` yet again. Resolved, the loop sits in `sub_0013AC10`,
+called from `sub_0013AE50 + 0x19E`.
+
+`esp` falls ~10 MB, which is more than the 8 MB stack, so it runs off the
+bottom and into `.data`. Every frame after that is fiction, which is exactly
+why guarding downstream functions made things worse rather than better: they
+were being handed a corrupt frame, and skipping their work removed side effects
+without fixing anything.
+
+**`triage_crash.py` now reports this automatically** as `STACK ESCAPE`, naming
+the kernel call where `esp` leaves the region, so the next occurrence does not
+need re-deriving with awk.
+
+### The next target
+
+Not another pointer guard. Find why the loop around `sub_0013AC10` runs 2,557
+times and leaks a frame each pass. `sub_0013AC10` already carries a guard for
+the recursion case, and its push/pop pairs look balanced, so the leak is either
+in a callee or in the caller's loop - and `0x3F800000` appearing as both a call
+target and an array index says something upstream is handing out a float where
+a pointer or index belongs.
