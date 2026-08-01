@@ -152,5 +152,27 @@
     "message": "Full regeneration: lifter esp fix now at 17,146 sites (70 held)",
     "note": "Behaviour-neutral migration, which is the good outcome: 70 kernel calls both runs, same crash site, failed icalls 24 -> 23. The point is latent-bug removal - the lifter's esp-relative ICALL fix now applies everywhere instead of at 38 hand-patched sites. Two wrap guards were dropped as unrepairable (sub_002041D0, sub_0020E547) and will resurface as their own crashes if they mattered.",
     "commit": "2f251f3"
+  },
+  {
+    "kernel_calls": 70,
+    "failed_icalls": 23,
+    "heap_allocs": 7,
+    "crash_in": "sub_0013B0E0+0x2CE",
+    "fault_va": "0xFEF7F11C",
+    "date": "2026-08-01",
+    "message": "Guard NULL object in sub_0013AE50 member-init block (70 held)",
+    "note": "Crash moved out of sub_0013AE50 into its caller sub_0013B0E0 - the whole function now completes.",
+    "commit": "0d45170"
+  },
+  {
+    "kernel_calls": 82,
+    "failed_icalls": 27,
+    "heap_allocs": 7,
+    "crash_in": "sub_001186A0+0xC7",
+    "fault_va": "0xF8502654",
+    "date": "2026-08-01",
+    "message": "Remove unguarded originals left above replacing guards (70 -> 82)",
+    "note": "Migration artifact: manual_edits.py records a guard that REPLACES a statement as an insert, so re-applying left the unguarded original running first - the guard was visibly present but dead. repair_wraps.py --dedup-guarded found 4 tree-wide.",
+    "commit": "0d45170"
   }
 ]

@@ -40,6 +40,7 @@ Usage (from src/game/):
 """
 import argparse
 import os
+import re
 import sys
 
 MARK_TEXT = "Manual guard (not in original x86)"
@@ -90,7 +91,18 @@ def main(argv):
     ap.add_argument("file")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--after", help="insert the guard after this exact line")
+    g.add_argument("--before", help="insert the guard before this exact line")
     g.add_argument("--extend", help="add the range test to this existing check")
+    ap.add_argument("--in-func", metavar="sub_XXXXXXXX",
+                    help="restrict the anchor search to this function. Generated "
+                         "lines repeat constantly - `eax = MEM32(edi + 8);` "
+                         "occurs 5 times in one file - so an anchor is usually "
+                         "only unique within its function")
+    ap.add_argument("--occurrence", type=int, metavar="N",
+                    help="when the anchor still matches several lines inside the "
+                         "function, take the Nth (1-based). Prefer --in-func "
+                         "alone; reach for this only when the site genuinely "
+                         "repeats, and say which one in --why")
     ap.add_argument("--reg", required=True, help="register holding the pointer")
     ap.add_argument("--action", default="return",
                     help="return | eax0 | 'goto loc_XXXXXXXX'")
@@ -102,10 +114,34 @@ def main(argv):
         raise SystemExit(f"{a.file} not found")
 
     lines = open(a.file, encoding="utf-8", errors="ignore").read().split("\n")
-    anchor = a.after if a.after is not None else a.extend
-    hits = [i for i, l in enumerate(lines) if l.strip() == anchor.strip()]
+    anchor = a.after if a.after is not None else (a.before or a.extend)
+
+    # Narrow to one function first. Generated code repeats the same statement
+    # constantly - `eax = MEM32(edi + 8);` occurs five times in one file - so a
+    # bare anchor is almost never unique file-wide.
+    lo, hi = 0, len(lines)
+    if a.in_func:
+        want = f"void {a.in_func}(void)"
+        starts = [i for i, l in enumerate(lines)
+                  if re.match(r"^void sub_[0-9A-Fa-f]+\(void\)$", l)]
+        here = next((i for i in starts if lines[i] == want), None)
+        if here is None:
+            raise SystemExit(f"{a.in_func} not found in {a.file}")
+        lo = here
+        hi = next((i for i in starts if i > here), len(lines))
+
+    hits = [i for i in range(lo, hi) if lines[i].strip() == anchor.strip()]
+    if a.occurrence:
+        if not 1 <= a.occurrence <= len(hits):
+            raise SystemExit(f"--occurrence {a.occurrence} out of range: anchor "
+                             f"matched {len(hits)} line(s)")
+        hits = [hits[a.occurrence - 1]]
     if len(hits) != 1:
-        raise SystemExit(f"anchor matched {len(hits)} lines, need exactly 1: {anchor!r}")
+        raise SystemExit(
+            f"anchor matched {len(hits)} lines, need exactly 1: {anchor!r}"
+            + (f"\n  at lines: {[h + 1 for h in hits[:8]]}" if hits else "")
+            + ("\n  narrow it with --in-func, or pick one with --occurrence N"
+               if len(hits) > 1 else ""))
     i = hits[0]
 
     test = f"{a.reg} >= {LO} && {a.reg} < {HI}"
@@ -124,8 +160,9 @@ def main(argv):
     else:
         block = comment(a.why, a.reg) + [
             f"    if (!({test})) {action_code(a.action)}"]
-        lines[i + 1:i + 1] = block
-        note = f"guard inserted at {a.file}:{i + 2}"
+        at = i + 1 if a.after is not None else i
+        lines[at:at] = block
+        note = f"guard inserted at {a.file}:{at + 1}"
 
     # Self-check. A malformed comment here gets pasted into generated C and is
     # only caught by the compiler much later, or worse, silently swallows the

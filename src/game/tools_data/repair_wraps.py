@@ -165,6 +165,48 @@ def find_duplicated_opening(lines, lo, hi):
     return None
 
 
+GUARDED_STMT = re.compile(r"^(\s*)if \(.*?\)\s+(\S.*)$")
+
+
+def dedup_guarded_statements(lines):
+    """Remove originals left above a guard that was meant to replace them.
+
+    Some guards do not wrap a block; they replace a single generated statement
+    with a conditional version of itself:
+
+        MEM32(esi + ecx * 4) = edi;        ->   if (ecx < 0x40u) MEM32(...) = edi;
+
+    manual_edits.py records that as an insert-before-anchor edit, so re-applying
+    it after a regeneration inserts the guarded line but leaves the original
+    sitting directly above the guard comment. The unguarded statement then runs
+    first and faults exactly as it did before the guard existed - silently, since
+    the guard is visibly present in the source.
+
+    Returns the indices removed.
+    """
+    removed = []
+    for i in range(len(lines) - 1, 0, -1):
+        m = GUARDED_STMT.match(lines[i])
+        if not m:
+            continue
+        stmt = m.group(2).strip()
+        # Walk back over the guard's comment to the line above it.
+        j = i - 1
+        saw_marker = False
+        while j >= 0 and (lines[j].lstrip().startswith("*")
+                          or lines[j].lstrip().startswith("/*")):
+            if any(mk in lines[j] for mk in me.MARKERS):
+                saw_marker = True
+            j -= 1
+        if not saw_marker or j < 0:
+            continue
+        if lines[j].strip() == stmt:
+            removed.append(j)
+    for j in removed:
+        del lines[j]
+    return removed
+
+
 def main(argv):
     apply = "--apply" in argv
     edits = json.load(open(STORE, encoding="utf-8"))
@@ -177,6 +219,17 @@ def main(argv):
         original = open(full, encoding="utf-8", errors="ignore").read()
         lines = original.splitlines()
         changed = False
+
+        # Unguarded originals left above a replacing guard. Not a brace problem,
+        # so this runs over every file rather than only unbalanced ones.
+        if "--dedup-guarded" in argv:
+            dups = dedup_guarded_statements(lines)
+            if dups:
+                for j in dups:
+                    print(f"{path}:{j+1}: removing unguarded original left "
+                          f"above its guard")
+                repaired += len(dups)
+                changed = apply
 
         # Recompute spans after every mutation. Deleting or inserting lines
         # invalidates every later index, and iterating a precomputed span list
