@@ -62,9 +62,11 @@ solved bugs come back (#15).
 | `whatis.py` | identify any Xbox VA — section, owning function, disassembly |
 | `find_missing_functions.py` | functions reachable only via data pointers |
 | `seed_missing_functions.py` | recompile those additively into `gen/recomp_seed.c` |
-| `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures |
+| `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures, `--fix --only F` applies |
 | `find_stale_flag_tests.py` | deferred-flag miscompiles |
-| `manual_edits.py` | extract/re-apply the hand edits across a regeneration |
+| `manual_edits.py` | extract/re-apply hand edits across a regeneration; `--partial --force` to write what places, `check-braces` to verify |
+| `repair_wraps.py` | close or drop wrapping guards a regeneration left unbalanced |
+| `stub_overridden.py` | remove generated bodies that hand-written overrides replace (fixes LNK2005) |
 | `audit_kernel_ordinals.py` | cross-check the bridge's two ordinal tables |
 
 ## Traps — enforced by tools, not memory
@@ -77,6 +79,22 @@ solved bugs come back (#15).
   garbage instead of faulting. Bugs surface far from their cause.
 - **`esp` is simulated and drifts.** Lifted code that reads relative to `esp`
   across a call is exposed; prefer a saved frame pointer where one exists.
+
+## Regenerating
+
+Expensive the first time, mechanical after. Back up `gen/` first, then:
+
+```bash
+py -3 -m tools.recomp game/default.xbe --all --split 1000     --gen-dir <scratch>/gen_new --functions seeded_functions.json --skip-binary-check
+# copy in, then:
+py -3 tools_data/manual_edits.py apply --partial --force
+py -3 tools_data/repair_wraps.py --apply --drop-unclosed
+py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500
+py -3 tools_data/stub_overridden.py --apply
+py -3 tools_data/manual_edits.py check-braces      # must say "all functions balanced"
+# then re-apply the __SEH_epilog replacement by hand (a replacement, not an insert)
+py -3 tools_data/manual_edits.py extract           # re-sync the store
+```
 
 ## The loop
 
