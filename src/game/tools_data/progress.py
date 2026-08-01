@@ -120,10 +120,52 @@ def show(rows):
               "deliberate trade, the note above should say why (Rule #1).")
 
 
+def improved(cur, prev):
+    """Did any tracked signal move the right way between two entries?"""
+    reasons = []
+    if cur["kernel_calls"] > prev["kernel_calls"]:
+        reasons.append(f"kernel calls {prev['kernel_calls']} -> {cur['kernel_calls']}")
+    if (cur.get("failed_icalls") is not None
+            and prev.get("failed_icalls") is not None
+            and cur["failed_icalls"] < prev["failed_icalls"]):
+        reasons.append(f"failed icalls {prev['failed_icalls']} -> {cur['failed_icalls']}")
+    if (cur.get("heap_allocs") or 0) > (prev.get("heap_allocs") or 0):
+        reasons.append(f"heap allocs {prev.get('heap_allocs')} -> {cur.get('heap_allocs')}")
+    if cur.get("crash_in") and cur.get("crash_in") != prev.get("crash_in"):
+        reasons.append(f"crash moved to {cur['crash_in']}")
+    return reasons
+
+
+def stalled(rows):
+    """Rule #14: two consecutive changes improving no tracked signal."""
+    if len(rows) < 3:
+        print("not enough history to judge")
+        return 0
+    last_two = [(rows[-2], rows[-3]), (rows[-1], rows[-2])]
+    flat = []
+    for cur, prev in last_two:
+        why = improved(cur, prev)
+        flat.append((cur, why))
+        mark = "improved" if why else "NO IMPROVEMENT"
+        print(f"{cur['date']}  {cur['message'][:58]:<58} {mark}")
+        for w in why:
+            print(f"    + {w}")
+    if all(not why for _, why in flat):
+        print("\nRULE #14 TRIGGERED: two consecutive changes improved no tracked")
+        print("signal. Stop varying this approach. Pick one, and say which:")
+        print("  - go around it   (stub or skip the subsystem and keep moving)")
+        print("  - escalate       (report the wall and the options to the user)")
+        print("  - switch targets (work a different blocker, come back later)")
+        return 1
+    print("\nnot stalled - at least one recent change moved a signal")
+    return 0
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd")
+    sub.add_parser("stalled", help="Rule #14 check: are we going in circles?")
     rec = sub.add_parser("record", help="append the last run to the history")
     rec.add_argument("-m", "--message", required=True,
                      help="one line on what changed")
@@ -133,6 +175,8 @@ def main(argv):
     args = ap.parse_args(argv)
 
     rows = load()
+    if args.cmd == "stalled":
+        return stalled(rows)
     if args.cmd != "record":
         show(rows)
         return 0

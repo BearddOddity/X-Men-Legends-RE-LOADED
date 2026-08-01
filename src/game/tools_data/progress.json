@@ -130,5 +130,16 @@
     "message": "Guard refcount release against a NULL object (54 -> 70)",
     "note": "First real advance since the registrar stub. Call stack is now 11+ frames deep in previously unreached code.",
     "commit": "a0905bb"
+  },
+  {
+    "kernel_calls": 70,
+    "failed_icalls": 24,
+    "heap_allocs": 7,
+    "crash_in": "sub_0013AE50+0xB10",
+    "fault_va": "0xFFFF000C",
+    "date": "2026-08-01",
+    "message": "Vtable + refcount sibling guards (70 held)",
+    "note": "Two guards past the 54->70 jump. Testing Rule #14.",
+    "commit": "4c18391"
   }
 ]
