@@ -2653,3 +2653,66 @@ So the shape of the real fix is clear - get `sub_001F3210` to run at the right
 time - even though the trigger has not been found yet. That is a much smaller
 question than "why does this recurse", and a better place to resume than more
 tracing of the cycle itself.
+
+---
+
+## Stubbing the class registrar, and what it revealed about the metric
+
+### Every narrow workaround made things worse
+
+Three attempts to keep the registration subsystem and break only the cycle:
+
+| attempt | result |
+|---|---|
+| re-entrancy guard in `sub_00209650` | stack overflow becomes a NULL-object crash |
+| also suppress storing a NULL class object | crash becomes a 312M-iteration spin loop |
+| un-register the seeded `0x00227F50` | no change at all - the cycle enters elsewhere |
+
+Also checked and ruled out: both cache slots (`0x5BC274`, `0x5BC2FC`) are **BSS,
+zero-init, no file data**, so they start at 0 on real hardware too. There is no
+static initial value we are failing to load. Something registers these classes
+in an order that has not been found.
+
+### Skipping the subsystem is what actually moved the boot
+
+`sub_002235D0` now returns immediately. The call chain at the crash tells the
+story:
+
+```
+before                          after
+  sub_002235D0 + 0xC0             sub_00123600 + 0x14
+  sub_002221E0 + 0x173            sub_0022CC40 + 0x269     <- new
+  sub_00209650 + 0xF1             sub_002392E0 + 0xBD1     <- new
+  sub_002226E0 + 0x7E             sub_00239E50 + 0x30D     <- was +0x19F
+                                  sub_00011E40 + 0x1FE
+                                  sub_001A016A + 0xED
+                                  sub_0019F22E + 0x2A4
+```
+
+The top-level init `sub_00239E50` advances from **+0x19F to +0x30D**, and two
+entirely new frames appear below it. A large amount of startup that was
+unreachable now runs.
+
+### The kernel-call metric is blind in this region
+
+**Every one of those attempts measured 54 kernel calls.** Crash, different
+crash, spin loop, and real forward progress all scored identically, because
+this whole stretch of initialisation makes no kernel calls at all.
+
+That is the sharpest illustration yet of why Rule #1 says the count is a proxy.
+In this phase the useful signals are:
+
+- **how deep the top-level init gets** - `sub_00239E50 + N` is a direct measure
+- **which frames appear at all** - a new frame means new code executed
+- failed indirect calls, and whether the run crashes or hangs
+
+`progress.py` already records `crash_in`, so the depth is captured per entry.
+Read it alongside the count rather than reading the count alone.
+
+### Status of the stub
+
+It is a scope decision, not a fix, and it is marked as such in the source. The
+registry will hand out NULLs to anything that queries it, and that is expected
+to surface as its own crash later. Revisit once the registration order is
+understood - the open question is narrow: what registers these classes first,
+given `sub_001F3210` (the only direct writer of `0x5BC274`) never runs.

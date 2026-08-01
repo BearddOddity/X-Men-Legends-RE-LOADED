@@ -108,5 +108,16 @@
     "message": "Break the registration recursion with a re-entrancy guard (54 held)",
     "note": "WORKAROUND. Recursion gone and sub_002235D0 reaches +0xCDE instead of +0xC0, but skipping registrars leaves NULL objects: failed indirect calls 0 -> 5 and the crash moves rather than clearing. Root cause narrowed to sub_001F3210 (the only writer of slot 0x5BC274) never running.",
     "commit": "454def6"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 3,
+    "heap_allocs": 6,
+    "crash_in": "sub_00123600+0x14",
+    "fault_va": "0xFFFFFFFD",
+    "date": "2026-08-01",
+    "message": "Stub the class registrar; boot advances well past registration",
+    "note": "Kernel count is BLIND here - crash, spin loop and real progress all scored 54, because this stretch makes no kernel calls. Real signal is init depth: sub_00239E50 goes +0x19F -> +0x30D with two new frames below it. Stub is a scope decision, not a fix; three narrower workarounds each made things worse.",
+    "commit": "13b18b4"
   }
 ]
