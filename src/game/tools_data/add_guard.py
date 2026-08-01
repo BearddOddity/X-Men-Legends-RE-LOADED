@@ -61,28 +61,45 @@ def wrap(text, indent, width=74):
     return out
 
 
-def comment(why, reg):
+def comment(why, reg, index_max=None):
     # The body must NOT contain the comment opener - it is added to the first
     # line below. Including it here produced `/* /* Manual guard`, which the
     # self-check at the bottom of this file now catches.
-    body = (f"{MARK_TEXT}: {reg} can be NULL or garbage here. The original "
-            f"dereferences it unconditionally, which is safe on hardware but "
-            f"not in this build, and the fake TIB at VA 0 turns the bad read "
-            f"into plausible nonsense rather than a clean fault. {why}")
+    if index_max:
+        body = (f"{MARK_TEXT}: {reg} is scaled into an address here, so it is "
+                f"an index rather than a pointer and a heap-range test says "
+                f"nothing useful about it. The original trusts it because on "
+                f"hardware it cannot be out of range; here it can hold "
+                f"unrelated garbage, and `base + {reg}*N` then lands anywhere. "
+                f"Bound it at {index_max}. {why}")
+    else:
+        body = (f"{MARK_TEXT}: {reg} can be NULL or garbage here. The original "
+                f"dereferences it unconditionally, which is safe on hardware but "
+                f"not in this build, and the fake TIB at VA 0 turns the bad read "
+                f"into plausible nonsense rather than a clean fault. {why}")
     lines = wrap(body, "     * ")
     lines[0] = "    /* " + lines[0][len("     * "):]
-    return lines + ["     * Range matches every other guard in this tree; see"
-                    " tools_data/add_guard.py. */"]
+    tail = ("     * Bound emitted by tools_data/add_guard.py --index-max. */"
+            if index_max else
+            "     * Range matches every other guard in this tree; see"
+            " tools_data/add_guard.py. */")
+    return lines + [tail]
 
 
 def action_code(action):
+    # A raw block for the cases the three shorthands do not cover - e.g.
+    # setting a sentinel return value AND jumping, which the tree-node-pool
+    # walk needs. Passed through verbatim, so the caller owns its correctness.
+    if action.startswith("{"):
+        return action
     if action == "return":
         return "{ esp += 4; return; }"
     if action == "eax0":
         return "{ eax = 0; }"
     if action.startswith("goto "):
         return f"{{ {action}; }}"
-    raise SystemExit(f"unknown --action {action!r}; use return, eax0, or 'goto LABEL'")
+    raise SystemExit(f"unknown --action {action!r}; use return, eax0, "
+                     f"'goto LABEL', or a literal `{{ ... }}` block")
 
 
 def main(argv):
@@ -108,6 +125,13 @@ def main(argv):
                     help="return | eax0 | 'goto loc_XXXXXXXX'")
     ap.add_argument("--why", required=True,
                     help="one line: why skipping is safe here")
+    ap.add_argument("--index-max", metavar="N",
+                    help="guard an ARRAY INDEX instead of a pointer: emits "
+                         "`if (reg >= N) <action>`. Use when the register is "
+                         "scaled into an address (`base + reg*4`) rather than "
+                         "being an address itself - a heap-range test is "
+                         "meaningless for an index, and an out-of-range one "
+                         "produces a wild address just the same")
     a = ap.parse_args(argv)
 
     if not os.path.exists(a.file):
@@ -144,7 +168,13 @@ def main(argv):
                if len(hits) > 1 else ""))
     i = hits[0]
 
-    test = f"{a.reg} >= {LO} && {a.reg} < {HI}"
+    if a.index_max:
+        # An index guard is inverted relative to a pointer guard: the pointer
+        # form tests "is this VALID" and the action fires when it is not, so
+        # here the same shape means "is this IN RANGE".
+        test = f"{a.reg} < {a.index_max}"
+    else:
+        test = f"{a.reg} >= {LO} && {a.reg} < {HI}"
 
     if a.extend:
         # Fold the range test into the existing condition rather than adding a
@@ -155,10 +185,10 @@ def main(argv):
         head, rest = old.split("if (", 1)
         cond, tail = rest.rsplit(")", 1)
         lines[i] = f"{head}if ({cond} || !({test}))" + tail
-        lines[i:i] = comment(a.why, a.reg)
+        lines[i:i] = comment(a.why, a.reg, a.index_max)
         note = f"extended the existing check at {a.file}:{i + 1}"
     else:
-        block = comment(a.why, a.reg) + [
+        block = comment(a.why, a.reg, a.index_max) + [
             f"    if (!({test})) {action_code(a.action)}"]
         at = i + 1 if a.after is not None else i
         lines[at:at] = block

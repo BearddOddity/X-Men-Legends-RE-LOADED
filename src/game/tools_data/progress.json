@@ -174,5 +174,16 @@
     "message": "Remove unguarded originals left above replacing guards (70 -> 82)",
     "note": "Migration artifact: manual_edits.py records a guard that REPLACES a statement as an insert, so re-applying left the unguarded original running first - the guard was visibly present but dead. repair_wraps.py --dedup-guarded found 4 tree-wide.",
     "commit": "0d45170"
+  },
+  {
+    "kernel_calls": 82,
+    "failed_icalls": 27,
+    "heap_allocs": 7,
+    "crash_in": "sub_0013AE50+0x3C1",
+    "fault_va": "0xBC311030",
+    "date": "2026-08-01",
+    "message": "Bound the node index in sub_001186A0's pool walk (82 held)",
+    "note": "Crash moved out of sub_001186A0. The existing guard capped iterations but never validated the index itself; eax held a float bit pattern so eax<<4 wrapped.",
+    "commit": "623140e"
   }
 ]
