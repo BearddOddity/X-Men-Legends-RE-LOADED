@@ -43,6 +43,53 @@ extern volatile uint32_t g_icall_trace[16];
 extern volatile uint32_t g_icall_trace_idx;
 extern volatile uint64_t g_icall_count;
 
+/* ── Class-registration re-entrancy ────────────────────────── */
+
+/*
+ * The engine registers classes through a graph of small registrar thunks.
+ * sub_002226E0 hardcodes `push 0x2221E0`, and that registrar re-enters the
+ * generic registrar for the class already being registered. Its cache slot is
+ * only written after the create call that recurses, so nothing breaks the
+ * cycle and the simulated esp runs off the bottom of the stack.
+ *
+ * This tracks which registrars are active. sub_00209650 skips a registrar
+ * that is already on the stack and takes its existing early-exit path - the
+ * same path it took before the missing functions were seeded, when this
+ * indirect call simply failed to resolve.
+ *
+ * WORKAROUND, not a root-cause fix: on real hardware the cycle must terminate
+ * some other way. Kept deliberately small and observable rather than silent.
+ */
+#define REG_STACK_MAX 64
+static uint32_t g_reg_active[REG_STACK_MAX];
+static int g_reg_depth;
+static int g_reg_overflowed;
+
+int recomp_reg_enter(uint32_t registrar_va)
+{
+    for (int i = 0; i < g_reg_depth; i++) {
+        if (g_reg_active[i] == registrar_va)
+            return 0;   /* already registering this one - would recurse */
+    }
+    if (g_reg_depth >= REG_STACK_MAX) {
+        if (!g_reg_overflowed) {
+            g_reg_overflowed = 1;
+            fprintf(stderr, "[REG] registration nesting exceeded %d - "
+                            "refusing to nest further\n", REG_STACK_MAX);
+            fflush(stderr);
+        }
+        return 0;
+    }
+    g_reg_active[g_reg_depth++] = registrar_va;
+    return 1;
+}
+
+void recomp_reg_leave(void)
+{
+    if (g_reg_depth > 0)
+        g_reg_depth--;
+}
+
 /* ── Manual function overrides ─────────────────────────────── */
 
 /*

@@ -2612,3 +2612,44 @@ py -3 tools_data/add_probe.py src/recomp/gen/recomp_0015.c \
     --after "loc_00209650: ;" --tag DEPFN \
     --fmt "arg=%08X" --args "MEM32(esp + 4)" --limit 12
 ```
+
+### Breaking the cycle instead of explaining it
+
+After four eliminated hypotheses the root cause was still open, so the cycle was
+cut rather than understood further.
+
+`sub_00209650` already had a clean early exit: before the missing functions were
+seeded, its entry ICALL failed to resolve, `RECOMP_ICALL_SAFE` set `eax = 0`,
+and the `if (!edi)` test below took a balanced return. The guard reproduces
+exactly that path when a registrar is already active further up the stack, via
+`recomp_reg_enter()` / `recomp_reg_leave()` in `recomp_manual.c` - hand-written,
+so it survives regeneration.
+
+**Result: the recursion is gone.** The crash stack is now a clean 13-frame
+chain from `sub_0019F22E` down, with no repetition, and `sub_002235D0` reaches
+**+0xCDE** instead of +0xC0 - far deeper into the registration work.
+
+But it is a trade, not a win:
+
+| | recursion crash | with the guard |
+|---|---|---|
+| kernel calls | 54 | 54 |
+| failed indirect calls | 0 | 5 |
+| crash | stack overflow, esp negative | NULL object in `sub_00221F50` |
+
+Skipping a registrar leaves that class unregistered, so its object is NULL and
+the crash simply moves. Same wall, different brick.
+
+### What the evidence actually points at
+
+`sub_001F3210` is a **specialised** registrar for the same class, and the only
+code anywhere that writes slot `0x5BC274` directly. If it ran first, the generic
+registrar would find the slot populated and take its "already cached" branch -
+and the cycle would never form. It has five direct callers.
+
+Probed: **it never runs.** Zero hits.
+
+So the shape of the real fix is clear - get `sub_001F3210` to run at the right
+time - even though the trigger has not been found yet. That is a much smaller
+question than "why does this recurse", and a better place to resume than more
+tracing of the cycle itself.

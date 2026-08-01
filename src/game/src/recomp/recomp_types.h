@@ -124,6 +124,17 @@ extern volatile uint64_t g_icall_count;
  */
 void recomp_icall_fail_log(uint32_t va);
 
+/*
+ * Re-entrancy tracking for the engine's class-registration graph.
+ *
+ * recomp_reg_enter() returns 0 if that registrar is already active further up
+ * the stack, meaning following it again would recurse forever. Callers skip
+ * the call and take their existing "nothing to do" path. See the guard in
+ * sub_00209650 and DEBUGGING_NOTES.md.
+ */
+int  recomp_reg_enter(uint32_t registrar_va);
+void recomp_reg_leave(void);
+
 /* ================================================================
  * Memory access helpers
  * ================================================================ */

@@ -97,5 +97,16 @@
     "message": "Map the registration recursion; add add_probe.py (54 held)",
     "note": "No behaviour change: this stretch was diagnosis plus tooling. Four plausible causes eliminated by probing. Crash handler now uses CaptureStackBackTrace, since the raw stack scan was reporting stale frames as callers.",
     "commit": "1c407f5"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 5,
+    "heap_allocs": 3,
+    "crash_in": "sub_00221F50+0x2E2",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-07-31",
+    "message": "Break the registration recursion with a re-entrancy guard (54 held)",
+    "note": "WORKAROUND. Recursion gone and sub_002235D0 reaches +0xCDE instead of +0xC0, but skipping registrars leaves NULL objects: failed indirect calls 0 -> 5 and the crash moves rather than clearing. Root cause narrowed to sub_001F3210 (the only writer of slot 0x5BC274) never running.",
+    "commit": "454def6"
   }
 ]
