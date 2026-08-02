@@ -196,5 +196,126 @@
     "message": "Two guard attempts on sub_0013AE50 both regressed; reverted (82 held)",
     "note": "Entry guard 82->74, narrow block guard 82->70. Both reverted per Rule #14. Skipping work in this function loses side effects later code depends on - the object is bad but the work is not optional.",
     "commit": "1000c4d"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Fixed stack escape in sub_0013B0E0 (float index guard) and sub_0013AD50 (esi write guard). Kernel calls 70->92, no crash but main thread hangs at watchdog timeout.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "D3D8 shim not hooked - original NV2A D3D8 code runs but does nothing on PC. Main thread hangs in critical section loop (RtlEnter/LeaveCriticalSection) cycling through game logic ICALLs. Need to hook D3D8 shim via recomp_lookup_manual or implement minimal device/present.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Hooked 41 D3D8 shim functions via recomp_lookup_manual; no change - main thread still hangs in critical section loop (RtlEnter/LeaveCriticalSection ordinals 277/294) cycling through game logic ICALLs (sub_00145F40, sub_0029F780/880, etc.). D3D8 shim hooks not the bottleneck; main loop stuck in critical section doing game logic.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Hooked 41 D3D8 shims; no change. Main thread hangs in critical section loop (ordinals 277/294 Enter/LeaveCriticalSection) cycling game logic ICALLs. D3D8 shim not the bottleneck - game logic stuck in critical section. Need to implement minimal Present/device creation and check wait conditions.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Added video playback shim overrides (sub_00340FEB, sub_003432A8, sub_003464F1, sub_003467B6, sub_003467F2); no D3D8 traces - video shims not being called. Main thread still hangs in critical section loop (ordinals 277/294) cycling game logic ICALLs. Video shims not the bottleneck - need to investigate what the critical section is protecting.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Implemented minimal class registrar (sub_002235D0) that registers three core classes (0x5BE5B0, 0x5BE690, 0x5BE4CC). Kernel calls 70->92. Main thread still hangs in critical section loop (ordinals 277/294) cycling game logic ICALLs. Class registrar works but main loop stuck in critical section doing game logic. Need to investigate what the critical section protects - likely waiting for video completion callback at 0x5D99EC.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 92,
+    "failed_icalls": 36,
+    "heap_allocs": 7,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-01",
+    "message": "Still at 92 kernel calls. Main thread hangs in critical section loop (ordinals 277/294 Enter/LeaveCriticalSection). Network fallback sub_00345AB0 still called via 0x47A688 vtable. Video callback at 0x5D99EC initialized. Class registrar registers 3 core classes. Critical section protects main loop - need to implement Present with frame timing or stub the network fallback that's blocking.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 72,
+    "failed_icalls": 24,
+    "heap_allocs": 7,
+    "crash_in": "sub_00209650+0x1BD",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-02",
+    "message": "Added ICALL filter to reject known-bad addresses (0x3F800000 float, 0xFFFFFFFF, 0xCCCCCCCC, etc.), clamped loop counter at esi+0x104 to 8 bits, added sanitizer at loop entry (loc_0013B130), added hard iteration limit of 0x40 via edi register, added kernel-side sanitizer every 1000 calls. Still at 92 kernel calls, crash persists at 0xBC116D.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 72,
+    "failed_icalls": 24,
+    "heap_allocs": 7,
+    "crash_in": "sub_00209650+0x1BD",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-02",
+    "message": "ICALL filter now catches 0x3F800000 (float 1.0) and other bad addresses, but returns 0 which gets used as function pointer causing crash at 0xFFFFFFFF. Need to make ICALL return a safe stub or handle gracefully. Current: 72 kernel calls (regression from 92). Loop counter fix (esi+0x104 mask) working. ICALL filter catching 0x3F800000. Next: handle ICALL rejection gracefully or fix root cause of corruption.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 72,
+    "failed_icalls": 24,
+    "heap_allocs": 7,
+    "crash_in": "sub_00209650+0x19D",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-02",
+    "message": "Safe ICALL stub being called (logged 600+ times) but crash persists at 0xFFFFFFFF. ICALL filter catches bad addresses but safe stub doesn't prevent crash. Root cause: loop counter at esi+0x104 corrupted to 0x3F800000 (float 1.0) which becomes function pointer. Sanitization at loop entry working (ecx masked to 8 bits) but ICALL filter still sees 0x3F800000 and 0xFFFFFFFF as targets. Safe stub called 600+ times but crash persists at 0xFFFFFFFF. Need to fix root cause: memory corruption writing 0x3F800000 to function pointers.",
+    "note": null,
+    "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 1,
+    "heap_allocs": 3,
+    "crash_in": "sub_002096B0+0xB8",
+    "fault_va": "0xB0D82B80",
+    "date": "2026-08-02",
+    "message": "Post-call sanitizer after every kernel call sanitizes esi+0x104, esi+0x58, g_eax, and 0x100 bytes around esi. Still crashing at 0xFFFFFFFF - esi register itself gets corrupted to invalid address (0xB0D82B80) which is outside Xbox VA range. Need to validate/reset g_esi register directly when it points outside valid Xbox VA range.",
+    "note": null,
+    "commit": "29f3395"
   }
 ]

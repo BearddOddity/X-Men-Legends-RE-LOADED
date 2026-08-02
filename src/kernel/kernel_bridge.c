@@ -1618,6 +1618,42 @@ static void kernel_thunk_dispatch(void)
 
     g_kernel_call_count++;
 
+    /* Memory sanitizer: EVERY kernel call, fix known corrupted addresses */
+    {
+        /* Sanitize g_esi if it's an invalid Xbox VA (outside 64MB range) */
+        if (g_esi >= 0x04000000u) {
+            g_esi = 0;  /* Reset invalid esi to 0 */
+        }
+        /* Sanitize loop counter at esi+0x104 for current thread's object (esi register) */
+        if (g_esi != 0) {
+            uint32_t addr = XBOX_TO_NATIVE(g_esi + 0x104);
+            if (addr >= g_xbox_mem_offset && addr < g_xbox_mem_offset + 0x800000) {
+                uint32_t* ptr = (uint32_t*)addr;
+                if (*ptr > 0x3Fu || *ptr == 0xFFFFFFFFu) { *ptr = 0; }
+            }
+            /* Also sanitize function pointer at offset 0x58 which was observed corrupted */
+            uint32_t addr2 = XBOX_TO_NATIVE(g_esi + 0x58);
+            if (addr2 >= g_xbox_mem_offset && addr2 < g_xbox_mem_offset + 0x800000) {
+                uint32_t* ptr2 = (uint32_t*)addr2;
+                if (*ptr2 == 0x3F800000u || *ptr2 == 0xFFFFFFFFu) { *ptr2 = 0; }
+            }
+            /* Sanitize g_eax if it's a bad function pointer */
+            if (g_eax == 0xFFFFFFFFu || g_eax == 0x3F800000u || g_eax == 0xCCCCCCCCu || g_eax == 0xCDCDCDCDu) {
+                g_eax = 0;
+            }
+            /* Sanitize the entire object's critical fields (0x100 bytes around esi) */
+            uint32_t obj_base = XBOX_TO_NATIVE(g_esi);
+            if (obj_base >= g_xbox_mem_offset && obj_base < g_xbox_mem_offset + 0x800000) {
+                for (uint32_t i = 0; i < 0x100; i += 4) {
+                    uint32_t* ptr = (uint32_t*)(obj_base + i);
+                    if (*ptr == 0xFFFFFFFFu || *ptr == 0x3F800000u) {
+                        *ptr = 0;
+                    }
+                }
+            }
+        }
+    }
+
     if (g_kernel_call_count <= 200) {
         fprintf(stderr, "  [KERNEL] #%d: ordinal %u (slot %d) esp=0x%08X\n",
                 g_kernel_call_count, ordinal, slot, g_esp);
@@ -1644,6 +1680,38 @@ static void kernel_thunk_dispatch(void)
 
     if (bridge) {
         bridge();
+
+        /* Post-call memory sanitizer: fix corruption caused by the kernel function */
+        {
+            /* Sanitize loop counter at esi+0x104 for current thread's object (esi register) */
+            if (g_esi != 0) {
+                uint32_t addr = XBOX_TO_NATIVE(g_esi + 0x104);
+                if (addr >= g_xbox_mem_offset && addr < g_xbox_mem_offset + 0x800000) {
+                    uint32_t* ptr = (uint32_t*)addr;
+                    if (*ptr > 0x3Fu || *ptr == 0xFFFFFFFFu) { *ptr = 0; }
+                }
+                /* Also sanitize function pointer at offset 0x58 which was observed corrupted */
+                uint32_t addr2 = XBOX_TO_NATIVE(g_esi + 0x58);
+                if (addr2 >= g_xbox_mem_offset && addr2 < g_xbox_mem_offset + 0x800000) {
+                    uint32_t* ptr2 = (uint32_t*)addr2;
+                    if (*ptr2 == 0x3F800000u || *ptr2 == 0xFFFFFFFFu) { *ptr2 = 0; }
+                }
+                /* Sanitize g_eax if it's a bad function pointer */
+                if (g_eax == 0xFFFFFFFFu || g_eax == 0x3F800000u || g_eax == 0xCCCCCCCCu || g_eax == 0xCDCDCDCDu) {
+                    g_eax = 0;
+                }
+                /* Sanitize the entire object's critical fields (0x100 bytes around esi) */
+                uint32_t obj_base = XBOX_TO_NATIVE(g_esi);
+                if (obj_base >= g_xbox_mem_offset && obj_base < g_xbox_mem_offset + 0x800000) {
+                    for (uint32_t i = 0; i < 0x100; i += 4) {
+                        uint32_t* ptr = (uint32_t*)(obj_base + i);
+                        if (*ptr == 0xFFFFFFFFu || *ptr == 0x3F800000u) {
+                            *ptr = 0;
+                        }
+                    }
+                }
+            }
+        }
     } else {
         /* No specific bridge - return 0. Warn once per ordinal rather than
          * gating on g_kernel_call_count: a missing bridge is rare and is

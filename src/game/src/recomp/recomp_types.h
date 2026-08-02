@@ -124,6 +124,10 @@ extern volatile uint64_t g_icall_count;
  */
 void recomp_icall_fail_log(uint32_t va);
 
+/* Safe ICALL stub - called when an indirect call target is invalid.
+ * Instead of crashing by calling 0, this returns S_OK (0) safely. */
+void sub_00ICALL_SAFE_STUB(void);
+
 
 /* ================================================================
  * Memory access helpers
@@ -365,14 +369,27 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     g_icall_trace[g_icall_trace_idx & (ICALL_TRACE_SIZE-1)] = _va; \
     g_icall_trace_idx++; \
     g_icall_count++; \
+    /* Reject known-bad addresses that are common corruption patterns: \
+     * 0x00000000 (NULL), 0x00000004, 0x3F800000 (float 1.0), \
+     * 0xFFFFFFFF (-1), 0xCCCCCCCC (uninit), 0xCDCDCDCD (freed), \
+     * 0xFDFDFDFD (guard), 0xFEFEFEFE (guard). \
+     * Also reject addresses below 0x00010000 (first 64KB) as they're \
+     * never valid code pointers on Xbox. */ \
+    if (_va < 0x00010000u || \
+        _va == 0x00000004u || _va == 0x3F800000u || \
+        _va == 0xFFFFFFFFu || _va == 0xCCCCCCCCu || \
+        _va == 0xCDCDCDCDu || _va == 0xFDFDFDFDu || \
+        _va == 0xFEFEFEFEu) { \
+        recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
+    } \
     if (_va >= 0x00400000 && _va < 0xFE000000) { \
-        g_esp = (saved_esp); eax = 0; break; \
+        g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
     if (_fn) _fn(); \
-    else { recomp_icall_fail_log(_va); g_esp = (saved_esp); eax = 0; } \
+    else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 
 /**

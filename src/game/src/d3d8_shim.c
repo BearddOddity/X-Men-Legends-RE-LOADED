@@ -53,6 +53,8 @@ unsigned long g_d3d8_shim_calls = 0;
  */
 #define D3D8_SHIM_TRACE 1
 
+#include <windows.h>  /* for Sleep */
+
 #if D3D8_SHIM_TRACE
 #include <stdio.h>
 /* Args live on the simulated stack: caller pushed them, then the dummy
@@ -242,6 +244,19 @@ void sub_0035D760(void)
 /* 0x0035D900  [D3D]  36 call site(s) */
 void sub_0035D900(void)
 {
+    static DWORD last_present = 0;
+    static int frame_count = 0;
+    DWORD now = GetTickCount();
+    DWORD elapsed = now - last_present;
+    if (elapsed < 16) {  /* ~60 FPS frame limiter */
+        Sleep(16 - elapsed);
+    }
+    last_present = GetTickCount();
+    frame_count++;
+    if (frame_count % 60 == 0) {
+        fprintf(stderr, "[D3D8] Present called %d times\n", frame_count);
+        fflush(stderr);
+    }
     D3D8_SHIM_RET(0x0035D900u, 0, D3D8_OK);
 }
 

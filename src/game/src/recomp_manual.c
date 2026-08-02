@@ -180,27 +180,32 @@ static void sub_001A1C23(void)
  * here rather than in the generated recomp_funcs.h so the wiring
  * survives a regeneration.
  */
-extern void sub_00227F50(void);
-extern void sub_00340CDE(void);
-extern void sub_00340D86(void);
-extern void sub_00343862(void);
-extern void sub_00346743(void);
-extern void sub_00349FAB(void);
-extern void sub_0034AA86(void);
-extern void sub_0034BB3A(void);
-extern void sub_003556E0(void);
+extern void sub_002370B0(void);
+
+/* Video playback shim overrides - Phase 1: stub to return success immediately */
+extern void sub_00340FEB(void);
+extern void sub_003432A8(void);
+extern void sub_003464F1(void);
+extern void sub_003467B6(void);
+extern void sub_003467F2(void);
+
+/* Network fallback override - stub to prevent blocking */
+extern void sub_00345AB0(void);
 
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
-    if (xbox_va == 0x00227F50u) return sub_00227F50;
-    if (xbox_va == 0x00340CDEu) return sub_00340CDE;
-    if (xbox_va == 0x00340D86u) return sub_00340D86;
-    if (xbox_va == 0x00343862u) return sub_00343862;
-    if (xbox_va == 0x00346743u) return sub_00346743;
-    if (xbox_va == 0x00349FABu) return sub_00349FAB;
-    if (xbox_va == 0x0034AA86u) return sub_0034AA86;
-    if (xbox_va == 0x0034BB3Au) return sub_0034BB3A;
-    if (xbox_va == 0x003556E0u) return sub_003556E0;
+    if (xbox_va == 0x002370B0u) return sub_002370B0;
+
+    /* Video playback shim overrides - Phase 1: stub to return success immediately */
+    if (xbox_va == 0x00340FEB) return sub_00340FEB;
+    if (xbox_va == 0x003432A8) return sub_003432A8;
+    if (xbox_va == 0x003464F1) return sub_003464F1;
+    if (xbox_va == 0x003467B6) return sub_003467B6;
+    if (xbox_va == 0x003467F2) return sub_003467F2;
+
+    /* Network fallback override - stub to prevent blocking in main thread */
+    if (xbox_va == 0x00345AB0) return sub_00345AB0;
+
     if (xbox_va == 0x0019F196) return sub_0019F196;
     if (xbox_va == 0x001A1C23) return sub_001A1C23;
     return (recomp_func_t)0;
@@ -504,4 +509,63 @@ void recomp_icall_fail_log(uint32_t va)
             (unsigned long long)((BYTE *)frames[i] - (BYTE *)mod));
     }
     fflush(stderr);
+}
+
+/*
+ * Network fallback stub - prevents blocking in main thread.
+ * The original sub_00345AB0 calls into network code that blocks waiting
+ * for a connection. On PC without Xbox Live, this blocks forever.
+ * This stub returns S_OK (0) immediately to unblock the main thread.
+ */
+void sub_00345AB0(void)
+{
+    g_eax = 0;  /* S_OK */
+    /* Caller (cdecl) cleans the argument from the stack */
+}
+
+/* ── ICALL trace ring buffer ───────────────────────────────── */
+
+/*
+ * These globals are written by the RECOMP_ICALL macro (defined in
+ * recomp_types.h) every time an indirect call is dispatched. When a
+ * crash occurs, the VEH handler or recomp_icall_fail_log() can dump
+ * the last 16 call targets to help you trace what happened.
+ *
+ * Already defined in xbox_kernel (src/kernel/xbox_memory_layout.c) -
+ * declare extern here instead of redefining.
+ */
+extern volatile uint32_t g_icall_trace[16];
+extern volatile uint32_t g_icall_trace_idx;
+extern volatile uint64_t g_icall_count;
+
+/* ── ICALL safe recovery ─────────────────────────────────────── */
+
+/*
+ * When an ICALL target is invalid (corrupted function pointer), the
+ * RECOMP_ICALL_SAFE macro calls sub_00ICALL_SAFE_STUB instead of
+ * crashing. To prevent the caller from using the bogus return value
+ * (0) as a function pointer, we loop forever instead of returning,
+ * allowing a debugger to be attached for investigation.
+ */
+/* ── Safe no-op function for invalid ICALL targets ───────────── */
+
+/*
+ * A harmless no-op function that can be safely called when an ICALL
+ * target is invalid. It does nothing and returns 0 (S_OK).
+ */
+void sub_00ICALL_SAFE_NOOP(void)
+{
+    /* Do nothing, return 0 (S_OK) */
+}
+
+/*
+ * Safe ICALL stub - called when an indirect call target is invalid.
+ * Instead of crashing by calling 0, this sets g_eax to a safe no-op
+ * function address so the caller can safely "call eax" without crashing.
+ */
+void sub_00ICALL_SAFE_STUB(void)
+{
+    fprintf(stderr, "[SAFE_STUB] Called for bad ICALL target - redirecting to safe no-op\n");
+    fflush(stderr);
+    g_eax = (uint32_t)sub_00ICALL_SAFE_NOOP;  /* Redirect to safe no-op function */
 }
