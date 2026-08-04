@@ -34,26 +34,53 @@ cmake --build build --config Release
 cd ../my_xbox_game
 ```
 
-## Step 1: Extract the XBE
+## Step 1: Supply your own copy of the game
 
-Extract `default.xbe` and game data files from your disc image:
+**We ship no game data.** No executable, no assets, no generated code derived
+from either. You provide a disc image you legally own; every step below runs on
+your machine against your copy. This is the same model as
+[OpenGOAL](https://opengoal.dev) and
+[UnleashedRecomp](https://github.com/hedge-dev/UnleashedRecomp).
+
+One command extracts, identifies and verifies the dump:
 
 ```bash
-# Using extract-xiso
-extract-xiso -x "My Game.iso" -d game_files/
-
-# Or using xdvdfs
-xdvdfs unpack "My Game.iso" game_files/
+py -3 -m tools.setup_game "My Game.iso"
 ```
 
-You should now have:
+Already unpacked the disc yourself? Point it at the folder instead:
+
+```bash
+py -3 -m tools.setup_game path/to/extracted/folder
 ```
-game_files/
-├── default.xbe          # The game executable
-├── Data/                # Game data (textures, models, levels)
-├── Video/               # FMV files (XMV format)
-└── ...                  # Other game-specific files
+
+It will:
+
+1. Extract the image (needs [extract-xiso](https://github.com/XboxDev/extract-xiso)
+   on `PATH`, or `EXTRACT_XISO=/path/to/extract-xiso`) — skipped if you passed a folder
+2. Read the XBE certificate: title, title ID, region, version
+3. SHA-256 the executable and check it against `tools/setup_game/manifest.py`
+4. Stage the files into `src/game/game/` (gitignored)
+
+Verified dump:
+
 ```
+  X-Men Legends
+  title_id 0x4156001E   region 0x7   disc 0   version 0x1
+  sha256   2ea531f1...
+  VERIFIED: X-Men Legends (World) [retail]  (XDK 1.0.5849)
+```
+
+**Why the hash check matters.** The recompiler is developed against one exact
+build. A different region or revision extracts fine and recompiles fine, then
+misbehaves in ways indistinguishable from lifter bugs. The check turns a week of
+false debugging into one clear message up front.
+
+Unverified dumps exit `2` and refuse to stage. `--force` overrides if you accept
+that. `--verify-only` identifies a dump without copying anything.
+
+Adding an entry to the manifest is a claim you **ran** the pipeline against that
+dump — not that it ought to work.
 
 ## Step 2: Parse the XBE
 

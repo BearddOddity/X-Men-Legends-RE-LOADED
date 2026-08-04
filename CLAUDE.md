@@ -3,9 +3,18 @@
 Static recompilation of the Xbox XBE into a native Windows executable.
 **Definition of done: boots to the main menu.**
 
-Never push to any remote. This repo is local-only; `origin` was removed
-deliberately. `src/game/src/recomp/gen/` is gitignored — 1M+ lines mechanically
-derived from a copyrighted XBE, never commit it.
+**Ship no game data.** Same model as OpenGOAL and UnleashedRecomp: the user
+brings their own disc, and everything derived is built on their machine.
+`src/game/src/recomp/gen/` is gitignored — 1M+ lines mechanically derived from a
+copyrighted XBE, never commit it. Nor the XBE, an ISO, or anything under
+`game/`.
+
+`tools/hooks/pre-commit` enforces this — `.gitignore` only filters, and
+`git add -f` walks straight past it. Install with `tools/hooks/install.sh`.
+
+A remote is allowed. (Superseded 2026-08-04: this file used to say "never push,
+local-only". That rule existed because the game was expected to live in the tree
+too; it doesn't — it's gitignored — so the reason no longer holds.)
 
 ---
 

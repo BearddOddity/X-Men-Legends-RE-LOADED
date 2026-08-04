@@ -1,0 +1,70 @@
+#!/bin/sh
+# Block anything game-derived from ever entering a commit.
+#
+# .gitignore is a filter, not a guarantee: `git add -f` walks straight past it,
+# and a mis-scoped `git add` after a path change can stage the wrong tree. This
+# repo's whole legal posture is "we ship no game data" (see README / the
+# OpenGOAL + UnleashedRecomp model), so that invariant deserves an enforced
+# check rather than a convention.
+#
+# Install:  tools/hooks/install.sh      (or copy to .git/hooks/pre-commit)
+# Bypass:   git commit --no-verify      (deliberate, and it will be obvious)
+
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+fail=0
+note() { printf '  %s\n' "$1"; }
+
+# 1. Game binaries and disc images, by extension.
+bad_ext=$(printf '%s\n' "$staged" | grep -Ei '\.(xbe|iso|xiso|xpr|xmv|xwv|wma|bin)$' || true)
+
+# 2. Anything under a directory that holds the user's own copy.
+#    Be precise: `src/game/` is the PROJECT directory and is full of legitimate
+#    source. The disc contents live in `src/game/game/`. Matching a bare
+#    `game/` anywhere blocked every real commit - caught on first use.
+bad_dir=$(printf '%s\n' "$staged" \
+    | grep -Ei '(^|/)game/game/|^game/|(^|/)(game_files|game_extracted)/' || true)
+
+# 3. The mechanically generated recompiler output - 1M+ lines derived from the
+#    copyrighted executable. Never committed, regenerated from the user's disc.
+bad_gen=$(printf '%s\n' "$staged" | grep -E '(^|/)(src/)?recomp/gen/' || true)
+
+if [ -n "$bad_ext" ]; then
+    fail=1
+    echo "pre-commit: refusing - game binary / disc content staged:"
+    printf '%s\n' "$bad_ext" | while read -r f; do note "$f"; done
+fi
+if [ -n "$bad_dir" ]; then
+    fail=1
+    echo "pre-commit: refusing - files from a user-supplied game directory:"
+    printf '%s\n' "$bad_dir" | while read -r f; do note "$f"; done
+fi
+if [ -n "$bad_gen" ]; then
+    fail=1
+    echo "pre-commit: refusing - generated recompiler output staged:"
+    printf '%s\n' "$bad_gen" | while read -r f; do note "$f"; done
+fi
+
+# 4. Size guard. Nothing legitimate here is large; a big blob is almost always
+#    an asset or a generated dump that slipped through the patterns above.
+for f in $staged; do
+    [ -f "$f" ] || continue
+    sz=$(wc -c < "$f" 2>/dev/null || echo 0)
+    if [ "$sz" -gt 2000000 ]; then
+        fail=1
+        echo "pre-commit: refusing - $f is $((sz / 1024)) KB (>2 MB)."
+        note "If this is genuinely source, raise the limit in tools/hooks/pre-commit."
+    fi
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "This repo ships no game data. Users bring their own disc; everything"
+    echo "derived is built on their machine. See docs/GETTING_STARTED.md."
+    exit 1
+fi
+
+exit 0

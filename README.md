@@ -174,10 +174,11 @@ The recompiler output (`tools/recomp`) generates these automatically. The xboxre
 git clone https://github.com/sp00nznet/xboxrecomp.git
 cd xboxrecomp
 
-# 2. Extract default.xbe from your Xbox disc image
-#    (Use xdvdfs, extract-xiso, or similar tool)
-mkdir game_files
-# copy default.xbe and game data into game_files/
+# 2. Supply your own disc image - extracts, identifies and verifies it.
+#    Nothing game-derived ships in this repo; this runs against your copy.
+py -3 -m tools.setup_game "My Game.iso"
+#    (or point it at an already-extracted folder)
+#    Refuses dumps the recompiler hasn't been verified against; --force overrides
 
 # 3. Parse the XBE — learn what you're working with
 py -3 -m tools.xbe_parser game_files/default.xbe
