@@ -50,8 +50,12 @@ def _py(script, *args, timeout=900, env_extra=None):
     if env_extra:
         env = dict(os.environ)
         env.update(env_extra)
+    # stdin=DEVNULL matters: this server speaks MCP over stdin/stdout, and a
+    # child that inherits those handles can block on the transport pipe or
+    # corrupt the protocol stream. Seen for real - triage() hung for the full
+    # 900s timeout while the same script ran instantly from a shell.
     p = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True,
-                       timeout=timeout, env=env)
+                       timeout=timeout, env=env, stdin=subprocess.DEVNULL)
     return {"ok": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
 
 
@@ -60,7 +64,7 @@ def build() -> dict:
     """Compile the recompiled executable. Returns errors only, not the full log."""
     bat = os.path.join(GAME, "build_compile.bat")
     p = subprocess.run(["cmd", "/c", bat], cwd=GAME, capture_output=True,
-                       text=True, timeout=1800)
+                       text=True, timeout=1800, stdin=subprocess.DEVNULL)
     out = p.stdout + p.stderr
     errors = [l for l in out.splitlines()
               if "error C" in l or "error LNK" in l or l.startswith("FAILED")]
