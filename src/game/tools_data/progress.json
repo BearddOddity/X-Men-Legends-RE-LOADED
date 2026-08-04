@@ -581,5 +581,33 @@
     "message": "Save-area fix retried a third time and rejected: it is superseded, not mis-sequenced",
     "note": "Applied the [ebp-24] __SEH_epilog fix again now that the frame is published: 200 -> 52 kernel calls, heap 49 -> 2. Third rejection (40, 50, 52 against a 200 baseline). Reverted. Verified the premise against __SEH_prolog rather than trusting the comment - it really does 'MEM32(ebp-24) = esp' immediately after pushing ebx, esi, edi, so [save+0]=edi, [save+4]=esi, [save+8]=ebx and [save-4]=return address are all CORRECT offsets. The fix is not wrong about the layout; it is solving a problem that no longer exists. It was a workaround for esp drift, and the fall-through-edge fix plus the g_seh_ebp sync removed the drift at source. With esp no longer drifting the original POP32s read the right slots, and the save-area read now INTRODUCES error rather than avoiding it. Conclusion: retire it. Keep the drift fixed at source instead of compensating downstream.",
     "commit": "548ba05"
+  },
+  {
+    "kernel_calls": 44,
+    "failed_icalls": 2,
+    "total_icalls": 69,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 2,
+    "crash_in": "sub_003432FC+0x151",
+    "fault_va": "0xFFFFFFFC",
+    "date": "2026-08-04",
+    "message": "Heap-range guards tested and KEPT: still load-bearing, unlike the save-area fix",
+    "note": "Hypothesis: since the __SEH_epilog save-area workaround became actively harmful once esp drift was fixed at source, the other drift-era guards might have too. Five edits in the store cite stack escape/drift as their reason; 14 heap-range 'this' guards exist in gen. Disabled all 14 (condition made unreachable, exactly reversible) and measured: 200 -> 44 kernel calls, heap 49 -> 2. Re-enabled. So the hypothesis is WRONG - these guards still earn their place, and 'workarounds outlive their causes' does not generalise from one case. The pointers they reject are still genuinely bad, which means there is remaining corruption they are absorbing; that is worth finding, but they must not be removed first. Also hit CLAUDE.md trap #1 on the way (built a C string literal through a shell heredoc, the \\n arrived as a real newline and broke the build) - should have used add_probe.py.",
+    "commit": "732d58e"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "Restored: 200 kernel calls, guards re-enabled, tree clean",
+    "note": null,
+    "commit": "732d58e"
   }
 ]
