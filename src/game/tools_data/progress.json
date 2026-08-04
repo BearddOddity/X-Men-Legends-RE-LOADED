@@ -317,5 +317,141 @@
     "message": "Post-call sanitizer after every kernel call sanitizes esi+0x104, esi+0x58, g_eax, and 0x100 bytes around esi. Still crashing at 0xFFFFFFFF - esi register itself gets corrupted to invalid address (0xB0D82B80) which is outside Xbox VA range. Need to validate/reset g_esi register directly when it points outside valid Xbox VA range.",
     "note": null,
     "commit": "29f3395"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 1,
+    "heap_allocs": 8,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "cpuid implemented in lifter; stripped leftover probes and rebuilt clean",
+    "note": "cpuid fix is INERT for boot - a guarded probe proved recomp_cpuid is never called, so sub_001F0F70 (feature detector, 9 cpuid sites) is not reached. Kept anyway: it lives in lifter.py so it survives regeneration, and extended-leaf=0 permanently blocks the unimplemented 3DNow path. The real change is the clean rebuild after strip_probes: no crash at all now, heap 3->8, but the failure moved to a SPIN - 80166 safe-stub hits on bad icall targets. Deterministic 2/2.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 1,
+    "heap_allocs": 8,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Instrument the silent ICALL reject branch; isolate esi clobber + esp leak in sub_002155B0",
+    "note": "No crash, heap 3->8. The spin is now visible: the [0x400000,0xFE000000) reject branch logged NOTHING, hiding every target. Now histogrammed - only 6 distinct targets, and 4 of 6 are STACK addresses (0x00F7F26C/FF78/FD2F/FCEC) used as function pointers. Rate-limited SAFE_STUB (was 80k fprintf+fflush, which was throttling the spin - it now reaches 393k+). Probes proved in sub_002155B0: esi 0x00F81288 -> garbage and esp -20 bytes across the sub_00123600/sub_00123590 span; expected delta is only -8, so 12 bytes are unaccounted. sub_0020DA80 EXONERATED (+4, balanced) despite the lifter splitting it into two C functions at 0x20DA95.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 1,
+    "heap_allocs": 8,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Root-caused the 12-byte leak: mid-function continuations are emitted as EMPTY stubs",
+    "note": "Traced esp through sub_002155B0 -> sub_00123590 -> sub_00202CC0 with probes. sub_00123600 never runs (eax==0). The leak is entirely in sub_00202CC0. Ghidra: FUN_00202cc0 is ONE 254-byte function (0x202CC0-0x202DBD); the lifter split it into fragments CC0/CE1/D14 which push but contain ZERO pops, then tail-call sub_00202D87/D89 - which live in recomp_stubs_unresolved.c as EMPTY BODIES ('not detected'). whatis.py confirms 0x202D87 is real .text code. So the continuation, including the pop esi/pop ebx/ret epilogue, never executes. Arithmetic matches exactly: 4 (dummy retaddr from sub_00123590) + 8 (ebx,esi in sub_00202CC0) = 12 bytes, and esi is never restored -> the caller's esi is destroyed. 3205 such stubs exist. This is the class behind esp drift, callee-saved corruption and the stack-address ICALL targets.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 2,
+    "heap_allocs": 8,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Narrow seed did NOT fix the leak; real cause is dropped fall-through edges (1005 functions)",
+    "note": "Seeded sub_00202D87/D89 and removed their stubs: build clean, but probes show the leak UNCHANGED (esp still -16 where -4 is due, esi still clobbered) - the chain never reaches them. Built trace_stubs.py: armed all 3203 unresolved stubs to report themselves; only TEN execute during boot, and none in the 0x202Cxx/Dxx range. Real cause found by reading sub_00202CE1's tail: it ends on RECOMP_ICALL_SAFE with NO return, no epilogue, no esp adjustment. The original falls through to 0x202D14; the lifter split there and never emitted the edge, so control falls off the end of the C function and the pop esi/pop ebx/ret never runs. 4 (dummy retaddr) + 8 (ebx,esi) = exactly the 12 measured. Built find_dropped_fallthrough.py: 1005 functions (3.79%) do this. First version reported 14.28% - false positives from trailing #undef lines after the real return; validated by hand and fixed. Seed kept (inert: 54/heap 8/no crash held; failed_icalls 1->2 because real code now runs where an empty stub used to silently succeed).",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 1,
+    "heap_allocs": 4,
+    "crash_in": "sub_002155B0+0x153",
+    "fault_va": "0x9AD22FAC",
+    "date": "2026-08-04",
+    "message": "Lifter now emits the fall-through edge; single-site validation reverted (needs wholesale regeneration)",
+    "note": "translator.py: detect when the last instruction is non-terminal, add end to call_targets, add ebp to used_regs, and emit 'g_seh_ebp = ebp; sub_<end>(); return;'. Verified by re-translating sub_00202CE1 alone - it now correctly declares/inits ebp and emits the edge to sub_00202D14. Applied that ONE edge to gen/ to validate: leak did not close, it INVERTED (esp delta was -16 vs -4 expected, now +8), esi still clobbered, heap 8->5, crash returned, failed_icalls 1->3. Reason: the newly-reachable chain contains sub_0020A3F6, which has its own dropped edge - fixing one edge while 1004 remain broken produces a half-consistent program. Reverted the gen/ patch per Rule #14; the lifter fix is KEPT since it lives in the tool. UNEXPLAINED: the build flips between (heap 8, no crash) and (heap 4, crash) across rebuilds that should be equivalent; not root-caused.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 58,
+    "failed_icalls": 513,
+    "heap_allocs": 3,
+    "crash_in": "sub_001F7930+0x6A0",
+    "fault_va": "0x74000000",
+    "date": "2026-08-04",
+    "message": "Full regeneration with the fall-through fix: 54 -> 58 kernel calls",
+    "note": "Regenerated all 26507 functions; 1065 fall-through edges emitted. Pristine output passes check-braces cleanly, so the lifter change itself is sound; only 3 of 1065 edges point at an address that is also a call target elsewhere, so they are genuine continuations. DISCOVERY: the store held 51 hand-written 'the lifter cut this function off here' fixes - the team had already found this exact bug at '50 sites' per DEBUGGING_NOTES. Those are now superseded by the lifter and had to be dropped from manual_edits.json or they double-emit past the closing brace (that was the 51-unbalanced signal). Of the remaining 200 edits, 167 placed and 33 could not (anchors moved). Result: kernel_calls 54->58 (primary metric UP, best is still 92), but failed_icalls 1->513, heap 8->3, and the stack now escapes UPWARD at kernel call #41 (0x00F7F854 -> 0x00F94AFC) - over-popping, the mirror of the original leak. Backups: gen-preregen.tar.gz and manual_edits-with-fallthrough.json in scratch.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 40,
+    "failed_icalls": 12,
+    "heap_allocs": 3,
+    "crash_in": "sub_001E8E20+0x105",
+    "fault_va": "0x74D45865",
+    "date": "2026-08-04",
+    "message": "Restored __SEH_epilog fix on the regenerated tree: 58 -> 40 calls but failed_icalls 513 -> 12",
+    "note": "Verified __SEH_prolog is byte-identical after regeneration, so the [ebp-24] save-area assumption still holds and the fix is correctly applied. Trade is stark: without it 58 calls/513 failed icalls, with it 40 calls/12 failed icalls. Per Rule #1 the count is a proxy and these are two different programs; 513->12 is a large correctness gain, but 40 is below the 54 pre-regen baseline. Crash now sub_001E8E20+0x105. My restore_lost_guards.py CORRUPTED the tree on first run (wrote partial files after a TypeError on a stale loop variable, deleting sub_001186A0/sub_001183A0 definitions -> LNK2019); fixed the tool, reverted to pristine and redid the recipe cleanly. Of the 33 unplaced guards only 2-3 are provably safe to splice; 10 fail the subsequence check because the lifter output genuinely changed. Backups intact: gen-preregen.tar.gz, manual_edits-with-fallthrough.json.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 58,
+    "failed_icalls": 513,
+    "heap_allocs": 3,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "SURPASS: 58 kernel calls, no crash, and 60,164 indirect calls vs 80 before",
+    "note": "Guards proven load-bearing: pristine+SEH with NO guards = 26 calls, so the 200 guards are worth +14 and my hypothesis that they were net-negative on a fixed lifter was WRONG. Best config is regen + 167 guards + no SEH fix. The headline number understates it badly: total indirect calls went 80 -> 60164 (750x more code executing) and the failure rate IMPROVED from 1/80 (1.25%) to 513/60164 (0.85%). No crash in 2/2 runs. The 513 failures are all DISTINCT SEQUENTIAL SMALL INTEGERS (0x0,0x1,0x2,0x3,0x4,0x6...) - not random corruption but something calling through an index table as if it held function pointers. That is a clean, specific next target. Also fixed: 67 stubs in recomp_stubs_unresolved.c duplicating d3d8_shim.c overrides (LNK2005) - stub_overridden.py only cleans recomp_*.c, not the stub file.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 40,
+    "failed_icalls": 12,
+    "total_icalls": 93,
+    "heap_allocs": 3,
+    "crash_in": "sub_001E8E20+0x105",
+    "fault_va": "0xAB685865",
+    "date": "2026-08-04",
+    "message": "Track total indirect calls as a first-class signal",
+    "note": null,
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 50,
+    "failed_icalls": 12,
+    "total_icalls": 145,
+    "heap_allocs": 5,
+    "crash_in": "VCRUNTIME140.dll",
+    "fault_va": "0xFFFFFFE4",
+    "date": "2026-08-04",
+    "message": "Fix build-to-build measurement noise: safe stub returned a truncated HOST pointer",
+    "note": null,
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 7,
+    "total_icalls": 149902,
+    "heap_allocs": 49,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF78",
+    "date": "2026-08-04",
+    "message": "Seed the 9 observed missing .text functions: 50 -> 200 kernel calls (previous best 92)",
+    "note": "After fixing the measurement noise, the 12 remaining icall failures were mostly REAL .text addresses - genuinely undiscovered functions, exactly what seed_missing_functions.py --observed is for. Seeding all 9 additively: kernel_calls 50 -> 200 (more than double the all-time best of 92), failed_icalls 12 -> 7, heap_allocs 5 -> 49. Deterministic 2/2. Note this only became findable once the safe stub stopped returning a truncated host pointer - before that, build-to-build layout noise was swamping the signal.",
+    "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 7,
+    "total_icalls": 149902,
+    "heap_allocs": 49,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF78",
+    "date": "2026-08-04",
+    "message": "Root-cause the 200-call crash: the subsystem table at 0x005BB700 is never written",
+    "note": "sub_002235D0 (the class registrar) reads ecx = MEM32(eax*4 + 0x5BB700) with the index from 0x5BC544, gets NULL, and faults on ecx-0x88. ReVa: 249 references to DAT_005bb700 and EVERY ONE is isWrite:false - nothing in the discovered code ever populates that table. esp is healthy across all 200 kernel calls (stays in 0x00F7Fxxx, largest swings are legitimate +/-448 frame allocations), so this is NOT stack drift. find_icall_esp_saves --live reports only 1 live site worth 20 bytes, far too small to matter. Next: find what populates 0x005BB700 - likely an undiscovered constructor or static initializer, i.e. the find_missing_functions.py data-pointer case rather than the control-flow case.",
+    "commit": "47eacf9"
   }
 ]

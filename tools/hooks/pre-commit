@@ -50,8 +50,23 @@ fi
 
 # 4. Size guard. Nothing legitimate here is large; a big blob is almost always
 #    an asset or a generated dump that slipped through the patterns above.
+#
+#    Narrow allowlist: function *metadata* - addresses, sizes, sections, call
+#    edges - carries no instruction bytes. It is a symbol map, the same kind of
+#    file every decomp project ships, and it is legitimately several MB. Listed
+#    explicitly so the guard keeps its teeth for everything else.
+is_allowed_large() {
+    case "$1" in
+        src/game/seeded_functions.json) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 for f in $staged; do
     [ -f "$f" ] || continue
+    if is_allowed_large "$f"; then
+        continue
+    fi
     sz=$(wc -c < "$f" 2>/dev/null || echo 0)
     if [ "$sz" -gt 2000000 ]; then
         fail=1

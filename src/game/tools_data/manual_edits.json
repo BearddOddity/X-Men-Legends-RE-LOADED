@@ -1,275 +1,5 @@
 [
  {
-  "file": "recomp_0000.c",
-  "kind": "insert_before",
-  "function": "sub_00011AAE",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00011AB4",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00011AB4's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00011AB4(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3C701C);"
- },
- {
-  "file": "recomp_0000.c",
-  "kind": "insert_before",
-  "function": "sub_0002E230",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0002E235",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0002E235's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0002E235(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3F800000);"
- },
- {
-  "file": "recomp_0001.c",
-  "kind": "insert_before",
-  "function": "sub_00043602",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0004360B",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0004360B's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0004360B(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0002.c",
-  "kind": "insert_before",
-  "function": "sub_0005EF0B",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0005EF42",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0005EF42's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0005EF42(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ecx);"
- },
- {
-  "file": "recomp_0002.c",
-  "kind": "insert_before",
-  "function": "sub_00061190",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000611C7",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000611C7's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000611C7(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3C806C);"
- },
- {
-  "file": "recomp_0003.c",
-  "kind": "insert_before",
-  "function": "sub_000825FB",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00082609",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00082609's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00082609(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0004.c",
-  "kind": "insert_before",
-  "function": "sub_000B0EE2",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000B0EEB",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000B0EEB's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000B0EEB(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000C06B6",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000C06C6",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000C06C6's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C06C6(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000C07CF",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000C07E2",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000C07E2's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C07E2(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000C089A",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000C08AD",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000C08AD's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C08AD(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000C12C9",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000C12D3",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000C12D3's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000C12D3(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3CD03C);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000D9697",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000D96C2",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000D96C2's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000D96C2(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ecx);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000DA82D",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000DA83D",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000DA83D's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_000DA83D(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 1);"
- },
- {
-  "file": "recomp_0005.c",
-  "kind": "insert_before",
-  "function": "sub_000DDBB4",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_000DDBBA",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_000DDBBA's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_000DDBBA(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x18);"
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0010A857",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0010A858",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0010A858's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0010A858(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ebx);"
- },
- {
   "file": "recomp_0007.c",
   "kind": "insert_before",
   "function": "sub_001186A0",
@@ -300,8 +30,31 @@
    "    if (++_guard_iter > 100000) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
   ],
   "match": null,
-  "anchor": "    edx = eax;",
+  "anchor": "    /* Manual guard (not in original x86): eax is scaled into an address",
   "pre": "loc_001186B3: ;"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001186A0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is scaled into an address",
+   "     * here, so it is an index rather than a pointer and a heap-range",
+   "     * test says nothing useful about it. The original trusts it because",
+   "     * on hardware it cannot be out of range; here it can hold unrelated",
+   "     * garbage, and `base + eax*N` then lands anywhere. Bound it at",
+   "     * 0x40000u. eax is the current node index into a 16-byte-node pool;",
+   "     * 0x3FFFFFFF is the no-child sentinel. Observed eax = 0x3F800000 (a",
+   "     * float bit pattern), so eax<<4 wrapped to 0xF8000000 and the node",
+   "     * read landed at 0xF8502654. The iteration cap above bounds how LONG",
+   "     * the walk runs but never checks the index itself. Bail out as",
+   "     * not-found, exactly as that cap does.",
+   "     * Bound emitted by tools_data/add_guard.py --index-max. */",
+   "    if (!(eax < 0x40000u)) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
+  ],
+  "match": null,
+  "anchor": "    edx = eax;",
+  "pre": "    if (++_guard_iter > 100000) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
  },
  {
   "file": "recomp_0007.c",
@@ -510,60 +263,6 @@
   "match": null,
   "anchor": "    eax = ebx;",
   "pre": "    ebx++;"
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0011EAAC",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0011EB6A",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0011EB6A's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0011EB6A(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0xA4000);"
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0011F87F",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0011F881",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0011F881's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0011F881(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 1);"
- },
- {
-  "file": "recomp_0007.c",
-  "kind": "insert_before",
-  "function": "sub_0012017F",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00120181",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00120181's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00120181(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 1);"
  },
  {
   "file": "recomp_0007.c",
@@ -1066,6 +765,24 @@
  },
  {
   "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AC10",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is an interface pointer",
+   "     * (vtable pointer) at esi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = edx + esi + 4;"
+ },
+ {
+  "file": "recomp_0008.c",
   "kind": "wrap",
   "function": "sub_0013AC10",
   "block": [
@@ -1087,7 +804,13 @@
    "     * leaving it holding whatever garbage was there before this",
    "     * object's own allocation - consumers elsewhere assume \"0 or a",
    "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;",
+   "    /* Manual guard (not in original x86): esi traces back to MEM32(esp + 0xC)",
+   "     * above, which is the saved esi from the function prologue. When the stack",
+   "     * has drifted into .data (D3D-null pattern), this can hold garbage instead",
+   "     * of a real object pointer. Writing through a garbage pointer faults.",
+   "     * Skip the zero-init when esi doesn't look like a real heap pointer.",
+   "     * Range matches every other guard in this tree; see tools_data/add_guard.py. */",
+   "    if (esi >= 0x00880000u && esi < 0x04000000u) { MEM32(esi) = 0; }",
    "    }"
   ],
   "match": null,
@@ -1098,8 +821,26 @@
    "    PUSH32(esp, 0); sub_0013A6A0(); /* call 0x0013A6A0 */",
    "",
    "loc_0013AC4F: ;",
-   "    esp = esp + 8;"
+   "    esp = esp + 12;"
   ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AC60",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is an interface pointer",
+   "     * (vtable pointer) at esi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = edx + esi + 4;"
  },
  {
   "file": "recomp_0008.c",
@@ -1135,7 +876,7 @@
    "    PUSH32(esp, 0); sub_0013A750(); /* call 0x0013A750 */",
    "",
    "loc_0013AC9F: ;",
-   "    esp = esp + 8;"
+   "    esp = esp + 12;"
   ]
  },
  {
@@ -1177,6 +918,24 @@
  },
  {
   "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AD00",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is an interface pointer",
+   "     * (vtable pointer) at esi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = edx + esi + 4;"
+ },
+ {
+  "file": "recomp_0008.c",
   "kind": "wrap",
   "function": "sub_0013AD00",
   "block": [
@@ -1209,8 +968,26 @@
    "    PUSH32(esp, 0); sub_0013A8B0(); /* call 0x0013A8B0 */",
    "",
    "loc_0013AD3F: ;",
-   "    esp = esp + 8;"
+   "    esp = esp + 12;"
   ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AD50",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is an interface pointer",
+   "     * (vtable pointer) at esi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = edx + esi + 4;"
  },
  {
   "file": "recomp_0008.c",
@@ -1235,7 +1012,13 @@
    "     * leaving it holding whatever garbage was there before this",
    "     * object's own allocation - consumers elsewhere assume \"0 or a",
    "     * real pointer\", not \"uninitialized\". See DEBUGGING_NOTES.md. */",
-   "    MEM32(esi) = 0;",
+   "    /* Manual guard (not in original x86): esi traces back to MEM32(esp + 0xC)",
+   "     * above, which is the saved esi from the function prologue. When the stack",
+   "     * has drifted into .data (D3D-null pattern), this can hold garbage instead",
+   "     * of a real object pointer. Writing through a garbage pointer faults.",
+   "     * Skip the zero-init when esi doesn't look like a real heap pointer.",
+   "     * Range matches every other guard in this tree; see tools_data/add_guard.py. */",
+   "    if (esi >= 0x00880000u && esi < 0x04000000u) { MEM32(esi) = 0; }",
    "    }"
   ],
   "match": null,
@@ -1246,8 +1029,26 @@
    "    PUSH32(esp, 0); sub_0013A960(); /* call 0x0013A960 */",
    "",
    "loc_0013AD8F: ;",
-   "    esp = esp + 8;"
+   "    esp = esp + 12;"
   ]
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013ADA0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is an interface pointer",
+   "     * (vtable pointer) at esi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = edx + esi + 4;"
  },
  {
   "file": "recomp_0008.c",
@@ -1283,7 +1084,7 @@
    "    PUSH32(esp, 0); sub_0013AA10(); /* call 0x0013AA10 */",
    "",
    "loc_0013ADDF: ;",
-   "    esp = esp + 8;"
+   "    esp = esp + 12;"
   ]
  },
  {
@@ -1314,7 +1115,7 @@
   ],
   "match": null,
   "anchor": "    eax = esp + 0x10;",
-  "pre": "    MEM32(edx + 0xC) = eax;"
+  "pre": "loc_0013AF1C: ;"
  },
  {
   "file": "recomp_0008.c",
@@ -1389,6 +1190,49 @@
   "kind": "insert_before",
   "function": "sub_0013AE50",
   "block": [
+   "    /* Manual guard (not in original x86): edi can be NULL or garbage",
+   "     * here. The original dereferences it unconditionally, which is safe",
+   "     * on hardware but not in this build, and the fake TIB at VA 0 turns",
+   "     * the bad read into plausible nonsense rather than a clean fault.",
+   "     * second of two sites in this function (the one at loc_0013AFE3).",
+   "     * edi is the object whose members this block writes; with the class",
+   "     * registrar stubbed it can be NULL, so MEM32(edi + 8) returns",
+   "     * fake-TIB garbage (observed eax = 0xFFFF0000) and the next store",
+   "     * faults. Everything through loc_0013AFF9 works via edi and that",
+   "     * garbage eax, while loc_0013B014 reloads eax from the stack - so",
+   "     * jumping there skips exactly the unusable region and rejoins",
+   "     * cleanly.",
+   "     * Range matches every other guard in this tree; see tools_data/add_guard.py. */",
+   "    if (!(edi >= 0x00880000u && edi < 0x04000000u)) { goto loc_0013B014; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(edi + 8);",
+  "pre": "    }"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
+   "    /* Manual guard (not in original x86): eax can be NULL or garbage",
+   "     * here. The original dereferences it unconditionally, which is safe",
+   "     * on hardware but not in this build, and the fake TIB at VA 0 turns",
+   "     * the bad read into plausible nonsense rather than a clean fault.",
+   "     * eax from MEM32(edi+8) can be garbage even when edi is valid - the",
+   "     * D3D-null pattern leaves uninitialized vtable pointers in",
+   "     * constructed objects; validate before deref at loc_0013AFEA",
+   "     * Range matches every other guard in this tree; see tools_data/add_guard.py. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) { goto loc_0013B014; }"
+  ],
+  "match": null,
+  "anchor": "    MEM8(eax + 0xC) = 0;",
+  "pre": "    eax = MEM32(edi + 8);"
+ },
+ {
+  "file": "recomp_0008.c",
+  "kind": "insert_before",
+  "function": "sub_0013AE50",
+  "block": [
    "    /* Manual guard (not in original x86): ebx (edi+4) is the same",
    "     * D3D-null-pattern pointer field guarded earlier in this function -",
    "     * see loc_0013AFF9 above and DEBUGGING_NOTES.md. Treat a garbage",
@@ -1423,18 +1267,19 @@
   "kind": "insert_before",
   "function": "sub_0013B0E0",
   "block": [
-   "    /* Manual guard (not in original x86): ecx should be a bounded loop",
-   "     * index (0..0x3F, matching the 64-iteration cap this loop already",
-   "     * enforces via edi/0x40 below) into a fixed-size array at esi. In a",
-   "     * corrupted run it can instead hold an unrelated garbage value",
-   "     * (observed: a float bit pattern), which turns \"esi + ecx*4\" into a",
-   "     * wild address. Same defensive-bounds philosophy as the other guards",
-   "     * in this session - see DEBUGGING_NOTES.md. */",
-   "    if (ecx < 0x40u) MEM32(esi + ecx * 4) = edi;"
+   "    /* Manual guard (not in original x86): eax is scaled into an address",
+   "     * here, so it is an index rather than a pointer and a heap-range",
+   "     * test says nothing useful about it. The original trusts it because",
+   "     * on hardware it cannot be out of range; here it can hold unrelated",
+   "     * garbage, and `base + eax*N` then lands anywhere. Bound it at 0x40.",
+   "     * loop index corrupted to float bit pattern; bound at 0x40 to",
+   "     * prevent infinite loop and stack escape",
+   "     * Bound emitted by tools_data/add_guard.py --index-max. */",
+   "    if (!(eax < 0x40)) { goto loc_0013B192; }"
   ],
   "match": null,
-  "anchor": "    edx = MEM32(esi + 0x104);",
-  "pre": "    MEM32(esi + ecx * 4) = edi;"
+  "anchor": "    /* Safety net: also check edi (register counter) as backup exit condition",
+  "pre": "    MEM32(esi + 0x104) = edx;"
  },
  {
   "file": "recomp_0008.c",
@@ -2327,20 +2172,20 @@
  {
   "file": "recomp_0008.c",
   "kind": "insert_before",
-  "function": "sub_001465F2",
+  "function": "sub_00145E60",
   "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_001465F9",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_001465F9's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_001465F9(); return;",
-   "}"
+   "    /* Manual guard (not in original x86): edx is an interface pointer",
+   "     * (vtable pointer) at edi+4. On hardware this comes from a constructed",
+   "     * object; here the D3D-null pattern leaves it uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
   ],
   "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 1);"
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "    ecx = ecx + edi + 4;"
  },
  {
   "file": "recomp_0009.c",
@@ -2713,132 +2558,6 @@
   ]
  },
  {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0015898A",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00158998",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00158998's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00158998(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_00167397",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0016754B",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0016754B's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0016754B(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0009.c",
-  "kind": "insert_before",
-  "function": "sub_0016754B",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00167550",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00167550's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00167550(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ecx);"
- },
- {
-  "file": "recomp_0010.c",
-  "kind": "insert_before",
-  "function": "sub_0017DB3B",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0017DB44",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0017DB44's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0017DB44(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0010.c",
-  "kind": "insert_before",
-  "function": "sub_0017DC31",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0017DC3A",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0017DC3A's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0017DC3A(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0010.c",
-  "kind": "insert_before",
-  "function": "sub_0018BE59",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0018BE76",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0018BE76's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_0018BE76(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
- },
- {
-  "file": "recomp_0010.c",
-  "kind": "insert_before",
-  "function": "sub_0018E632",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0018E641",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0018E641's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0018E641(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0xD);"
- },
- {
   "file": "recomp_0011.c",
   "kind": "wrap",
   "function": "sub_00194290",
@@ -2911,24 +2630,6 @@
    "loc_0019431F: ;",
    "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "insert_before",
-  "function": "sub_0019E944",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0019E972",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0019E972's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_0019E972(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 5);"
  },
  {
   "file": "recomp_0011.c",
@@ -3075,42 +2776,6 @@
   "pre": "    if (CMP_EQ(ecx, eax)) goto loc_001A10AE; /* je: equal / zero */"
  },
  {
-  "file": "recomp_0011.c",
-  "kind": "insert_before",
-  "function": "sub_001A2FFB",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_001A3003",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_001A3003's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_001A3003(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3E1D58);"
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "insert_before",
-  "function": "sub_001A3B65",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_001A3B6A",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_001A3B6A's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_001A3B6A(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0xC0000011u);"
- },
- {
   "file": "recomp_0014.c",
   "kind": "insert_before",
   "function": "sub_001E8E20",
@@ -3176,20 +2841,32 @@
  {
   "file": "recomp_0014.c",
   "kind": "insert_before",
-  "function": "sub_001ED5D9",
+  "function": "sub_001F75A3",
   "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_001ED5FA",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_001ED5FA's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_001ED5FA(); return;",
-   "}"
+   "    /* Manual guard (not in original x86): ebx is the 'this' pointer.",
+   "     * If the caller passes a garbage pointer (corrupted by stack escape or",
+   "     * bad ICALL return), validate it before dereferencing at ebx+0x3C below.",
+   "     * Heap range per xbox_memory_layout.h. If invalid, skip and return 0. */",
+   "    if (!(ebx >= 0x00880000u && ebx < 0x04000000u)) { eax = 0; goto loc_001F75D7; }"
   ],
   "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
+  "anchor": "    ecx = MEM32(ebx + 0x3C);",
+  "pre": "loc_001F75A3: ;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001F75A3",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is the ICALL return value.",
+   "     * If the ICALL target was corrupted (float bit pattern, null, or garbage),",
+   "     * the return value can be an invalid pointer. Validate before using it",
+   "     * to read MEM32(eax + 0x38) below. Heap range per xbox_memory_layout.h. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) { goto loc_001F75D7; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(eax + 0x38);",
+  "pre": "loc_001F75BA: ;"
  },
  {
   "file": "recomp_0014.c",
@@ -3285,6 +2962,22 @@
  {
   "file": "recomp_0015.c",
   "kind": "insert_before",
+  "function": "sub_00202CC0",
+  "block": [
+   "    /* Manual guard (not in original x86): esi is the 'this' pointer from ecx.",
+   "     * If the caller passes a garbage pointer (corrupted by stack escape or",
+   "     * bad ICALL return), validate it before writing fields. Heap range per",
+   "     * xbox_memory_layout.h. If invalid, skip initialization and take the",
+   "     * early return path. */",
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { g_seh_ebp = ebp; sub_00202CE1(); return; }"
+  ],
+  "match": null,
+  "anchor": "    MEM32(esi) = ebx;",
+  "pre": "    esi = ecx;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
   "function": "sub_002068B0",
   "block": [
    "    /* Manual guard (not in original x86): ecx is the array's backing",
@@ -3297,7 +2990,7 @@
   ],
   "match": null,
   "anchor": "    POP32(esp, edi);",
-  "pre": "    MEM32(ecx + edi * 4) = ebx;"
+  "pre": "    MEM32(esi + 8) = eax;"
  },
  {
   "file": "recomp_0015.c",
@@ -3310,31 +3003,7 @@
   ],
   "match": null,
   "anchor": "    POP32(esp, edi);",
-  "pre": "    MEM32(eax + edi * 4) = ebx;"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_002085B3",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this function off",
-   "     * here, dropping the tail-call into sub_002085CA (confirmed by",
-   "     * matching original address ranges - this function's own \"Original\"",
-   "     * end address 0x002085CA equals sub_002085CA's start address). Same",
-   "     * systemic lifter bug documented in DEBUGGING_NOTES.md for 50 other",
-   "     * sites, just with a different trailing-statement shape (ends on a",
-   "     * shift, not a bare PUSH32) that the original detection script",
-   "     * didn't match. Without this, sub_002085A0's pushed ebx/esi/edi (and",
-   "     * the caller's stack args) are never popped, and edi/esi/ebx are",
-   "     * left holding this function's scratch values instead of being",
-   "     * restored - observed corrupting a caller's \"edi\" to 0xCCCCCCCC and",
-   "     * crashing sub_00216FD0. */",
-   "    sub_002085CA(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    eax = eax >> 2;"
+  "pre": "    eax = MEM32(esi + 0x10);"
  },
  {
   "file": "recomp_0015.c",
@@ -3418,6 +3087,70 @@
  {
   "file": "recomp_0015.c",
   "kind": "insert_before",
+  "function": "sub_0020E520",
+  "block": [
+   "    /* Manual guard (not in original x86): esi gets the 'this' pointer from ecx.",
+   "     * If the caller passes a garbage pointer (corrupted by stack escape or",
+   "     * bad ICALL return), validate it before dereferencing at esi+0x3C below.",
+   "     * Heap range per xbox_memory_layout.h. */",
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(esi + 0x3C);",
+  "pre": "    esi = ecx;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E520",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is a vtable pointer read from",
+   "     * esi+0x3C. The D3D-null pattern leaves vtables uninitialized (0) or",
+   "     * corrupted with float bit patterns (0x3F800000). A vtable pointer must",
+   "     * lie in .rdata (0x003C6BA0..0x0044A80C). The standard heap-range guard",
+   "     * (0x00880000..0x04000000) admits 0x3F800000, so we use the .rdata range",
+   "     * instead. NULL (0) is allowed - it means \"no interface\" and the ICALL",
+   "     * will fail safely. */"
+  ],
+  "match": null,
+  "anchor": "    /* Float bit patterns like 0x3F800000 (1.0f) come from corrupted vtables;",
+  "pre": "loc_0020E530: ;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E520",
+  "block": [
+   "    /* Manual guard (not in original x86): esi gets the ICALL return value here.",
+   "     * If the ICALL target was corrupted (float bit pattern, null, or garbage),",
+   "     * the return value can be an invalid pointer. Validate before using it",
+   "     * to read MEM32(esi + 0x3C) below. Heap range per xbox_memory_layout.h. */",
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(esi + 0x3C);",
+  "pre": "    esi = eax;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E520",
+  "block": [
+   "    /* Manual guard (not in original x86): esi is the object pointer used to",
+   "     * read MEM8(esi + 0x1A) and passed to sub_0020E547. If esi is garbage",
+   "     * (from a bad ICALL return or corrupted this pointer), skip the call",
+   "     * to avoid propagating garbage. Heap range per xbox_memory_layout.h. */",
+   "    if (esi >= 0x00880000u && esi < 0x04000000u) {",
+   "        if (CMP_NE(MEM8(esi + 0x1A), 1)) { g_seh_ebp = ebp; sub_0020E547(); return; }",
+   "    }"
+  ],
+  "match": null,
+  "anchor": "loc_0020E541: ;",
+  "pre": "loc_0020E53B: ;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
   "function": "sub_0020E547",
   "block": [
    "    /* Manual guard (not in original x86): confirmed via raw disassembly",
@@ -3438,6 +3171,52 @@
   "match": null,
   "anchor": "loc_0020E54F: ;",
   "pre": "    if (TEST_NZ(eax, eax)) goto loc_0020E56D; /* jne: not equal / not zero */"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E547",
+  "block": [
+   "    /* Manual guard (not in original x86): esi comes from sub_0020E520's tail call.",
+   "     * If the caller passed a garbage this pointer (corrupted by stack escape or",
+   "     * bad ICALL return), esi will be invalid. Validate before dereferencing.",
+   "     * Heap range per xbox_memory_layout.h. If invalid, take the fallback path. */",
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { goto loc_0020E568; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(esi + 0x60);",
+  "pre": "loc_0020E54F: ;"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E547",
+  "block": [
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved pushes of ebx, edi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 8 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _icall_esp = g_esp;",
+  "pre": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_002155B0",
+  "block": [
+   "    /* Manual guard (not in original x86): esi is the 'this' pointer from ecx.",
+   "     * If the caller passes a garbage pointer (corrupted by stack escape or",
+   "     * bad ICALL return), validate it before dereferencing at esi+0x398 below.",
+   "     * Heap range per xbox_memory_layout.h. If invalid, skip and return. */",
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { POP32(esp, esi); esp += 4; return; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(esi + 0x398);",
+  "pre": "    esi = ecx;"
  },
  {
   "file": "recomp_0015.c",
@@ -3471,148 +3250,6 @@
   "match": null,
   "anchor": "    eax = MEM32(edi + 0x34);",
   "pre": "loc_00216FE7: ;"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_002171E8",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002171ED",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002171ED's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002171ED(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x3F5DDC);"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual guard (not in original x86): the engine's class registrar is",
-   "     * stubbed out. This is a deliberate scope decision, not a fix.",
-   "     *",
-   "     * Registering any class routes through sub_002226E0, which hardcodes",
-   "     * `push 0x2221E0` and re-enters this function for a class whose cache slot",
-   "     * is only written after the create call that recurses - unbounded",
-   "     * recursion until the simulated esp goes negative. Both slots involved",
-   "     * (0x5BC274, 0x5BC2FC) are BSS, so they start at 0 on real hardware too;",
-   "     * something must register these classes in an order we have not found.",
-   "     * Three narrower workarounds were tried and each made things worse: a",
-   "     * re-entrancy guard turned the overflow into a NULL-object crash, and",
-   "     * suppressing that NULL turned it into a 312-million-iteration spin loop.",
-   "     *",
-   "     * Skipping the subsystem outright is what actually moves the boot forward.",
-   "     * The top-level init sub_00239E50 goes from +0x19F to +0x30D and two new",
-   "     * frames appear beyond it, so a large amount of startup that was",
-   "     * previously unreachable now runs. Nothing on the boot path has yet needed",
-   "     * a registered class; anything that queries the registry will get NULL and",
-   "     * is expected to surface as its own crash later.",
-   "     *",
-   "     * cdecl - the caller cleans its own arguments - and no stack has been",
-   "     * touched yet, so popping the return address alone is balanced.",
-   "     *",
-   "     * Revisit once the registration order is understood. See",
-   "     * DEBUGGING_NOTES.md. */",
-   "    { eax = 0; esp += 4; return; }"
-  ],
-  "match": null,
-  "anchor": "    eax = MEM32(0x5BC544);",
-  "pre": "loc_002235D0: ;"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual fix (not in original x86): _icall_esp captured below the",
-   "     * callee-saved pushes of ebx, ebp, esi, edi, which are register saves (the",
-   "     * epilogue pops them), not call arguments. With the save point above",
-   "     * them, a failed ICALL rolled esp back past the saves and left it",
-   "     * 16 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): the lifter captured _icall_esp before",
-  "pre": "    PUSH32(esp, edi);"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter captured _icall_esp before",
-   "     * these four pushes, but ebx/ebp/esi/edi are callee-saved register saves",
-   "     * (the epilogue at loc_00223805 pops all four), not call arguments. On",
-   "     * ICALL failure RECOMP_ICALL_SAFE restores g_esp to the save point, so it",
-   "     * was unwinding the register saves too and leaving esp 16 bytes high for",
-   "     * the rest of the function - which made every later MEM32(esp + 0x1XX)",
-   "     * argument read land four descriptor slots off. That is how the",
-   "     * \"igNamedObject\" name string at 0x003FA710 ended up being called as a",
-   "     * function pointer. Only `push edx` is an argument, so save esp here. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual fix (not in original x86): this is a cdecl call - the caller",
-   "     * cleans up with the `esp = esp + 4` at loc_002237AD just below. With",
-   "     * _icall_esp captured above the argument push, a failed call popped the",
-   "     * argument via RECOMP_ICALL_SAFE and then the caller popped it again,",
-   "     * leaving esp 4 bytes high. Capture below the push so the failure path",
-   "     * only discards the return address and the caller does the cleanup. */"
-  ],
-  "match": null,
-  "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "     * function pointer. Only `push edx` is an argument, so save esp here. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual guard (not in original x86): on real hardware MEM32(ebx) is",
-   "     * either 0 (not yet cached) or a real heap pointer from a prior call.",
-   "     * In our build, one caller passes an `ebx` that ends up pointing at",
-   "     * a string constant (\"igStringObj\" - see DEBUGGING_NOTES.md) instead",
-   "     * of a genuine cache slot, so the \"already cached\" check below reads",
-   "     * the string's bytes as a fake nonzero pointer and later crashes",
-   "     * walking it as an object. Root cause not fully understood (likely a",
-   "     * caller argument-offset mismatch upstream); treat obviously-implausible",
-   "     * \"cached\" values as if the slot were empty; the plausible-VA range",
-   "     * matches the one already used in sub_0019F765's list-walk guard. */",
-   "    if (CMP_NE(MEM32(ebx), 0) && MEM32(ebx) >= 0x00010000u && MEM32(ebx) < 0x02000000u) goto loc_00223698; /* jne: not equal / not zero */"
-  ],
-  "match": null,
-  "anchor": "loc_00223620: ;",
-  "pre": "    if (CMP_NE(MEM32(ebx), 0)) goto loc_00223698; /* jne: not equal / not zero */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
-   "    /* Manual fix (not in original x86): _icall_esp captured below the",
-   "     * callee-saved push of esi, which are register saves (the",
-   "     * epilogue pops them), not call arguments. With the save point above",
-   "     * them, a failed ICALL rolled esp back past the saves and left it",
-   "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "    PUSH32(esp, esi);"
  },
  {
   "file": "recomp_0016.c",
@@ -3692,22 +3329,107 @@
   "pre": "    PUSH32(esp, esi);"
  },
  {
-  "file": "recomp_0018.c",
+  "file": "recomp_0016.c",
   "kind": "insert_before",
-  "function": "sub_002577CE",
+  "function": "sub_00236500",
   "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002577E7",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002577E7's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002577E7(); return;",
-   "}"
+   "    /* Manual guard (not in original x86): ecx can be 0 here (from loc_0023660B",
+   "     * or earlier logic). Reading MEM32(0) hits the fake TIB and returns garbage",
+   "     * that gets used as a vtable pointer for the ICALL below. Skip the ICALL",
+   "     * if ecx is not a valid heap pointer. Heap range per xbox_memory_layout.h. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) { goto loc_0023661F; }"
   ],
   "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
+  "anchor": "    eax = MEM32(ecx);",
+  "pre": "    edx = MEM32(0x5BC5DC);"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_00236500",
+  "block": [
+   "    /* Manual guard (not in original x86): ecx can be 0 here (from loc_0023664A",
+   "     * or earlier logic). Reading MEM32(0) hits the fake TIB and returns garbage",
+   "     * that gets used as a vtable pointer for the ICALL below. Skip the ICALL",
+   "     * if ecx is not a valid heap pointer. Heap range per xbox_memory_layout.h. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) { goto loc_0023665F; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(ecx);",
+  "pre": "loc_0023664C: ;"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "wrap",
+  "function": "sub_00236500",
+  "block": [
+   "    /* Manual guard (not in original x86): eax can be 0 here if we reach",
+   "     * loc_0023665F with eax==ebx (both 0) - the je above only takes the",
+   "     * early return if eax==ebx, but we still fall through to the zeroing",
+   "     * code. Skip the writes when eax is not a valid heap pointer.",
+   "     * Heap range per xbox_memory_layout.h. */",
+   "    if (eax >= 0x00880000u && eax < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "        MEM32(eax) = ebx;",
+  "wrapped": [
+   "        MEM32(eax) = ebx;",
+   "        MEM32(eax + 8) = ebx;",
+   "        MEM32(eax + 4) = ebx;"
+  ]
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_0023666F",
+  "block": [
+   "    /* Manual guard (not in original x86): ecx can be 0 here (from loc_00236697",
+   "     * or earlier logic). Reading MEM32(0) hits the fake TIB and returns garbage",
+   "     * that gets used as a vtable pointer for the ICALL below. Skip the ICALL",
+   "     * if ecx is not a valid heap pointer. Heap range per xbox_memory_layout.h. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) { goto loc_002366AC; }"
+  ],
+  "match": null,
+  "anchor": "    eax = MEM32(ecx);",
+  "pre": "loc_00236699: ;"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_0023666F",
+  "block": [
+   "    /* Manual guard (not in original x86): eax can be 0 or garbage from a",
+   "     * failed ICALL. Validate before dereferencing for the next ICALL.",
+   "     * Heap range per xbox_memory_layout.h. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) { goto loc_002366AC; }"
+  ],
+  "match": null,
+  "anchor": "    edx = MEM32(eax);",
+  "pre": "loc_002366A0: ;"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "wrap",
+  "function": "sub_0023666F",
+  "block": [
+   "    /* Manual guard (not in original x86): eax can be 0 here if we reach",
+   "     * loc_002366AC with eax==ebx (both 0). Skip the writes when eax is not",
+   "     * a valid heap pointer. Heap range per xbox_memory_layout.h. */",
+   "    if (eax >= 0x00880000u && eax < 0x04000000u) {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "        MEM32(eax) = ebx;",
+  "wrapped": [
+   "        MEM32(eax) = ebx;",
+   "        MEM32(eax + 8) = ebx;",
+   "        MEM32(eax + 4) = ebx;"
+  ]
  },
  {
   "file": "recomp_0018.c",
@@ -3722,312 +3444,6 @@
   "match": null,
   "anchor": "loc_00259CC8: ;",
   "pre": "    if (TEST_Z(eax, eax)) { g_seh_ebp = ebp; sub_00259CCD(); return; } /* je: equal / zero */"
- },
- {
-  "file": "recomp_0018.c",
-  "kind": "insert_before",
-  "function": "sub_00268B70",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00268B77",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00268B77's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00268B77(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ecx);"
- },
- {
-  "file": "recomp_0018.c",
-  "kind": "insert_before",
-  "function": "sub_00278190",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_0027819A",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_0027819A's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_0027819A(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0019.c",
-  "kind": "insert_before",
-  "function": "sub_00278DEF",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00278DF5",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00278DF5's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00278DF5(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
- },
- {
-  "file": "recomp_0019.c",
-  "kind": "insert_before",
-  "function": "sub_00281D9E",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00281DA8",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00281DA8's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00281DA8(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, edx);"
- },
- {
-  "file": "recomp_0020.c",
-  "kind": "insert_before",
-  "function": "sub_002A9CCC",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002A9CD1",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002A9CD1's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002A9CD1(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x473B0C);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002C2ED4",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002C2EF5",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002C2EF5's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_002C2EF5(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, ecx);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002C358E",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002C3599",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002C3599's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_002C3599(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x40D398);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002C8623",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002C8629",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002C8629's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002C8629(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x40D51C);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002C9D03",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002C9D0A",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002C9D0A's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002C9D0A(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x40D770);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002CEC4E",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002CEC50",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002CEC50's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CEC50(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002CEF8B",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002CEF98",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002CEF98's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CEF98(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x40F698);"
- },
- {
-  "file": "recomp_0021.c",
-  "kind": "insert_before",
-  "function": "sub_002CEFFD",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002CF006",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002CF006's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002CF006(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x40F754);"
- },
- {
-  "file": "recomp_0022.c",
-  "kind": "insert_before",
-  "function": "sub_002FC2C0",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_002FC2C2",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_002FC2C2's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_002FC2C2(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x4C);"
- },
- {
-  "file": "recomp_0022.c",
-  "kind": "insert_before",
-  "function": "sub_00307F0F",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00307F11",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00307F11's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00307F11(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0);"
- },
- {
-  "file": "recomp_0023.c",
-  "kind": "insert_before",
-  "function": "sub_00314A6C",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00314A9D",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00314A9D's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00314A9D(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, 0x42E918);"
- },
- {
-  "file": "recomp_0024.c",
-  "kind": "insert_before",
-  "function": "sub_00321E36",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00321E40",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00321E40's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    sub_00321E40(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, eax);"
- },
- {
-  "file": "recomp_0025.c",
-  "kind": "insert_before",
-  "function": "sub_003424BE",
-  "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_003424C3",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_003424C3's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_003424C3(); return;",
-   "}"
-  ],
-  "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, MEM32(ebp + 0x10));"
  },
  {
   "file": "recomp_0025.c",
@@ -4058,20 +3474,42 @@
  {
   "file": "recomp_0025.c",
   "kind": "insert_before",
-  "function": "sub_0034620D",
+  "function": "sub_003432FC",
   "block": [
-   "    /* Manual fix (not in original x86): the lifter cut this",
-   "     * function off here, dropping the tail-call into sub_00346210",
-   "     * (confirmed by matching original address ranges - this",
-   "     * function's own \"Original\" end address equals sub_00346210's",
-   "     * start address). See DEBUGGING_NOTES.md - one instance of a",
-   "     * systematic lifter bug found at 50 sites across the codebase. */",
-   "    g_seh_ebp = ebp; sub_00346210(); return;",
-   "}"
+   "    /* Manual guard (not in original x86): ebx is the third argument (a pointer",
+   "     * to a context struct). If the caller passes 0, the write at",
+   "     * MEM32(ebx + -4) below will fault. Skip the function body if ebx is not",
+   "     * a valid pointer. Heap range per xbox_memory_layout.h. */",
+   "    if (!(ebx >= 0x00880000u && ebx < 0x04000000u)) { g_seh_ebp = ebp; sub_003433B1(); return; }"
   ],
   "match": null,
-  "anchor": "/**",
-  "pre": "    PUSH32(esp, MEM32(ebp + 0x1C));"
+  "anchor": "    eax = MEM32(ebp + 8);",
+  "pre": "    ebx = MEM32(ebp + 0xC);"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "insert_before",
+  "function": "sub_003433B1",
+  "block": [
+   "    /* Manual guard (not in original x86): ebx is the context pointer passed",
+   "     * from sub_003432FC. If the caller passed garbage (e.g., 0 or corrupted",
+   "     * value), using it here would pass garbage to sub_0034139A. Validate",
+   "     * before use. Heap range per xbox_memory_layout.h. */",
+   "    if (!(ebx >= 0x00880000u && ebx < 0x04000000u)) { eax = 1; return; }"
+  ],
+  "match": null,
+  "anchor": "    PUSH32(esp, ebp);",
+  "pre": "loc_003433B1: ;"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_00345AB0: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_00345AB0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  },
  {
   "file": "recomp_stubs_unresolved.c",
