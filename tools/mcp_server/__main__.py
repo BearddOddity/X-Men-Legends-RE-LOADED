@@ -18,10 +18,12 @@ wraps the scripts in src/game/tools_data/ that already work, so there is one
 source of truth for what a number means.
 
 Run:
-    py -3.12 -m tools.mcp_server
+    py -3.12 tools/mcp_server/__main__.py
 
-Register (from the repo root):
-    claude mcp add --scope user XboxRecomp -- py -3.12 -m tools.mcp_server
+Register (absolute path on purpose - an MCP server inherits the client's
+working directory, so the -m form would only work when launched from the repo
+root; this module locates the repo from __file__):
+    claude mcp add --scope user XboxRecomp -- py -3.12 "<repo>/tools/mcp_server/__main__.py"
 """
 import json
 import os
