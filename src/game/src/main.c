@@ -183,9 +183,105 @@ static void dump_native_stack(const uintptr_t *sp)
  *   - Add dumps of game-specific globals (heap handles, state flags)
  *   - Add SEH simulation if your game uses __try/__except
  */
-/* TIB write-watch state - see the handler below. Diagnostic only. */
-static volatile int g_tib_watch_active = 0;
-static uintptr_t    g_tib_watch_lo = 0, g_tib_watch_hi = 0;
+/* ── Memory write-watch ──────────────────────────────────────
+ *
+ * "Which code wrote to this address?" is normally unanswerable in a static
+ * recompilation: the original instruction addresses are gone, and the write
+ * may come from lifted code, the kernel bridge, or the runtime. Grepping for
+ * the address only finds *literal* uses - it cannot see a write through a
+ * register, which is exactly how the SEH chain head was being destroyed. The
+ * one literal candidate provably never executed; the watch found the real
+ * writer on the first run.
+ *
+ * How: mark the page read-only, let the write fault, name the instruction from
+ * the VEH, then restore access and continue. Self-disarming, so the program
+ * runs on normally afterwards.
+ *
+ * Configured at RUNTIME, so adding a watch costs no rebuild:
+ *
+ *     set RECOMP_WATCH=0:4:seh_head,0x5DD0E8:4:heap_handle
+ *
+ * Format is VA[:SIZE[:LABEL]], comma separated. VA is an Xbox virtual address
+ * and may be decimal or 0x-hex. SIZE defaults to 4 and only affects the
+ * reported range - protection is per 4 KB page, so a watch catches writes
+ * anywhere in its page and reports the exact offset.
+ *
+ * Caveat worth knowing: disarming restores the whole page, so two watches
+ * sharing a page disarm together. Watch distinct pages if that matters.
+ */
+#define WATCH_MAX 8
+
+typedef struct {
+    uintptr_t page_lo, page_hi;   /* host addresses, page aligned */
+    uint32_t  va;                 /* xbox VA requested */
+    uint32_t  size;
+    int       armed;
+    char      label[32];
+} watch_t;
+
+static watch_t      g_watch[WATCH_MAX];
+static int          g_watch_n = 0;
+static volatile int g_watch_any = 0;   /* fast path: skip the loop entirely */
+
+/* Parse RECOMP_WATCH and mark the requested pages read-only.
+ * Called after the memory layout is populated - arming earlier would trip on
+ * the runtime's own initialisation instead of the code under suspicion. */
+static void watch_init(void)
+{
+    const char *spec = getenv("RECOMP_WATCH");
+    if (!spec || !*spec) {
+        return;
+    }
+
+    char buf[512];
+    strncpy(buf, spec, sizeof buf - 1);
+    buf[sizeof buf - 1] = '\0';
+
+    for (char *tok = strtok(buf, ","); tok && g_watch_n < WATCH_MAX;
+         tok = strtok(NULL, ",")) {
+        char *colon = strchr(tok, ':');
+        if (colon) *colon = '\0';
+
+        uint32_t va = (uint32_t)strtoul(tok, NULL, 0);   /* 0 => auto-detect base */
+        uint32_t size = 4;
+        const char *label = "watch";
+
+        if (colon) {
+            char *rest = colon + 1;
+            char *colon2 = strchr(rest, ':');
+            if (colon2) {
+                *colon2 = '\0';
+                label = colon2 + 1;
+            }
+            if (*rest) size = (uint32_t)strtoul(rest, NULL, 0);
+        }
+
+        watch_t *w = &g_watch[g_watch_n];
+        uintptr_t host = (uintptr_t)va + (uintptr_t)g_xbox_mem_offset;
+        w->page_lo = host & ~(uintptr_t)0xFFF;
+        w->page_hi = ((host + size - 1) & ~(uintptr_t)0xFFF) + 0x1000;
+        w->va = va;
+        w->size = size;
+        strncpy(w->label, label, sizeof w->label - 1);
+        w->label[sizeof w->label - 1] = '\0';
+
+        DWORD old = 0;
+        if (VirtualProtect((void *)w->page_lo, w->page_hi - w->page_lo,
+                           PAGE_READONLY, &old)) {
+            w->armed = 1;
+            g_watch_any = 1;
+            g_watch_n++;
+            fprintf(stderr, "[WATCH:%s] armed on xbox VA 0x%08X (%u bytes); "
+                            "current value 0x%08X\n",
+                    w->label, w->va, w->size,
+                    *(volatile uint32_t *)host);
+        } else {
+            fprintf(stderr, "[WATCH:%s] VirtualProtect failed for VA 0x%08X: %lu\n",
+                    w->label, va, GetLastError());
+        }
+        fflush(stderr);
+    }
+}
 
 static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
 {
@@ -206,40 +302,36 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
         uintptr_t fault_addr = ep->ExceptionRecord->ExceptionInformation[1];
 
-        /*
-         * TIB write-watch (diagnostic; armed only when RECOMP_WATCH_TIB is set).
-         *
-         * The SEH chain head at Xbox VA 0 reads 0x000000FF by the time the very
-         * first __SEH_prolog runs, though xbox_MemoryLayoutInit writes
-         * 0xFFFFFFFF. Something corrupts it during startup, before any SEH code
-         * executes - so the unwinder is not the culprit, it just propagates a
-         * value that is already wrong.
-         *
-         * Static search could not find the writer: the only MEM8(0) site never
-         * executes (probed, 0 hits), and no lifted code loads VA 0 as a base.
-         * So catch it dynamically - mark the page read-only after init and let
-         * the first write fault, which names the instruction exactly.
-         *
-         * Self-disarming: report once, restore write access, continue. The page
-         * is legitimately written constantly afterwards by every SEH prolog.
-         */
-        if (g_tib_watch_active && fault_addr >= g_tib_watch_lo
-                && fault_addr < g_tib_watch_hi
-                && ep->ExceptionRecord->ExceptionInformation[0] == 1) {
-            DWORD old;
-            uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
-            g_tib_watch_active = 0;
-            VirtualProtect((void *)g_tib_watch_lo,
-                           g_tib_watch_hi - g_tib_watch_lo,
-                           PAGE_READWRITE, &old);
-            fprintf(stderr,
-                    "[TIB-WATCH] first write to the TIB page: xbox VA 0x%08X "
-                    "from RIP=0x%llX (RVA=0x%llX)\n",
-                    (unsigned)(fault_addr - g_tib_watch_lo),
-                    (unsigned long long)ep->ContextRecord->Rip,
-                    (unsigned long long)(ep->ContextRecord->Rip - base));
-            fflush(stderr);
-            return EXCEPTION_CONTINUE_EXECUTION;
+        /* Write-watch: name whoever wrote here, then get out of the way. */
+        if (g_watch_any && ep->ExceptionRecord->ExceptionInformation[0] == 1) {
+            for (int i = 0; i < g_watch_n; i++) {
+                watch_t *w = &g_watch[i];
+                if (!w->armed || fault_addr < w->page_lo
+                        || fault_addr >= w->page_hi) {
+                    continue;
+                }
+                DWORD old;
+                uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+                uint32_t hit_va = w->va + (uint32_t)(fault_addr
+                                  - (w->page_lo + (w->va & 0xFFFu)));
+
+                w->armed = 0;
+                VirtualProtect((void *)w->page_lo, w->page_hi - w->page_lo,
+                               PAGE_READWRITE, &old);
+
+                int still = 0;
+                for (int j = 0; j < g_watch_n; j++) still |= g_watch[j].armed;
+                g_watch_any = still;
+
+                fprintf(stderr,
+                        "[WATCH:%s] write to xbox VA 0x%08X from RIP=0x%llX "
+                        "(RVA=0x%llX) - disarmed, continuing\n",
+                        w->label, hit_va,
+                        (unsigned long long)ep->ContextRecord->Rip,
+                        (unsigned long long)(ep->ContextRecord->Rip - base));
+                fflush(stderr);
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
         }
 
         /*
@@ -430,26 +522,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     g_xbox_mem_offset = xbox_GetMemoryOffset();
     printf("Xbox memory mapped. Offset: 0x%llX\n", (unsigned long long)g_xbox_mem_offset);
 
-#if defined(RECOMP_WATCH_TIB) && RECOMP_WATCH_TIB
-    /* Arm the TIB write-watch: the memory layout has just written the fake
-     * TIB, so from here until the first legitimate SEH prolog nothing should
-     * touch that page. Whatever does is what corrupts the SEH chain head. */
-    {
-        DWORD old = 0;
-        g_tib_watch_lo = (uintptr_t)g_xbox_mem_offset;   /* xbox VA 0 */
-        g_tib_watch_hi = g_tib_watch_lo + 0x1000;
-        if (VirtualProtect((void *)g_tib_watch_lo, 0x1000, PAGE_READONLY, &old)) {
-            g_tib_watch_active = 1;
-            fprintf(stderr, "[TIB-WATCH] armed on xbox VA 0x0..0x1000 "
-                            "(chain head is 0x%08X right now)\n",
-                    *(volatile uint32_t *)g_tib_watch_lo);
-            fflush(stderr);
-        } else {
-            fprintf(stderr, "[TIB-WATCH] VirtualProtect failed: %lu\n",
-                    GetLastError());
-        }
-    }
-#endif
+    /* Arm any write-watches requested via RECOMP_WATCH. Done here because the
+     * memory layout is now populated - a watch armed earlier would fire on the
+     * runtime's own initialisation rather than on the code under suspicion. */
+    watch_init();
+
 
     /*
      * sub_0019EB69 (CRT boot code) reads Xbox VA 0x0044B0D8 and

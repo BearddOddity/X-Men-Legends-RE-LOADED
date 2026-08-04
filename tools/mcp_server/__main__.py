@@ -43,11 +43,15 @@ STDERR = os.path.join(GAME, "stderr.txt")
 mcp = FastMCP("XboxRecomp")
 
 
-def _py(script, *args, timeout=900):
+def _py(script, *args, timeout=900, env_extra=None):
     """Run one of the project's own tools and return its output."""
     cmd = [sys.executable, os.path.join(TOOLS, script), *map(str, args)]
+    env = None
+    if env_extra:
+        env = dict(os.environ)
+        env.update(env_extra)
     p = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True,
-                       timeout=timeout)
+                       timeout=timeout, env=env)
     return {"ok": p.returncode == 0, "stdout": p.stdout, "stderr": p.stderr}
 
 
@@ -66,13 +70,23 @@ def build() -> dict:
 
 
 @mcp.tool()
-def run(times: int = 2) -> dict:
+def run(times: int = 2, watch: str = "") -> dict:
     """Run the game N times and report the tracked signals plus their spread.
 
     Determinism matters here: a build whose numbers move between runs cannot be
     compared against anything. `varies` names any signal that did.
+
+    `watch` arms memory write-watches for the run - no rebuild needed. Format is
+    `VA[:SIZE[:LABEL]]`, comma separated, e.g. `0:4:seh_head,0x5DD0E8:4:heap`.
+    Each fires once, names the writing instruction, then disarms so the run
+    continues. Use it for "what wrote here?", which grep cannot answer when the
+    write goes through a register - that is how the ordinal-47 corruption was
+    found after static search came up empty. Results appear in the log as
+    `[WATCH:label]`; page granularity means a watch also catches writes to
+    other addresses on the same 4 KB page and reports which.
     """
-    r = _py("smoke_spread.py", times)
+    r = _py("smoke_spread.py", times,
+            env_extra={"RECOMP_WATCH": watch} if watch else None)
     text = r["stdout"]
     signals = {}
     for m in re.finditer(r"^\s{2}(\w+)\s+min=(\d+)\s+max=(\d+)", text, re.M):
