@@ -693,5 +693,19 @@
     "message": "ROOT CAUSE: ordinal 47 was wired to the wrong handler and wrote through a BOOLEAN",
     "note": "Built a TIB write-watch in main.c (VirtualProtect the VA-0 page read-only after init; the VEH names the first writer, then self-disarms). It caught the corruption exactly: chain head was 0xFFFFFFFF at arm time, and the first write was to Xbox VA 0x00000001 from the kernel bridge - a zero dword at VA 1 turns bytes FF FF FF FF into FF 00 00 00, which reads as 0x000000FF. Exact match for the value seen. Cause: the bridge handler table mapped ordinal 47 to bridge_HalReadSMCTrayState, which treats arg1 as an OUTPUT POINTER. Ordinal 47 is actually HalRegisterShutdownNotification(Registration, Register) - kernel_thunks.c had the right name all along, only the bridge table disagreed - and its arg1 is the BOOLEAN 1. So 'if (count_ptr) BRIDGE_MEM32(count_ptr) = 0;' wrote through the address 1. The game's own call site (push ebx=1; push 0x461694) was already documented in a comment two hundred lines away. Fixed: added bridge_HalRegisterShutdownNotification (writes nothing), moved HalReadSMCTrayState to its real ordinal 46 (previously unmapped), and added BRIDGE_PTR_OK - 'if (ptr)' only rejects 0, so flags passed as pointers sailed through it. Verified: first TIB write is now sub_003432A8 (__SEH_prolog) at VA 0, legitimately installing the chain, and zero corrupt-chainhead reports. Kernel calls 200 -> 82 - Rule #1's two-different-programs case, the boot now takes a correct path and stops elsewhere: sub_0034139A+0x1BA (__local_unwind2) reading 0xF42BFFE0.",
     "commit": "2f9134c"
+  },
+  {
+    "kernel_calls": 82,
+    "failed_icalls": 4,
+    "total_icalls": 79,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 3,
+    "crash_in": "sub_0034139A+0x25A",
+    "fault_va": "0xF42BFFE0",
+    "date": "2026-08-04",
+    "message": "Mechanism at 82 calls fully mapped: _except_handler3 gets a non-record as its EstablisherFrame",
+    "note": "Probed the very first __local_unwind2 call: rec=00F7FF98 handler=00000000 scopetab=00F7FFD4 trylevel=00000000. A real SEH registration record is {prev, handler, scopetable, trylevel} - handler is never 0 and scopetable is a .data pointer like 0x430838, not a stack address. So the EstablisherFrame handed to _except_handler3 is not a registration record, just arbitrary stack memory. __local_unwind2 then does exactly what it is written to do: reads trylevel 0, passes the !=-1 and !=param_2 checks, reads scopetable[0].previousTryLevel from stack garbage, WRITES THAT BACK into the record's trylevel field, calls scopetable[0].handler (also garbage), and on the next iteration reads the corrupted trylevel 0x3CCD0003, multiplies by 3 and faults. It destroys its own loop variable on the first pass. Also self-feeding: those bogus handler calls are mostly rejected by the plausibility filter as stack addresses, but one lands on 0x3432FC and re-enters _except_handler3. Confirmed via the icall ring buffer at handler entry: targets were 003432FC, 00F7FF10, 00F7FF0C - consecutive stack slots. sub_003433B1 is a FRAGMENT of _except_handler3 (181 bytes in), and its guard admits [0x880000,0x4000000), a range the stack falls inside, so it cannot reject a stack address that is not a record. Remaining question: what invokes _except_handler3 with a non-record, given nothing raises an exception (0 RtlRaiseException, 0 VEH, no RtlUnwind) - the call arrives from inside __cinit.",
+    "commit": "c52fe7e"
   }
 ]
