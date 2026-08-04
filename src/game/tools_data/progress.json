@@ -489,5 +489,29 @@
     "message": "Fix the heap-handle clobber: _heap_init nulled a working handle on its 49th call",
     "note": "ROOT CAUSE, fully probed. _heap_init (sub_001A23F3) runs 49 times, each reserving a fresh 1 MB heap (00F81000, 01081000, ... exactly 1 MB apart). That exhausts a 64 MB console, so the 49th RtlCreateHeap fails - and the store is UNCONDITIONAL (store, then check), so it overwrote a WORKING handle with 0. Probes: '[HAIN] IN heap=00000000 size=6800' -> '[HAOUT] OUT ptr=00000000'. Every HeapAlloc(GetProcessHeap(),...) after that returned NULL, which left the default allocator NULL and crashed the class registrar. Guard keeps the existing handle when a later create fails. Result: crash MOVED (RVA 0xCF2590 -> 0x134E79, now sub_00346743+0x130), failed_icalls 7 -> 6, kernel_calls held at 200. Corrections logged earlier this session: 0x5D9C04 is _newmode not a heap handle, and the 0x5BB700 table is a symptom not a cause. NOT fixed: the 48 leaked heaps. Whatever re-enters CRT init 49 times is a separate bug and probably the next big win.",
     "commit": "053057a"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 339033,
+    "heap_allocs": 49,
+    "crash_in": "sub_00346743+0x130",
+    "fault_va": "0xFFFFFF6C",
+    "date": "2026-08-04",
+    "message": "Find the 49x _heap_init: XAPI process startup re-enters itself 71 times",
+    "note": "sub_001A23F3 has NO direct callers in generated code - it is called once from sub_001A1C23, the XAPI process-startup override in recomp_manual.c. Counted sub_001A1C23: 71 entries, with esp falling monotonically (00F7FF8C, 00F7FF0C, 00F7FE6C, 00F7FDAC, 00F7FCCC) - straight recursion, ~128 bytes per frame. Cause is the port's synchronous thread model: kernel_bridge runs PsCreateSystemThreadEx bodies inline, so a thread created during startup re-enters startup instead of running concurrently. Each pass re-ran _heap_init -> a fresh 1 MB heap -> 49 heaps -> exhaustion on a 64 MB console. TESTED AND REVERTED: a re-entrancy guard on sub_001A1C23 looks obviously correct and is badly wrong - those nested passes are how threads actually run here. 200 -> 44 kernel calls, heap 49 -> 2, failed icalls 6 -> 243. Left a comment at the call site so nobody re-tries it. The existing clobber guard already contains the damage (the good handle survives the failing 49th create), so 200 calls / 339k icalls holds. The real fix is the thread model, not a guard.",
+    "commit": "17b4896"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 234,
+    "total_icalls": 47621890,
+    "heap_allocs": 49,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Fix TLS: XBE TLS directory was never processed - 339K -> 47.6M indirect calls",
+    "note": "Crash was sub_00346743+0x130 reading 0xFFFFFF6C. Two real bugs, both confirmed against ground truth. (1) fs:[4] is the TLS slot array on Xbox, NOT the NT_TIB StackBase. xbox_memory_layout.c set it to XBOX_STACK_TOP on the Win32 assumption; all NINE MEM32(4) sites in the lifted code are the same pattern - idx=MEM32(0x5BA794); block=MEM32(fs4 + idx*4); block[+8]/[+0xC] - and not one treats it as a stack address. Now points at a real 16-slot array. (2) __tls_index held -37, so the lookup indexed 148 bytes BELOW the array. The XBE's TLS directory names tls_index_addr = 0x005BA794, which matches the read address and Ghidra's XAPILIB___tls_index exactly - the port never processed that directory, so the loader-assigned slot was never written. Set it to 0 in the XAPI startup override. Result: crash GONE (2/2 clean), total indirect calls 339,033 -> 47,621,890 (140x more code executing). kernel_calls flat at 200 - the proxy is blind again. New failure mode: 234 failed icalls on sequential small integers (0x0,0x1,0x2,...), the index-table-as-function-pointer pattern, now surfacing at far greater depth. Context: the lifter drops fs: prefixes entirely - 2,660 sites, mostly MEM32(0) for fs:[0] SEH - and the fake TIB at VA 0 is the workaround.",
+    "commit": "17b4896"
   }
 ]

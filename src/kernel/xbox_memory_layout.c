@@ -355,8 +355,42 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
 
         /* Fake TIB at address 0x0 */
         MEM32_INIT(0x00, 0xFFFFFFFF);       /* SEH: end of chain */
-        MEM32_INIT(0x04, XBOX_STACK_TOP);   /* Stack base (high address) */
         MEM32_INIT(0x08, XBOX_STACK_BASE);  /* Stack limit (low address) */
+
+        /*
+         * fs:[0x04] - TLS slot array, NOT the NT_TIB StackBase.
+         *
+         * Win32's NT_TIB puts StackBase here, and this used to be set to
+         * XBOX_STACK_TOP on that assumption. Xbox's block differs, and every
+         * one of the nine reads in the lifted code is the same TLS pattern:
+         *
+         *     idx   = MEM32(0x5BA794);        // __tls_index
+         *     array = MEM32(4);               // <- here
+         *     block = MEM32(array + idx * 4);
+         *     ... block[2], block[3] ...      // +8, +0xC
+         *
+         * Not one treats it as a stack address. With STACK_TOP here, `block`
+         * came back as garbage off the top of the stack; the CRT's per-thread
+         * init then stored through it and faulted (sub_00346743, reached via
+         * XAPI startup). Ghidra confirms the shape, naming the index
+         * XAPILIB___tls_index.
+         *
+         * __tls_index is whatever the CRT assigned, so populate a range of
+         * slots rather than assuming 0. Blocks are 256 bytes; the largest
+         * offset any caller uses is +0xC.
+         */
+        #define FAKE_TLS_ARRAY_VA   0x00750000  /* free: kernel data ends 0x741000 */
+        #define FAKE_TLS_BLOCK_VA   0x00751000  /* stack starts 0x780000 */
+        #define FAKE_TLS_SLOTS      16
+        #define FAKE_TLS_BLOCK_SZ   0x100
+
+        MEM32_INIT(0x04, FAKE_TLS_ARRAY_VA);
+        for (unsigned _i = 0; _i < FAKE_TLS_SLOTS; _i++) {
+            MEM32_INIT(FAKE_TLS_ARRAY_VA + _i * 4,
+                       FAKE_TLS_BLOCK_VA + _i * FAKE_TLS_BLOCK_SZ);
+        }
+        memset(XBOX_VA(FAKE_TLS_BLOCK_VA), 0,
+               FAKE_TLS_SLOTS * FAKE_TLS_BLOCK_SZ);
         MEM32_INIT(0x18, 0x00000000);       /* Self pointer (TIB at VA 0) */
 
         /*
@@ -380,9 +414,15 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         /* TLS[0x28] = pointer to RW data area */
         MEM32_INIT(FAKE_TLS_VA + 0x28, FAKE_RWDATA_VA);
 
-        fprintf(stderr, "  TIB: fake TIB at VA 0x0, TLS at 0x%08X, RW data at 0x%08X\n",
+        fprintf(stderr, "  TIB: fake TIB at VA 0x0, fs[4] TLS array at 0x%08X "
+                        "(%u slots), fs[0x28] ctx at 0x%08X, RW data at 0x%08X\n",
+                FAKE_TLS_ARRAY_VA, (unsigned)FAKE_TLS_SLOTS,
                 FAKE_TLS_VA, FAKE_RWDATA_VA);
 
+        #undef FAKE_TLS_ARRAY_VA
+        #undef FAKE_TLS_BLOCK_VA
+        #undef FAKE_TLS_SLOTS
+        #undef FAKE_TLS_BLOCK_SZ
         #undef FAKE_TLS_VA
         #undef FAKE_RWDATA_VA
         #undef MEM32_INIT

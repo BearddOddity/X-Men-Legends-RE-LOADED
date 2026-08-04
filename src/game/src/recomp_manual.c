@@ -229,6 +229,42 @@ extern void sub_001A237D(void);
 
 static void sub_001A1C23(void)
 {
+    /*
+     * NOTE: do NOT add a re-entrancy guard here. This is XAPI process startup
+     * and it does re-enter - measured at 71 nested entries, esp falling ~128
+     * bytes each time (00F7FF8C, 00F7FF0C, 00F7FE6C, ...), because the port's
+     * thread model runs PsCreateSystemThreadEx bodies inline, so a thread
+     * created during startup re-enters startup instead of running concurrently.
+     *
+     * Blocking the re-entry looks obviously right and is badly wrong: those
+     * nested passes are how threads actually run here. Tried it - 200 -> 44
+     * kernel calls, heap allocs 49 -> 2, failed icalls 6 -> 243.
+     *
+     * The recursion is not the bug. Re-running _heap_init on every pass is;
+     * that is guarded inside sub_001A23F3 instead.
+     */
+    /*
+     * Assign the TLS slot index the Xbox loader would have assigned.
+     *
+     * The XBE carries a TLS directory, and its tls_index_addr field names the
+     * global the loader must fill in. For this title that is 0x005BA794 -
+     * exactly the address the lifted code reads and the one Ghidra names
+     * XAPILIB___tls_index:
+     *
+     *     idx   = MEM32(0x5BA794);
+     *     array = MEM32(4);                 // fs:[4], see xbox_memory_layout.c
+     *     block = MEM32(array + idx * 4);
+     *
+     * Nothing in the port processes that directory, so the global held garbage
+     * - measured -37 - and the lookup indexed 148 bytes *below* the TLS array.
+     * We provide a single TLS block, so slot 0 is the right answer.
+     *
+     * Game-specific by nature (the address comes from this XBE's header), which
+     * is why it lives here rather than in the shared runtime. Idempotent, which
+     * matters because this startup path re-enters.
+     */
+    MEM32(0x005BA794) = 0;   /* XBE TLS directory: tls_index_addr */
+
     sub_001A3639();
     sub_001A23F3();
     sub_001A35AC();
