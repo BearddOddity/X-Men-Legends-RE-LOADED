@@ -453,5 +453,41 @@
     "message": "Root-cause the 200-call crash: the subsystem table at 0x005BB700 is never written",
     "note": "sub_002235D0 (the class registrar) reads ecx = MEM32(eax*4 + 0x5BB700) with the index from 0x5BC544, gets NULL, and faults on ecx-0x88. ReVa: 249 references to DAT_005bb700 and EVERY ONE is isWrite:false - nothing in the discovered code ever populates that table. esp is healthy across all 200 kernel calls (stays in 0x00F7Fxxx, largest swings are legitimate +/-448 frame allocations), so this is NOT stack drift. find_icall_esp_saves --live reports only 1 live site worth 20 bytes, far too small to matter. Next: find what populates 0x005BB700 - likely an undiscovered constructor or static initializer, i.e. the find_missing_functions.py data-pointer case rather than the control-flow case.",
     "commit": "47eacf9"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 7,
+    "total_icalls": 149902,
+    "heap_allocs": 49,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF78",
+    "date": "2026-08-04",
+    "message": "Root-cause the 200-call crash end to end: the CRT heap handle is never initialised",
+    "note": "Full chain, each link probed not assumed. (1) 0x005D9C04 is the CRT heap handle. Byte-scanned all of .text for every direct-write encoding (A3/89 /r/C7 05): the address appears exactly 4 times and all four are reads - push, cmp, cmp, cmp. Ghidra agrees: 4 refs, 0 writes. Nothing in the binary ever initialises it. (2) sub_003437F3 - which Ghidra's FidDb names _malloc - passes that NULL handle to the real allocator, so allocation fails and returns 0. (3) sub_00236500 does 'if (eax==0) eax=0' and stores it, so the default allocator global 0x5BBAB4 becomes NULL. Probe: '[ALLOCVAL] setting default allocator = 00000000'. (4) sub_002235D0 reads index 0x5BC544 = 0, which takes the FALLBACK branch to 0x5BBAB4, not the table. Probe: '[REGREAD] idx=0 default=00000000'. (5) It dereferences NULL -> crash. CORRECTION to the previous entry: the 0x5BB700 table being empty is a symptom, not the cause - sub_00216210 (the register function) is never called at all (0 hits), so the index stays 0 and the table is never consulted. Fix belongs in the port's XAPI/CRT startup, which already overrides sub_001A1C23; it must create a heap and store the handle at 0x5D9C04 before game code runs.",
+    "commit": "053057a"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 7,
+    "total_icalls": 149902,
+    "heap_allocs": 49,
+    "crash_in": "sub_002235D0+0xC0",
+    "fault_va": "0xFFFFFF78",
+    "date": "2026-08-04",
+    "message": "Correct the heap diagnosis: handle IS valid; failure is inside the lifted RtlAllocateHeap",
+    "note": "TWO CORRECTIONS to the previous entry, both from probing. (1) 0x5D9C04 is NOT a heap handle - it is _newmode, the MSVC CRT 'call the new-handler on failure' flag. sub_003437C7 reads it only as 'if (arg2 == 0) give up', so 0 is a legitimate default and its never-being-written is not a bug. (2) The real handle is 0x5DD0E8, and it IS written, by sub_001A23F3 = _heap_init, which calls RtlCreateHeap with the reserve/commit from the XBE header at 0x10134/0x10138. Probed: it returns valid handles (00F81000, 01081000, 01181000, 01281000 - note it runs FOUR times, each creating a new heap and overwriting the previous, which leaks but is not the crash). GetProcessHeap (sub_0019ED75, a 6-byte 'mov eax,[0x5DD0E8]; ret') returns a valid handle at every use. So the chain is: valid handle -> HeapAlloc(handle, 0, 0x1A84) still returns 0 -> default allocator NULL -> registrar derefs NULL -> crash. The failure is INSIDE sub_001A0B0C, the lifted RtlAllocateHeap, which is SEH-wrapped. Also tested: applying the __SEH_epilog fix on top of the current build is much WORSE (200 -> 50 calls, heap 49 -> 2); reverted per Rule #14. That fix was tuned against the old esp drift and the fall-through fix changed it.",
+    "commit": "053057a"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 339033,
+    "heap_allocs": 49,
+    "crash_in": "sub_00346743+0x130",
+    "fault_va": "0xFFFFFF6C",
+    "date": "2026-08-04",
+    "message": "Fix the heap-handle clobber: _heap_init nulled a working handle on its 49th call",
+    "note": "ROOT CAUSE, fully probed. _heap_init (sub_001A23F3) runs 49 times, each reserving a fresh 1 MB heap (00F81000, 01081000, ... exactly 1 MB apart). That exhausts a 64 MB console, so the 49th RtlCreateHeap fails - and the store is UNCONDITIONAL (store, then check), so it overwrote a WORKING handle with 0. Probes: '[HAIN] IN heap=00000000 size=6800' -> '[HAOUT] OUT ptr=00000000'. Every HeapAlloc(GetProcessHeap(),...) after that returned NULL, which left the default allocator NULL and crashed the class registrar. Guard keeps the existing handle when a later create fails. Result: crash MOVED (RVA 0xCF2590 -> 0x134E79, now sub_00346743+0x130), failed_icalls 7 -> 6, kernel_calls held at 200. Corrections logged earlier this session: 0x5D9C04 is _newmode not a heap handle, and the 0x5BB700 table is a symptom not a cause. NOT fixed: the 48 leaked heaps. Whatever re-enters CRT init 49 times is a separate bug and probably the next big win.",
+    "commit": "053057a"
   }
 ]
