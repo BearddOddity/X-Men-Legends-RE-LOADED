@@ -567,5 +567,19 @@
     "message": "Sync g_seh_ebp before __SEH_epilog: spin gone, failed icalls 234 -> 6",
     "note": "Chain, each link probed not assumed: __cinit's ctor cursor (esi) is destroyed by ctor sub_003556E0. Bracketing its two calls showed sub_000119E0 clean (esi 0044A598 in and out) and sub_00340DE6 breaking it (esi -> 00F7FF0C, esp -68). sub_00340DE6 never touches esi; its callee sub_00340DAE is SEH-wrapped, and __SEH_epilog restores ebx/esi/edi by popping at a drifted esp. ROOT: __SEH_epilog reads its frame from the GLOBAL g_seh_ebp, and 0 of 58 call sites synced it first - the lifter emits 'g_seh_ebp = ebp;' before tail jumps but not before epilog calls, so a nested SEH function overwrites the global and the outer epilog restores from the WRONG frame. That also explains why the [ebp-24] save-area fix made things worse twice: it makes the epilog depend on ebp, which was stale. Synced all 58 sites. Result: hang GONE (now a definite crash), failed_icalls 234 -> 6, safe_stub 731 -> 12, kernel_calls held at 200. New crash sub_001A01D3+0x8B1 writing 0x7D6A9005, reached via sub_001A0B0C (RtlAllocateHeap) from __cinit. Corrections this session: sub_00011800 does NOT clobber esi (3 instructions, never touches it) and XapiBootToDash was NOT the recursion cause.",
     "commit": "f9343f9"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "Save-area fix retried a third time and rejected: it is superseded, not mis-sequenced",
+    "note": "Applied the [ebp-24] __SEH_epilog fix again now that the frame is published: 200 -> 52 kernel calls, heap 49 -> 2. Third rejection (40, 50, 52 against a 200 baseline). Reverted. Verified the premise against __SEH_prolog rather than trusting the comment - it really does 'MEM32(ebp-24) = esp' immediately after pushing ebx, esi, edi, so [save+0]=edi, [save+4]=esi, [save+8]=ebx and [save-4]=return address are all CORRECT offsets. The fix is not wrong about the layout; it is solving a problem that no longer exists. It was a workaround for esp drift, and the fall-through-edge fix plus the g_seh_ebp sync removed the drift at source. With esp no longer drifting the original POP32s read the right slots, and the save-area read now INTRODUCES error rather than avoiding it. Conclusion: retire it. Keep the drift fixed at source instead of compensating downstream.",
+    "commit": "548ba05"
   }
 ]
