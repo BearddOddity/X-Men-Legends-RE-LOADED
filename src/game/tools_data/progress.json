@@ -665,5 +665,19 @@
     "message": "Null EstablisherFrame traced to a corrupt SEH chain head - NOT fixed, needs a design change",
     "note": "Probed _except_handler3's actual arguments. Two patterns alternate: (a) ExcRec=0 EstFrame=0 Ctx=001A1C23 Disp=0 - Ctx holding a FUNCTION ADDRESS (sub_001A1C23, the XAPI startup) means these are not SEH arguments at all, just stack garbage; (b) ExcRec=FFFFFFFF EstFrame=00F7FF98 - the end-of-chain marker arriving as an ExceptionRecord. In every case chainhead (fs:[0], i.e. MEM32(0)) reads 0x000000FF. xbox_memory_layout.c initialises it to 0xFFFFFFFF, so a DWORD write put 0xFF there - and the only writer on that path is __SEH_epilog's 'MEM32(0) = ecx' with ecx = MEM32(ebp-16), i.e. a corrupt frame. That is circular: corrupt frame -> corrupt chain -> corrupt frame. Ruled out: the single MEM8(0) site is in sub_00067DF0 which is never reached, and a byte write of 0xFF over 0xFFFFFFFF would leave 0xFFFFFFFF anyway. DELIBERATELY NOT PATCHED. The guard at sub_003433B1 already contains the damage and is worth 156 kernel calls; a speculative fix on top of a self-reinforcing corruption would most likely just move it. The real issue is structural: 63 SEH prologs and 58 epilogs all share ONE chain head, because the lifter drops fs: prefixes (2,660 sites) and the port fakes a single global TIB at VA 0. Correct fix is per-context SEH state, not another guard.",
     "commit": "97262db"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "SEH chain head is ALREADY corrupt before any SEH runs - narrows the scope",
+    "note": "Probed the very first __SEH_prolog: it reads chainhead = 0x000000FF, not the 0xFFFFFFFF that xbox_memory_layout.c writes (the TIB init log confirms it ran). And at the first __SEH_epilog, ebp is a perfectly valid stack address (00F7FF2C) with [ebp-16] already holding 0xFF. So the corruption is NOT produced by the unwinding machinery - VA 0 is already wrong before the first SEH prolog executes. That invalidates Option A in docs/SEH_SCOPE.md, which assumed the epilog wrote bad values from a bad frame; the epilog is faithfully saving and restoring a value that was already corrupt. Also corrects an earlier claim: I said the single MEM8(0) site (sub_00067DF0) was never reached, based on grepping stderr for the function name - but function names are not logged, so that check was meaningless. Probed it properly: 0 hits, it genuinely never runs. Remaining question is narrow and well-posed: what changes VA 0 from 0xFFFFFFFF to 0x000000FF between xbox_memory_layout init and the first SEH prolog? 0x000000FF is 0xFFFFFFFF with the top three bytes zeroed, or a dword write of 0xFF.",
+    "commit": "9373bf6"
   }
 ]
