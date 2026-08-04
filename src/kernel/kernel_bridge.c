@@ -47,6 +47,22 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
 /* Translate Xbox VA to native pointer (NULL-safe: 0 → NULL) */
 #define XBOX_TO_NATIVE(va) ((va) ? (void*)((uintptr_t)(va) + g_xbox_mem_offset) : NULL)
 
+/*
+ * Is this guest value plausibly a writable address?
+ *
+ * `if (ptr)` is not a pointer check - it only rejects 0. Small integers that
+ * are really flags sail through it and get written to. That destroyed the SEH
+ * exception-list head: ordinal 47's second argument is the BOOLEAN 1, a
+ * mis-wired handler treated it as an output pointer, and the resulting write
+ * at Xbox VA 1 turned the chain head from 0xFFFFFFFF into 0x000000FF.
+ *
+ * The XBE image base is 0x00010000, so nothing below it is ever a valid target,
+ * and nothing at or beyond the 64 MB of Xbox RAM is either. Use this in every
+ * bridge handler that writes through a guest-supplied pointer.
+ */
+#define BRIDGE_PTR_OK(va) \
+    ((uint32_t)(va) >= 0x00010000u && (uint32_t)(va) < XBOX_TOTAL_RAM)
+
 /* ── Synthetic VA range (for function exports) ─────────── */
 
 #define KERNEL_VA_BASE  0xFE000000u
@@ -668,8 +684,53 @@ static void bridge_HalReadSMCTrayState(void)
     uint32_t state_ptr = STACK_ARG(0);
     uint32_t count_ptr = STACK_ARG(1);
 
-    if (state_ptr) BRIDGE_MEM32(state_ptr) = 0x10;  /* No disc */
-    if (count_ptr) BRIDGE_MEM32(count_ptr) = 0;
+    /* `if (ptr)` only rejects 0. A guest pointer of 1 - or any other small
+     * integer that is really a flag, not an address - passes it and gets
+     * written through. That is how the SEH chain head at Xbox VA 0 was being
+     * destroyed: this handler was wired to ordinal 47, whose second argument
+     * is the BOOLEAN 1, so it wrote a zero dword at VA 1 and turned
+     * 0xFFFFFFFF into 0x000000FF. Validate the address, not just its
+     * truthiness - a kernel bridge must never write through an implausible
+     * guest pointer. */
+    if (BRIDGE_PTR_OK(state_ptr)) BRIDGE_MEM32(state_ptr) = 0x10;  /* No disc */
+    if (BRIDGE_PTR_OK(count_ptr)) BRIDGE_MEM32(count_ptr) = 0;
+    g_eax = 0;
+}
+
+/* ── HalRegisterShutdownNotification (ordinal 47) ─────────
+ * VOID HalRegisterShutdownNotification(PHAL_SHUTDOWN_REGISTRATION Registration,
+ *                                      BOOLEAN Register)
+ *
+ * Adds or removes a shutdown-notification callback. Both arguments are INPUT:
+ * a registration structure and a boolean. Nothing is written back.
+ *
+ * This ordinal was previously mapped to bridge_HalReadSMCTrayState, which
+ * treats its second argument as an output pointer. The game calls it as
+ *
+ *     push ebx            ; = 1  (Register = TRUE)
+ *     push 0x461694       ; Registration
+ *     call [0x3C6CD0]     ; thunk slot 76 -> ordinal 47
+ *
+ * so the handler wrote a zero dword through the address "1", clobbering the
+ * SEH exception-list head at Xbox VA 0. Caught with the TIB write-watch in
+ * main.c. kernel_thunks.c already had the correct name for this ordinal; only
+ * the bridge handler table disagreed.
+ *
+ * The port never shuts down through this path, so registering is a no-op -
+ * but it must not write to memory.
+ */
+static void bridge_HalRegisterShutdownNotification(void)
+{
+    uint32_t registration = STACK_ARG(0);
+    uint32_t do_register  = STACK_ARG(1);
+
+    static int logged;
+    if (!logged++) {
+        fprintf(stderr, "  [KERNEL] HalRegisterShutdownNotification: "
+                        "registration=0x%08X register=%u (no-op)\n",
+                registration, do_register);
+        fflush(stderr);
+    }
     g_eax = 0;
 }
 
@@ -1569,7 +1630,8 @@ static bridge_func_t bridge_for_ordinal(ULONG ordinal)
     case 238: return bridge_NtYieldExecution;
 
     /* Hardware */
-    case  47: return bridge_HalReadSMCTrayState;
+    case  46: return bridge_HalReadSMCTrayState;          /* its real ordinal */
+    case  47: return bridge_HalRegisterShutdownNotification;
 
     /* Display */
     case   3: return bridge_AvSetDisplayMode;

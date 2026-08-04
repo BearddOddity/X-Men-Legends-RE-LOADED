@@ -679,5 +679,19 @@
     "message": "SEH chain head is ALREADY corrupt before any SEH runs - narrows the scope",
     "note": "Probed the very first __SEH_prolog: it reads chainhead = 0x000000FF, not the 0xFFFFFFFF that xbox_memory_layout.c writes (the TIB init log confirms it ran). And at the first __SEH_epilog, ebp is a perfectly valid stack address (00F7FF2C) with [ebp-16] already holding 0xFF. So the corruption is NOT produced by the unwinding machinery - VA 0 is already wrong before the first SEH prolog executes. That invalidates Option A in docs/SEH_SCOPE.md, which assumed the epilog wrote bad values from a bad frame; the epilog is faithfully saving and restoring a value that was already corrupt. Also corrects an earlier claim: I said the single MEM8(0) site (sub_00067DF0) was never reached, based on grepping stderr for the function name - but function names are not logged, so that check was meaningless. Probed it properly: 0 hits, it genuinely never runs. Remaining question is narrow and well-posed: what changes VA 0 from 0xFFFFFFFF to 0x000000FF between xbox_memory_layout init and the first SEH prolog? 0x000000FF is 0xFFFFFFFF with the top three bytes zeroed, or a dword write of 0xFF.",
     "commit": "9373bf6"
+  },
+  {
+    "kernel_calls": 82,
+    "failed_icalls": 4,
+    "total_icalls": 79,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 3,
+    "crash_in": "sub_0034139A+0x1BA",
+    "fault_va": "0xF42BFFE0",
+    "date": "2026-08-04",
+    "message": "ROOT CAUSE: ordinal 47 was wired to the wrong handler and wrote through a BOOLEAN",
+    "note": "Built a TIB write-watch in main.c (VirtualProtect the VA-0 page read-only after init; the VEH names the first writer, then self-disarms). It caught the corruption exactly: chain head was 0xFFFFFFFF at arm time, and the first write was to Xbox VA 0x00000001 from the kernel bridge - a zero dword at VA 1 turns bytes FF FF FF FF into FF 00 00 00, which reads as 0x000000FF. Exact match for the value seen. Cause: the bridge handler table mapped ordinal 47 to bridge_HalReadSMCTrayState, which treats arg1 as an OUTPUT POINTER. Ordinal 47 is actually HalRegisterShutdownNotification(Registration, Register) - kernel_thunks.c had the right name all along, only the bridge table disagreed - and its arg1 is the BOOLEAN 1. So 'if (count_ptr) BRIDGE_MEM32(count_ptr) = 0;' wrote through the address 1. The game's own call site (push ebx=1; push 0x461694) was already documented in a comment two hundred lines away. Fixed: added bridge_HalRegisterShutdownNotification (writes nothing), moved HalReadSMCTrayState to its real ordinal 46 (previously unmapped), and added BRIDGE_PTR_OK - 'if (ptr)' only rejects 0, so flags passed as pointers sailed through it. Verified: first TIB write is now sub_003432A8 (__SEH_prolog) at VA 0, legitimately installing the chain, and zero corrupt-chainhead reports. Kernel calls 200 -> 82 - Rule #1's two-different-programs case, the boot now takes a correct path and stops elsewhere: sub_0034139A+0x1BA (__local_unwind2) reading 0xF42BFFE0.",
+    "commit": "2f9134c"
   }
 ]

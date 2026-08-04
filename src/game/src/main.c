@@ -183,6 +183,10 @@ static void dump_native_stack(const uintptr_t *sp)
  *   - Add dumps of game-specific globals (heap handles, state flags)
  *   - Add SEH simulation if your game uses __try/__except
  */
+/* TIB write-watch state - see the handler below. Diagnostic only. */
+static volatile int g_tib_watch_active = 0;
+static uintptr_t    g_tib_watch_lo = 0, g_tib_watch_hi = 0;
+
 static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
 {
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT) {
@@ -201,6 +205,42 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
 
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
         uintptr_t fault_addr = ep->ExceptionRecord->ExceptionInformation[1];
+
+        /*
+         * TIB write-watch (diagnostic; armed only when RECOMP_WATCH_TIB is set).
+         *
+         * The SEH chain head at Xbox VA 0 reads 0x000000FF by the time the very
+         * first __SEH_prolog runs, though xbox_MemoryLayoutInit writes
+         * 0xFFFFFFFF. Something corrupts it during startup, before any SEH code
+         * executes - so the unwinder is not the culprit, it just propagates a
+         * value that is already wrong.
+         *
+         * Static search could not find the writer: the only MEM8(0) site never
+         * executes (probed, 0 hits), and no lifted code loads VA 0 as a base.
+         * So catch it dynamically - mark the page read-only after init and let
+         * the first write fault, which names the instruction exactly.
+         *
+         * Self-disarming: report once, restore write access, continue. The page
+         * is legitimately written constantly afterwards by every SEH prolog.
+         */
+        if (g_tib_watch_active && fault_addr >= g_tib_watch_lo
+                && fault_addr < g_tib_watch_hi
+                && ep->ExceptionRecord->ExceptionInformation[0] == 1) {
+            DWORD old;
+            uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+            g_tib_watch_active = 0;
+            VirtualProtect((void *)g_tib_watch_lo,
+                           g_tib_watch_hi - g_tib_watch_lo,
+                           PAGE_READWRITE, &old);
+            fprintf(stderr,
+                    "[TIB-WATCH] first write to the TIB page: xbox VA 0x%08X "
+                    "from RIP=0x%llX (RVA=0x%llX)\n",
+                    (unsigned)(fault_addr - g_tib_watch_lo),
+                    (unsigned long long)ep->ContextRecord->Rip,
+                    (unsigned long long)(ep->ContextRecord->Rip - base));
+            fflush(stderr);
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
 
         /*
          * GPU register probe at 0xFD000000 range.
@@ -389,6 +429,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     g_xbox_mem_offset = xbox_GetMemoryOffset();
     printf("Xbox memory mapped. Offset: 0x%llX\n", (unsigned long long)g_xbox_mem_offset);
+
+#if defined(RECOMP_WATCH_TIB) && RECOMP_WATCH_TIB
+    /* Arm the TIB write-watch: the memory layout has just written the fake
+     * TIB, so from here until the first legitimate SEH prolog nothing should
+     * touch that page. Whatever does is what corrupts the SEH chain head. */
+    {
+        DWORD old = 0;
+        g_tib_watch_lo = (uintptr_t)g_xbox_mem_offset;   /* xbox VA 0 */
+        g_tib_watch_hi = g_tib_watch_lo + 0x1000;
+        if (VirtualProtect((void *)g_tib_watch_lo, 0x1000, PAGE_READONLY, &old)) {
+            g_tib_watch_active = 1;
+            fprintf(stderr, "[TIB-WATCH] armed on xbox VA 0x0..0x1000 "
+                            "(chain head is 0x%08X right now)\n",
+                    *(volatile uint32_t *)g_tib_watch_lo);
+            fflush(stderr);
+        } else {
+            fprintf(stderr, "[TIB-WATCH] VirtualProtect failed: %lu\n",
+                    GetLastError());
+        }
+    }
+#endif
 
     /*
      * sub_0019EB69 (CRT boot code) reads Xbox VA 0x0044B0D8 and
