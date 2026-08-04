@@ -637,5 +637,19 @@
     "message": "SEH during __cinit is NORMAL scope-exit unwinding, not a fault",
     "note": "Traced it: no exception is being raised at all. RtlRaiseException called 0 times (the bridge logs every call), VEH caught 0 host faults, and RtlUnwind (ordinal 292) is not among the 15 ordinals used. _except_handler3 (sub_003432FC) has ZERO direct callers - it is only ever pushed as a handler address (6 sites) and entered indirectly. The caller is sub_0034139A, which Ghidra's FidDb identifies outright as __local_unwind2, 'Library Function - Single Match, Visual Studio 2003 Release'. That is MSVC try/finally SCOPE-EXIT unwinding: __cinit wraps constructors in try/finally so a throwing ctor unwinds cleanly, and __local_unwind2 runs on normal exit too. So SEH machinery running during __cinit is correct CRT behaviour, not evidence of a fault - I was hunting an exception that does not exist. Follow-on: the ebx=0 that sub_003433B1's guard rejects is very likely a LEGITIMATE null ContextRecord, which is normal during unwind (context is not needed). If so that guard skips work on correct input. It cannot simply be deleted though - disabling the guards cost 200 -> 44 - so the dependency needs isolating rather than assuming.",
     "commit": "2ba694a"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "Guard dependency isolated: 1 of 14 is load-bearing, and it masks a null EstablisherFrame",
+    "note": "Disabling ONLY sub_003433B1's guard reproduces the whole regression - 200 -> 44 kernel calls, heap 49 -> 2, identical to disabling all fourteen. So exactly one guard is load-bearing and the other thirteen are inert (seven of those never execute at all). What it protects: 'if (!(ebx in heap range)) { eax = 1; return; }' sits immediately before 'ebp = ebx + 0x10', which derives a FRAME POINTER from ebx. record+0x10 is the classic _except_handler3 frame-base derivation, so ebx is the EstablisherFrame, not the Context as the guard comment says - and it is NULL. Without the guard ebp becomes 0x10 and everything downstream runs on a bogus frame; measured, that spins with ~9,000 safe-stub hits (and was the first NON-DETERMINISTIC result smoke_spread has flagged, 9079 vs 9088). CORRECTION to the previous entry: I guessed ebx=0 was a legitimate null ContextRecord and that the guard was skipping work on correct input. Wrong - an EstablisherFrame is never legitimately null. The guard is correct and necessary; it is masking a real defect upstream. Next: _except_handler3 is entered with a null EstablisherFrame, and that value comes off the SEH chain at fs:[0] - which the port fakes at VA 0 as a single global head, with no per-thread separation.",
+    "commit": "87d0896"
   }
 ]
