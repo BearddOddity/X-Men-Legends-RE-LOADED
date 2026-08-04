@@ -623,5 +623,19 @@
     "message": "Guard instrumentation: only 2 of 14 guards are live, both in SEH exception dispatch",
     "note": "Probed all 9 distinct guard sites with add_probe.py. SEVEN NEVER EXECUTE (sub_00123600, sub_001F75A3, sub_00202CC0, sub_0020E520 x2, sub_0020E547, sub_002155B0) - they sit on paths the boot no longer takes, so they are dead weight, not protection. Only two fire on the live path, and both are SEH internals: sub_003432FC is _except_handler3 (Ghidra signature (ExceptionRecord, EstablisherFrame, Context), tests *(param_1+4) & 6 for EXCEPTION_UNWINDING, and __SEH_prolog pushes 0x3432FC as exactly that handler), and sub_003433B1 is the unwinder it calls. Entered 3 times each. G9 fires with ebx=0 - a NULL establisher/context frame handed to the unwinder. So the thing 'corrupting pointers' is not random memory damage: SEH exception dispatch is running during __cinit and unwinding with a null frame. That also explains why disabling the guards cost 200 -> 44: the two live ones are absorbing a real null, not a phantom. Next: find what raises the exception - a faulting constructor, or normal scope-exit unwind the port mis-models.",
     "commit": "b07c1e7"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "SEH during __cinit is NORMAL scope-exit unwinding, not a fault",
+    "note": "Traced it: no exception is being raised at all. RtlRaiseException called 0 times (the bridge logs every call), VEH caught 0 host faults, and RtlUnwind (ordinal 292) is not among the 15 ordinals used. _except_handler3 (sub_003432FC) has ZERO direct callers - it is only ever pushed as a handler address (6 sites) and entered indirectly. The caller is sub_0034139A, which Ghidra's FidDb identifies outright as __local_unwind2, 'Library Function - Single Match, Visual Studio 2003 Release'. That is MSVC try/finally SCOPE-EXIT unwinding: __cinit wraps constructors in try/finally so a throwing ctor unwinds cleanly, and __local_unwind2 runs on normal exit too. So SEH machinery running during __cinit is correct CRT behaviour, not evidence of a fault - I was hunting an exception that does not exist. Follow-on: the ebx=0 that sub_003433B1's guard rejects is very likely a LEGITIMATE null ContextRecord, which is normal during unwind (context is not needed). If so that guard skips work on correct input. It cannot simply be deleted though - disabling the guards cost 200 -> 44 - so the dependency needs isolating rather than assuming.",
+    "commit": "2ba694a"
   }
 ]
