@@ -513,5 +513,45 @@
     "message": "Fix TLS: XBE TLS directory was never processed - 339K -> 47.6M indirect calls",
     "note": "Crash was sub_00346743+0x130 reading 0xFFFFFF6C. Two real bugs, both confirmed against ground truth. (1) fs:[4] is the TLS slot array on Xbox, NOT the NT_TIB StackBase. xbox_memory_layout.c set it to XBOX_STACK_TOP on the Win32 assumption; all NINE MEM32(4) sites in the lifted code are the same pattern - idx=MEM32(0x5BA794); block=MEM32(fs4 + idx*4); block[+8]/[+0xC] - and not one treats it as a stack address. Now points at a real 16-slot array. (2) __tls_index held -37, so the lookup indexed 148 bytes BELOW the array. The XBE's TLS directory names tls_index_addr = 0x005BA794, which matches the read address and Ghidra's XAPILIB___tls_index exactly - the port never processed that directory, so the loader-assigned slot was never written. Set it to 0 in the XAPI startup override. Result: crash GONE (2/2 clean), total indirect calls 339,033 -> 47,621,890 (140x more code executing). kernel_calls flat at 200 - the proxy is blind again. New failure mode: 234 failed icalls on sequential small integers (0x0,0x1,0x2,...), the index-table-as-function-pointer pattern, now surfacing at far greater depth. Context: the lifter drops fs: prefixes entirely - 2,660 sites, mostly MEM32(0) for fs:[0] SEH - and the fake TIB at VA 0 is the workaround.",
     "commit": "17b4896"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 234,
+    "total_icalls": 47621890,
+    "heap_allocs": 49,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "CORRECTION: the 47.6M indirect calls is a watchdog spin, not execution depth",
+    "note": "Checked how the run actually ends: '[WATCHDOG] No progress after 8000 ms - main thread likely hung', killed after 47,621,967 ICALL dispatches. The last 16 targets are garbage that decodes as x86 instruction bytes - 0x0C2444D9 is D9 44 24 0C = 'fld dword ptr [esp+0xC]' - so it is calling through pointers read out of the middle of the instruction stream, looping until the watchdog fires. The TLS fix is still correct and the crash is genuinely gone, but 339K -> 47.6M measures spinning, not work. total_icalls as a progress signal is GAMEABLE by exactly this and I over-claimed on it twice. Trustworthy signals remain kernel_calls (200) and heap_allocs (49), which are counts of completed operations; both are flat. Real state: still inside CRT/XAPI runtime init, nothing rendered, nowhere near the main-menu definition of done.",
+    "commit": "ffb054f"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 234,
+    "total_icalls": 47621967,
+    "distinct_ordinals": 15,
+    "ended": "hang",
+    "heap_allocs": 49,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Make the progress metric spin-proof",
+    "note": "total_icalls counts dispatches, so an infinite loop inflates it without bound - it reported 47.6M for a watchdog spin and I called that '140x more code executing' before checking how the run ended. Now: (1) 'ended' records hang/crash/ended, parsed from the WATCHDOG line, so a hang and a clean finish stop looking identical; (2) 'distinct_ordinals' counts DISTINCT kernel functions reached - spin-proof, because a loop hammers the same handful forever and only reaching a new subsystem moves it; (3) total_icalls no longer counts as improvement when the run ended in a spin, and prints a warning when it did.",
+    "commit": "ffb054f"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 234,
+    "total_icalls": 47621967,
+    "distinct_ordinals": 15,
+    "ended": "hang",
+    "heap_allocs": 49,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-04",
+    "message": "Spin located: __cinit's constructor-table cursor is destroyed by sub_003556E0",
+    "note": "Probed sub_001A1C23 step by step: steps 1-3 complete 381 times each; step 4 sub_001A3554 = XAPILIB___cinit enters 381 times and NEVER returns. It walks two ctor tables; table A (5 entries) is fine, table B (0x44A590..0x44B0A4, 709 entries) breaks. Probing the cursor after each ctor names the exact one: slot 0x0044A598 -> sub_003556E0, after which esi = 0x00F7FF0C, a STACK address instead of 0x0044A59C. esi is the callee-saved cursor, so the loop then walks the stack calling garbage - the ring buffer shows a clean cycle (0x20000000, 0xC71FEE10, then stack addresses climbing 0x20 per pass). Same class as the fall-through-edge bug: a callee not restoring a callee-saved register. sub_003556E0 itself never touches esi, and its immediate callees sub_000119E0 and sub_00340DE6 are both balanced, so the clobber is deeper - sub_00011800 is next. CORRECTION: I attributed the 381 nested startups to XapiBootToDash relaunching; the BootToDash stub was never hit (it is called directly, bypassing recomp_lookup_manual), so that was wrong - the recursion comes from __cinit. Stub kept as defence anyway.",
+    "commit": "ffb054f"
   }
 ]

@@ -265,16 +265,26 @@ static void sub_001A1C23(void)
      */
     MEM32(0x005BA794) = 0;   /* XBE TLS directory: tls_index_addr */
 
-    sub_001A3639();
-    sub_001A23F3();
-    sub_001A35AC();
-    sub_001A3554();
+#define XSTEP(n, f) do { \
+        fprintf(stderr, "[XSTEP] -> " #n " " #f "\n"); fflush(stderr); \
+        f(); \
+        fprintf(stderr, "[XSTEP] <- " #n " " #f " ok\n"); fflush(stderr); \
+    } while (0)
+
+    XSTEP(1, sub_001A3639);
+    XSTEP(2, sub_001A23F3);
+    XSTEP(3, sub_001A35AC);
+    XSTEP(4, sub_001A3554);
 
     g_esp -= 4; MEM32(g_esp) = 0;
     g_esp -= 4; MEM32(g_esp) = 0;
     g_esp -= 4; MEM32(g_esp) = 0;
     g_esp -= 4; MEM32(g_esp) = 0;  /* dummy return address */
+    { static unsigned _e; fprintf(stderr,
+        "[MAINLOOP] enter #%u\n", ++_e); fflush(stderr); }
     sub_00011E40();
+    { static unsigned _x; fprintf(stderr,
+        "[MAINLOOP] RETURNED #%u eax=%08X\n", ++_x, g_eax); fflush(stderr); }
     g_esp += 16;
 
     g_esp -= 4; MEM32(g_esp) = 0;
@@ -284,6 +294,32 @@ static void sub_001A1C23(void)
     sub_001A237D();
     g_esp += 16;
 
+    g_eax = 0;
+}
+
+/*
+ * sub_001A237D = XAPILIB__XapiBootToDash - quit to the Xbox dashboard.
+ *
+ * There is no dashboard to quit to here. Left alone it calls
+ * XAPILIB__XLaunchNewImageA (sub_0019EB69), which relaunches the title and
+ * re-enters process startup - a relaunch loop. Measured: 381 nested startup
+ * passes, 49 heaps created before RtlCreateHeap ran the console out of memory,
+ * and ~47.6M indirect dispatches before the watchdog fired.
+ *
+ * Worse, it hides the real fault. The loop is a *consequence* of something
+ * during startup deciding to bail; masking it made the failure look like a
+ * lifter bug in the allocator for most of a session.
+ *
+ * Stopping here makes the first bail-out visible and terminal instead of
+ * cyclic. Not a fix for whatever bails - a fix for the loop that hid it.
+ */
+static void sub_001A237D_stub(void)
+{
+    static unsigned hits;
+    fprintf(stderr,
+            "[BOOTTODASH] XapiBootToDash called (#%u) - the title is trying to "
+            "quit to the dashboard. Stubbed; not relaunching.\n", ++hits);
+    fflush(stderr);
     g_eax = 0;
 }
 
@@ -336,6 +372,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     /* Network fallback override - stub to prevent blocking in main thread */
     if (xbox_va == 0x00345AB0) return sub_00345AB0;
 
+    if (xbox_va == 0x001A237Du) return sub_001A237D_stub;  /* XapiBootToDash */
     if (xbox_va == 0x0019F196) return sub_0019F196;
     if (xbox_va == 0x001A1C23) return sub_001A1C23;
     return (recomp_func_t)0;

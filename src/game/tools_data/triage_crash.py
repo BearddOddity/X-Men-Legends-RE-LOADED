@@ -216,6 +216,72 @@ def derive_expression(fault, regs):
     return out
 
 
+def triage_hang(path):
+    """Report a watchdog hang the way parse_crash reports a fault."""
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except OSError as e:
+        print(f"cannot read {path}: {e}")
+        return 1
+
+    if "[WATCHDOG]" not in text:
+        print(f"no [CRASH] block and no [WATCHDOG] line in {path} -")
+        print("the run neither faulted nor hung; check it started at all.")
+        return 1
+
+    kern = len(re.findall(r"\[KERNEL\] #", text))
+    heap = len(re.findall(r"\[HEAP\] #", text))
+    print(f"progress     : {kern} kernel calls, {heap} heap allocs before the hang")
+
+    m = re.search(r"\[WATCHDOG\][^\n]*No progress after (\d+) ms[^\n]*", text)
+    if m:
+        print(f"ending       : HANG - watchdog fired after {m.group(1)} ms")
+    else:
+        print("ending       : HANG - watchdog fired")
+
+    m = re.search(r"Total ICALL dispatches: (\d+)", text)
+    if m:
+        n = int(m.group(1))
+        print(f"dispatches   : {n:,} indirect calls")
+        print("               a spin inflates this without bound - it counts")
+        print("               dispatches, not work done. Read it next to the")
+        print("               kernel-call and heap counts above.")
+
+    # The ring buffer is the last 16 targets before the watchdog fired, so a
+    # repeated or nonsensical run of them names the loop.
+    tail = text[text.rfind("[WATCHDOG]"):]
+    targets = re.findall(r"\[\s*\d+\]\s+0x([0-9A-Fa-f]{8})", tail)
+    if targets:
+        print("\nlast ICALL targets before the hang (most recent last):")
+        syms = load_map()
+        for t in targets:
+            va = int(t, 16)
+            note = ""
+            if va < 0x10000:
+                note = "  <- not a code address"
+            elif 0xFE000000 <= va < 0xFE010000:
+                note = f"  <- kernel thunk slot {(va - 0xFE000000) // 4}"
+            elif va >= 0x80000000:
+                note = "  <- garbage (often instruction bytes read as a pointer)"
+            print(f"    0x{va:08X}{note}")
+
+    # Any native RVAs in the tail resolve to real function names.
+    rvas = re.findall(r"RVA 0x([0-9A-Fa-f]+)", tail)
+    if rvas:
+        syms = load_map()
+        print("\nnative call stack at the hang (innermost first):")
+        for r in rvas:
+            rva = int(r, 16)
+            s = symbolise(syms, rva)
+            print(f"    RVA 0x{rva:08X}  "
+                  + (f"{s['name']}+0x{s['offset']:X}" if s else "(unresolved)"))
+
+    print("\nA hang has no faulting address, so there is nothing to guard.")
+    print("Find the loop: probe the suspected function's entry and exit and")
+    print("check whether it returns at all.")
+    return 0
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -228,8 +294,11 @@ def main(argv):
 
     crash = parse_crash(args.file)
     if not crash:
-        print(f"no [CRASH] block found in {args.file}")
-        return 1
+        # No crash is not the same as nothing to report. Since the boot got
+        # deep enough to hang instead of fault, hangs are the common ending -
+        # and this used to just print "no [CRASH] block" and give up, so the
+        # watchdog's backtrace had to be resolved by hand every time.
+        return triage_hang(args.file)
 
     print(f"progress     : {crash['kernel_calls']} kernel calls before the crash")
     esc = crash.get("esp_escape")

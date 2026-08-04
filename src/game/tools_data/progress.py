@@ -64,21 +64,38 @@ def measure():
             if sym:
                 where = f"{sym['name']}+0x{sym['offset']:X}"
 
-    # How much code actually ran. The kernel-call count is a narrow proxy: it
-    # moved 54 -> 58 across the fall-through-edge fix while total indirect
-    # calls went 80 -> 60,164, i.e. ~750x more code executing. Tracking only
-    # the proxy made a large advance look like noise.
+    # Total indirect calls. Read it ONLY together with `ended` below.
     #
-    # Two sources: the running total the safe stub prints, and the
-    # "(total calls: N)" the ICALL failure log has always carried. Take the
-    # max, so an older stderr.txt still yields a number.
+    # This was added to see past the narrow kernel-call proxy, and it does show
+    # real advances - but it counts dispatches, not work, so an infinite loop
+    # inflates it without limit. That happened: a run reported 47,621,890 and
+    # was a watchdog spin calling through pointers read out of the middle of the
+    # instruction stream (0x0C2444D9 decodes as `fld dword ptr [esp+0xC]`).
+    # Reported as "140x more code executing" before the ending was checked.
     totals = [int(n) for n in re.findall(r"\[ICALL-TOTAL\] (\d+)", text)]
     totals += [int(n) for n in re.findall(r"total calls: (\d+)", text)]
+    totals += [int(n) for n in re.findall(r"Total ICALL dispatches: (\d+)", text)]
+
+    # How the run ended. Without this, a hang and a clean exit look identical
+    # in every other number.
+    if re.search(r"\[WATCHDOG\]", text):
+        ended = "hang"
+    elif crash:
+        ended = "crash"
+    else:
+        ended = "ended"
+
+    # Spin-proof breadth signal: how many DISTINCT kernel functions were
+    # exercised. A spin hammers the same few ordinals forever, so this stays
+    # flat no matter how long it loops; reaching a new subsystem moves it.
+    ordinals = set(re.findall(r"ordinal (\d+)", text))
 
     return {
         "kernel_calls": len(re.findall(r"\[KERNEL\] #", text)),
         "failed_icalls": len(re.findall(r"Failed to resolve VA", text)),
         "total_icalls": max(totals) if totals else None,
+        "distinct_ordinals": len(ordinals) if ordinals else None,
+        "ended": ended,
         "heap_allocs": len(re.findall(r"\[HEAP\] #", text)),
         "crash_in": where,
         "fault_va": (f"0x{crash['fault_va']:08X}"
@@ -130,11 +147,20 @@ def show(rows):
     print("-" * 106)
     print(f"best: {best} kernel calls   now: {last['kernel_calls']}   "
           f"failed indirect calls: {last['failed_icalls']}")
+    ords = [r.get("distinct_ordinals") for r in rows if r.get("distinct_ordinals")]
+    if ords:
+        print(f"distinct kernel functions reached:  best {max(ords)}   "
+              f"now {last.get('distinct_ordinals')}   "
+              f"(spin-proof - a loop cannot inflate this)")
     if best_tot:
         cur_tot = last.get("total_icalls")
-        print(f"code executed (total indirect calls):  best {best_tot:,}   "
-              f"now {cur_tot:,}" if cur_tot else
-              f"code executed (total indirect calls):  best {best_tot:,}")
+        note = ""
+        if last.get("ended") == "hang":
+            note = "   <-- ENDED IN A SPIN, this number is dispatches not work"
+        print(f"indirect-call dispatches:  best {best_tot:,}"
+              + (f"   now {cur_tot:,}" if cur_tot else "") + note)
+    if last.get("ended"):
+        print(f"run ended by: {last['ended']}")
     if last["kernel_calls"] < best:
         print("NOTE: kernel calls are below the best ever - but that count is "
               "a narrow proxy.\n      Check the total above before calling it "
@@ -150,8 +176,19 @@ def improved(cur, prev):
             and prev.get("failed_icalls") is not None
             and cur["failed_icalls"] < prev["failed_icalls"]):
         reasons.append(f"failed icalls {prev['failed_icalls']} -> {cur['failed_icalls']}")
-    # More code executing is progress even when the kernel-call proxy is flat.
-    if (cur.get("total_icalls") or 0) > (prev.get("total_icalls") or 0):
+    # Breadth of the runtime actually reached. Spin-proof: a loop hammers the
+    # same handful of ordinals forever, so this only moves when a genuinely new
+    # kernel function gets called.
+    if (cur.get("distinct_ordinals") or 0) > (prev.get("distinct_ordinals") or 0):
+        reasons.append(f"distinct kernel fns {prev.get('distinct_ordinals')} -> "
+                       f"{cur.get('distinct_ordinals')}")
+    # A hang that stops being a hang is progress on its own.
+    if prev.get("ended") == "hang" and cur.get("ended") != "hang":
+        reasons.append(f"no longer hanging ({prev.get('ended')} -> {cur.get('ended')})")
+    # Total icalls counts DISPATCHES, not work - an infinite loop inflates it
+    # without bound. Only credit it when the run did not end in a spin.
+    if (cur.get("ended") != "hang"
+            and (cur.get("total_icalls") or 0) > (prev.get("total_icalls") or 0)):
         reasons.append(f"total icalls {prev.get('total_icalls')} -> "
                        f"{cur.get('total_icalls')}")
     if (cur.get("heap_allocs") or 0) > (prev.get("heap_allocs") or 0):
