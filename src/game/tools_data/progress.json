@@ -651,5 +651,19 @@
     "message": "Guard dependency isolated: 1 of 14 is load-bearing, and it masks a null EstablisherFrame",
     "note": "Disabling ONLY sub_003433B1's guard reproduces the whole regression - 200 -> 44 kernel calls, heap 49 -> 2, identical to disabling all fourteen. So exactly one guard is load-bearing and the other thirteen are inert (seven of those never execute at all). What it protects: 'if (!(ebx in heap range)) { eax = 1; return; }' sits immediately before 'ebp = ebx + 0x10', which derives a FRAME POINTER from ebx. record+0x10 is the classic _except_handler3 frame-base derivation, so ebx is the EstablisherFrame, not the Context as the guard comment says - and it is NULL. Without the guard ebp becomes 0x10 and everything downstream runs on a bogus frame; measured, that spins with ~9,000 safe-stub hits (and was the first NON-DETERMINISTIC result smoke_spread has flagged, 9079 vs 9088). CORRECTION to the previous entry: I guessed ebx=0 was a legitimate null ContextRecord and that the guard was skipping work on correct input. Wrong - an EstablisherFrame is never legitimately null. The guard is correct and necessary; it is masking a real defect upstream. Next: _except_handler3 is entered with a null EstablisherFrame, and that value comes off the SEH chain at fs:[0] - which the port fakes at VA 0 as a single global head, with no per-thread separation.",
     "commit": "87d0896"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "Null EstablisherFrame traced to a corrupt SEH chain head - NOT fixed, needs a design change",
+    "note": "Probed _except_handler3's actual arguments. Two patterns alternate: (a) ExcRec=0 EstFrame=0 Ctx=001A1C23 Disp=0 - Ctx holding a FUNCTION ADDRESS (sub_001A1C23, the XAPI startup) means these are not SEH arguments at all, just stack garbage; (b) ExcRec=FFFFFFFF EstFrame=00F7FF98 - the end-of-chain marker arriving as an ExceptionRecord. In every case chainhead (fs:[0], i.e. MEM32(0)) reads 0x000000FF. xbox_memory_layout.c initialises it to 0xFFFFFFFF, so a DWORD write put 0xFF there - and the only writer on that path is __SEH_epilog's 'MEM32(0) = ecx' with ecx = MEM32(ebp-16), i.e. a corrupt frame. That is circular: corrupt frame -> corrupt chain -> corrupt frame. Ruled out: the single MEM8(0) site is in sub_00067DF0 which is never reached, and a byte write of 0xFF over 0xFFFFFFFF would leave 0xFFFFFFFF anyway. DELIBERATELY NOT PATCHED. The guard at sub_003433B1 already contains the damage and is worth 156 kernel calls; a speculative fix on top of a self-reinforcing corruption would most likely just move it. The real issue is structural: 63 SEH prologs and 58 epilogs all share ONE chain head, because the lifter drops fs: prefixes (2,660 sites) and the port fakes a single global TIB at VA 0. Correct fix is per-context SEH state, not another guard.",
+    "commit": "97262db"
   }
 ]
