@@ -234,6 +234,33 @@ class FunctionTranslator:
         if has_tail_jump:
             used_regs.add("ebp")
 
+        # Does control run off the end of this fragment?
+        #
+        # A function is split at internal branch targets, so the fragment ending
+        # just before a split point must hand control to the fragment AT that
+        # point. Without the edge, control falls off the end of the C function
+        # and everything after the split - including the real function's
+        # `pop`/`ret` epilogue - never executes. The caller is then left with a
+        # stack leak (the dummy return address plus whatever the prologue
+        # pushed) and callee-saved registers that were never restored.
+        #
+        # Observed in sub_00202CE1, which ends on an indirect call and drops the
+        # edge to sub_00202D14: 4 bytes (dummy return address) + 8 (ebx, esi)
+        # = a 12-byte leak per call, and the caller's esi destroyed.
+        #
+        # Only these mnemonics genuinely end a flow. Everything else - calls,
+        # conditional jumps, plain instructions - continues at `end`.
+        _TERMINAL = ("ret", "retn", "retf", "iret", "iretd",
+                     "jmp", "int3", "ud2", "hlt")
+        falls_through = False
+        if instructions and instructions[-1].mnemonic not in _TERMINAL:
+            # Only emit the edge when the continuation is real code. If `end`
+            # is not a code address the extent is wrong, and inventing a call
+            # would be worse than the leak.
+            falls_through = is_code_address(end)
+        if falls_through:
+            used_regs.add("ebp")
+
         # Ensure ebp tracked if function calls __SEH_prolog or __SEH_epilog
         # (lifter emits ebp = g_seh_ebp readback after these calls).
         # Uses the auto-detected/overridden addresses for THIS binary
@@ -251,6 +278,8 @@ class FunctionTranslator:
         for insn in instructions:
             if insn.call_target and is_code_address(insn.call_target):
                 call_targets.add(insn.call_target)
+        if falls_through:
+            call_targets.add(end)      # so the continuation gets declared
 
         # All translated functions are void(void).
         # Arguments pass via the global simulated stack (push instructions).
@@ -425,6 +454,17 @@ class FunctionTranslator:
             break
         if _last_label_idx is not None and not _has_stmt_after:
             lines.insert(_last_label_idx + 1, "    (void)0;")
+
+        # Hand control to the next fragment. Mirrors how the lifter emits a tail
+        # jmp (g_seh_ebp carries the frame pointer across, since fpo_leaf
+        # fragments read it back on entry).
+        if falls_through:
+            lines.append(f"    /* fall-through: the original function continues at "
+                         f"0x{end:08X}.")
+            lines.append(f"     * Without this the epilogue there never runs and the "
+                         f"caller")
+            lines.append(f"     * leaks this fragment's pushes. */")
+            lines.append(f"    g_seh_ebp = ebp; sub_{end:08X}(); return;")
 
         # Undefine FPU macros
         if has_fpu:

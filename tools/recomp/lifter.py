@@ -885,6 +885,12 @@ class Lifter:
             return [f"/* bt {insn.op_str} */"]
         if m == "emms":
             return ["/* emms - empty MMX state */"]
+        if m == "cpuid":
+            # Was dropped as a comment, which left eax/ebx/ecx/edx holding
+            # whatever the previous instructions had put there - so the game's
+            # feature word was garbage. Policy lives in recomp_cpuid() so the
+            # advertised CPU can be retuned without regenerating.
+            return ["recomp_cpuid(); /* cpuid */"]
         if m in ("sete", "setne", "setb", "setae", "setbe", "seta",
                  "setl", "setge", "setle", "setg", "sets", "setns"):
             return self._lift_setcc(insn, ops, m)

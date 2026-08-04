@@ -128,6 +128,27 @@ void recomp_icall_fail_log(uint32_t va);
  * Instead of crashing by calling 0, this returns S_OK (0) safely. */
 void sub_00ICALL_SAFE_STUB(void);
 
+/**
+ * Record an indirect-call target rejected by the plausibility filter.
+ *
+ * The [0x00400000, 0xFE000000) rejection used to be silent, so a spin could
+ * burn 80k calls through the safe stub without ever naming the target.
+ * Keeps a histogram and prints each distinct target once. Implemented in
+ * recomp_manual.c; dumped by recomp_icall_reject_dump() at exit.
+ */
+void recomp_icall_reject_log(uint32_t va);
+void recomp_icall_reject_dump(void);
+
+/**
+ * CPUID. Reads the leaf from g_eax (and subleaf from g_ecx) and writes
+ * g_eax/g_ebx/g_ecx/g_edx, modelling the Xbox's Pentium III.
+ *
+ * The lifter used to drop cpuid as a comment, which left all four registers
+ * holding stale values - so the game's cached feature word was garbage and
+ * SIMD dispatch was undefined. Implemented in recomp_manual.c.
+ */
+void recomp_cpuid(void);
+
 
 /* ================================================================
  * Memory access helpers
@@ -383,6 +404,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
         recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     if (_va >= 0x00400000 && _va < 0xFE000000) { \
+        recomp_icall_reject_log(_va); \
         g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     recomp_func_t _fn = recomp_lookup_manual(_va); \

@@ -43,6 +43,84 @@ extern volatile uint32_t g_icall_trace[16];
 extern volatile uint32_t g_icall_trace_idx;
 extern volatile uint64_t g_icall_count;
 
+/* ── CPUID ─────────────────────────────────────────────────── */
+
+/*
+ * The lifter used to emit cpuid as a bare comment. Nothing was written, so
+ * eax/ebx/ecx/edx kept whatever the preceding instructions left there, and
+ * sub_001F0F70 (the feature detector, 9 cpuid sites) stored that garbage as
+ * the CPU feature word. FUN_001ff070 caches it in DAT_005bc644 and dispatches
+ * SIMD paths off it - so which code path ran was undefined.
+ *
+ * We model the Xbox CPU: a Coppermine Pentium III. MMX and SSE, no SSE2,
+ * and - importantly - no extended CPUID, which is how 3DNow! is advertised.
+ * Returning 0 for leaf 0x80000000 makes the 3DNow! probe fail deterministically,
+ * so the game can never enter the pfmul/pfadd path the lifter doesn't implement.
+ *
+ * ponytail: RECOMP_CPUID_NO_SIMD is the calibration knob. The lifter currently
+ * drops ~550 MMX instructions, so if a library takes an MMX path and produces
+ * garbage, build with -DRECOMP_CPUID_NO_SIMD=1 to force scalar fallbacks and
+ * A/B it. Default is off: report the CPU the game was actually built against,
+ * because inventing a CPU that never shipped exercises paths nobody tested.
+ */
+
+/* EDX feature bits for leaf 1 on a Coppermine P3:
+ *   0..9  FPU VME DE PSE TSC MSR PAE MCE CX8 APIC
+ *   11..17 SEP MTRR PGE MCA CMOV PAT PSE36
+ *   23    MMX      24 FXSR      25 SSE
+ * PSN (18) is left clear so the CPU-serial path is never taken.
+ * SSE2 (26) is clear - the P3 does not have it. */
+#define CPUID_P3_FEATURES_EDX  0x0383FBFFu
+#define CPUID_SIMD_BITS        ((1u << 23) | (1u << 24) | (1u << 25))
+
+void recomp_cpuid(void)
+{
+    uint32_t leaf = g_eax;
+    uint32_t edx  = CPUID_P3_FEATURES_EDX;
+
+#if defined(RECOMP_CPUID_NO_SIMD) && RECOMP_CPUID_NO_SIMD
+    edx &= ~CPUID_SIMD_BITS;    /* force scalar fallbacks */
+#endif
+
+    switch (leaf) {
+    case 0:                     /* max basic leaf + "GenuineIntel" */
+        g_eax = 2;
+        g_ebx = 0x756E6547u;    /* "Genu" */
+        g_edx = 0x49656E69u;    /* "ineI" */
+        g_ecx = 0x6C65746Eu;    /* "ntel" */
+        break;
+
+    case 1:                     /* signature + feature flags */
+        g_eax = 0x0000068Au;    /* family 6, model 8, stepping 10 */
+        g_ebx = 0;
+        g_ecx = 0;              /* no SSE3 or later */
+        g_edx = edx;
+        break;
+
+    case 2:                     /* cache descriptors - benign, 1 iteration */
+        g_eax = 0x00000001u;
+        g_ebx = 0;
+        g_ecx = 0;
+        g_edx = 0;
+        break;
+
+    default:
+        /* Includes every 0x8000xxxx leaf. A real P3 has no extended CPUID,
+         * so reporting 0 is both accurate and what blocks the 3DNow! path. */
+        g_eax = 0;
+        g_ebx = 0;
+        g_ecx = 0;
+        g_edx = 0;
+        break;
+    }
+
+#if defined(RECOMP_CPUID_PROBE) && RECOMP_CPUID_PROBE
+    fprintf(stderr, "[CPUID] leaf=0x%08X -> eax=0x%08X ebx=0x%08X "
+                    "ecx=0x%08X edx=0x%08X\n",
+            leaf, g_eax, g_ebx, g_ecx, g_edx);
+#endif
+}
+
 /* ── Manual function overrides ─────────────────────────────── */
 
 /*
@@ -180,7 +258,15 @@ static void sub_001A1C23(void)
  * here rather than in the generated recomp_funcs.h so the wiring
  * survives a regeneration.
  */
-extern void sub_002370B0(void);
+extern void sub_00227F50(void);
+extern void sub_00340CDE(void);
+extern void sub_00340D86(void);
+extern void sub_00343862(void);
+extern void sub_00346743(void);
+extern void sub_00349FAB(void);
+extern void sub_0034AA86(void);
+extern void sub_0034BB3A(void);
+extern void sub_003556E0(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -194,7 +280,15 @@ extern void sub_00345AB0(void);
 
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
-    if (xbox_va == 0x002370B0u) return sub_002370B0;
+    if (xbox_va == 0x00227F50u) return sub_00227F50;
+    if (xbox_va == 0x00340CDEu) return sub_00340CDE;
+    if (xbox_va == 0x00340D86u) return sub_00340D86;
+    if (xbox_va == 0x00343862u) return sub_00343862;
+    if (xbox_va == 0x00346743u) return sub_00346743;
+    if (xbox_va == 0x00349FABu) return sub_00349FAB;
+    if (xbox_va == 0x0034AA86u) return sub_0034AA86;
+    if (xbox_va == 0x0034BB3Au) return sub_0034BB3A;
+    if (xbox_va == 0x003556E0u) return sub_003556E0;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;
@@ -563,9 +657,153 @@ void sub_00ICALL_SAFE_NOOP(void)
  * Instead of crashing by calling 0, this sets g_eax to a safe no-op
  * function address so the caller can safely "call eax" without crashing.
  */
+/* ── Rejected-target histogram ───────────────────────────────── */
+
+/*
+ * The plausibility filter's [0x00400000, 0xFE000000) branch used to reject
+ * silently, so a spin could burn 80k calls without ever naming the target.
+ * Distinct targets are few in practice, so a linear table is plenty.
+ *
+ * ponytail: fixed 32 slots, linear scan. If a run ever overflows it the
+ * summary says so - swap for a hash map only if that actually happens.
+ */
+#define REJECT_SLOTS 32
+static struct { uint32_t va; uint64_t count; } g_reject[REJECT_SLOTS];
+static unsigned g_reject_used;
+static uint64_t g_reject_total, g_reject_dropped;
+
+void recomp_icall_reject_dump(void)
+{
+    if (!g_reject_total)
+        return;
+    fprintf(stderr, "\n[ICALL-REJECT] %llu call(s) rejected by the plausibility "
+                    "filter, %u distinct target(s):\n",
+            (unsigned long long)g_reject_total, g_reject_used);
+    for (unsigned i = 0; i < g_reject_used; i++)
+        fprintf(stderr, "    0x%08X  x%llu\n",
+                g_reject[i].va, (unsigned long long)g_reject[i].count);
+    if (g_reject_dropped)
+        fprintf(stderr, "    (%llu more from >%d distinct targets - table full)\n",
+                (unsigned long long)g_reject_dropped, REJECT_SLOTS);
+    fflush(stderr);
+}
+
+void recomp_icall_reject_log(uint32_t va)
+{
+    static int registered;
+    if (!registered) {          /* dump the summary however we exit */
+        registered = 1;
+        atexit(recomp_icall_reject_dump);
+    }
+    g_reject_total++;
+    for (unsigned i = 0; i < g_reject_used; i++) {
+        if (g_reject[i].va == va) {
+            g_reject[i].count++;
+            return;
+        }
+    }
+    if (g_reject_used < REJECT_SLOTS) {
+        g_reject[g_reject_used].va = va;
+        g_reject[g_reject_used].count = 1;
+        g_reject_used++;
+        /* First sighting is the useful one - print it with a backtrace hook. */
+        fprintf(stderr, "[ICALL-REJECT] new target 0x%08X (rejected #%llu)\n",
+                va, (unsigned long long)g_reject_total);
+        fflush(stderr);
+    } else {
+        g_reject_dropped++;
+    }
+}
+
+/* ── Unresolved-stub hit tracking ────────────────────────────── */
+
+/*
+ * recomp_stubs_unresolved.c holds ~3,200 empty bodies for mid-function
+ * addresses the disassembler never classified as functions. An empty body
+ * returns without running the rest of the real function - so any prologue
+ * pushes never get popped, and callee-saved registers are never restored.
+ *
+ * Knowing *which* stubs actually execute is the whole game: it turns "3,200
+ * possible culprits" into a short list. tools_data/trace_stubs.py rewrites the
+ * stub bodies to call this; --off restores them.
+ */
+#define STUB_SLOTS 64
+static struct { uint32_t va; uint64_t count; } g_stub[STUB_SLOTS];
+static unsigned g_stub_used;
+static uint64_t g_stub_total, g_stub_dropped;
+
+void recomp_stub_dump(void)
+{
+    if (!g_stub_total)
+        return;
+    fprintf(stderr, "\n[STUB-HIT] %llu call(s) into unresolved stubs, "
+                    "%u distinct:\n",
+            (unsigned long long)g_stub_total, g_stub_used);
+    for (unsigned i = 0; i < g_stub_used; i++)
+        fprintf(stderr, "    0x%08X  x%llu\n",
+                g_stub[i].va, (unsigned long long)g_stub[i].count);
+    if (g_stub_dropped)
+        fprintf(stderr, "    (%llu more beyond %d distinct - table full)\n",
+                (unsigned long long)g_stub_dropped, STUB_SLOTS);
+    fflush(stderr);
+}
+
+void recomp_stub_hit(uint32_t va)
+{
+    static int registered;
+    if (!registered) {
+        registered = 1;
+        atexit(recomp_stub_dump);
+    }
+    g_stub_total++;
+    for (unsigned i = 0; i < g_stub_used; i++) {
+        if (g_stub[i].va == va) {
+            g_stub[i].count++;
+            return;
+        }
+    }
+    if (g_stub_used < STUB_SLOTS) {
+        g_stub[g_stub_used].va = va;
+        g_stub[g_stub_used].count = 1;
+        g_stub_used++;
+        fprintf(stderr, "[STUB-HIT] first entry into 0x%08X (hit #%llu)\n",
+                va, (unsigned long long)g_stub_total);
+        fflush(stderr);
+    } else {
+        g_stub_dropped++;
+    }
+}
+
 void sub_00ICALL_SAFE_STUB(void)
 {
-    fprintf(stderr, "[SAFE_STUB] Called for bad ICALL target - redirecting to safe no-op\n");
-    fflush(stderr);
-    g_eax = (uint32_t)sub_00ICALL_SAFE_NOOP;  /* Redirect to safe no-op function */
+    /* Rate-limited: this used to fprintf+fflush on every call, which cost
+     * 80k flushes in a spin and buried the log. The histogram above carries
+     * the diagnostic value now. */
+    static uint64_t hits;
+    if (++hits <= 8 || (hits & 0xFFFFu) == 0) {
+        /* Carry the running indirect-call total. How much code actually
+         * executes is the signal that matters - the kernel-call count is a
+         * narrow proxy that stayed near-flat (54->58) while total icalls went
+         * 80 -> 60164. progress.py parses [ICALL-TOTAL]. */
+        fprintf(stderr, "[SAFE_STUB] bad ICALL target -> safe no-op (#%llu)"
+                        "  [ICALL-TOTAL] %llu\n",
+                (unsigned long long)hits,
+                (unsigned long long)g_icall_count);
+        fflush(stderr);
+    }
+    /* Return 0, not a host pointer.
+     *
+     * This used to be `g_eax = (uint32_t)sub_00ICALL_SAFE_NOOP`, truncating a
+     * 64-bit HOST function address into a 32-bit GUEST register. That value is
+     * meaningless as an Xbox VA, and - worse - it moves every time code layout
+     * shifts, so a build with one extra fprintf produced a different number.
+     * The plausibility filter in RECOMP_ICALL_SAFE then judged it differently
+     * build to build and the game took a different path: measured 58 kernel
+     * calls versus 40 from a logging-only change, which made every
+     * before/after comparison unreliable.
+     *
+     * 0 is deterministic, and the filter already rejects it explicitly
+     * (_va < 0x00010000), so a caller that does `call eax` lands back here
+     * instead of jumping somewhere layout-dependent. */
+    g_eax = 0;
 }
