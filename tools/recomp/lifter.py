@@ -1194,7 +1194,28 @@ class Lifter:
         # The callee's 'ret' will pop it back off.
         if insn.call_target:
             name = self._call_target_name(insn.call_target)
-            lines = [f"PUSH32(esp, 0); {name}(); /* call 0x{insn.call_target:08X} */"]
+            lines = []
+            # __SEH_epilog takes its frame from the GLOBAL g_seh_ebp, and every
+            # SEH function overwrites that global when its own prolog runs. So
+            # once an SEH function calls another one, the global names the
+            # INNER frame, and the outer epilog then restores ebx/esi/edi from
+            # the wrong place.
+            #
+            # Publish this function's own ebp first. The same thing is already
+            # done before tail jumps; the epilog call was simply missed - 0 of
+            # 58 sites synced. Measured cost of not doing it: __SEH_epilog
+            # handed back a garbage esi, which destroyed __cinit's constructor
+            # -table cursor and sent it walking the stack calling garbage
+            # (234 failed indirect calls, then a watchdog hang). With the sync,
+            # 6 failures and no hang.
+            #
+            # This is also why the [ebp-24] save-area fix for __SEH_epilog made
+            # things worse twice: it makes the epilog depend on ebp being
+            # right, and ebp was coming from the stale global.
+            if insn.call_target == self.SEH_EPILOG:
+                lines.append("g_seh_ebp = ebp; /* publish our frame for __SEH_epilog */")
+            lines.append(
+                f"PUSH32(esp, 0); {name}(); /* call 0x{insn.call_target:08X} */")
             # After __SEH_prolog/__SEH_epilog, read back the frame pointer.
             if insn.call_target in (self.SEH_PROLOG, self.SEH_EPILOG):
                 lines.append("ebp = g_seh_ebp; /* read back frame from SEH helper */")

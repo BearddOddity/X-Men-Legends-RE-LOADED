@@ -553,5 +553,19 @@
     "message": "Spin located: __cinit's constructor-table cursor is destroyed by sub_003556E0",
     "note": "Probed sub_001A1C23 step by step: steps 1-3 complete 381 times each; step 4 sub_001A3554 = XAPILIB___cinit enters 381 times and NEVER returns. It walks two ctor tables; table A (5 entries) is fine, table B (0x44A590..0x44B0A4, 709 entries) breaks. Probing the cursor after each ctor names the exact one: slot 0x0044A598 -> sub_003556E0, after which esi = 0x00F7FF0C, a STACK address instead of 0x0044A59C. esi is the callee-saved cursor, so the loop then walks the stack calling garbage - the ring buffer shows a clean cycle (0x20000000, 0xC71FEE10, then stack addresses climbing 0x20 per pass). Same class as the fall-through-edge bug: a callee not restoring a callee-saved register. sub_003556E0 itself never touches esi, and its immediate callees sub_000119E0 and sub_00340DE6 are both balanced, so the clobber is deeper - sub_00011800 is next. CORRECTION: I attributed the 381 nested startups to XapiBootToDash relaunching; the BootToDash stub was never hit (it is called directly, bypassing recomp_lookup_manual), so that was wrong - the recursion comes from __cinit. Stub kept as defence anyway.",
     "commit": "ffb054f"
+  },
+  {
+    "kernel_calls": 200,
+    "failed_icalls": 6,
+    "total_icalls": 307753,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 49,
+    "crash_in": "sub_001A01D3+0x8B1",
+    "fault_va": "0x7D6A9005",
+    "date": "2026-08-04",
+    "message": "Sync g_seh_ebp before __SEH_epilog: spin gone, failed icalls 234 -> 6",
+    "note": "Chain, each link probed not assumed: __cinit's ctor cursor (esi) is destroyed by ctor sub_003556E0. Bracketing its two calls showed sub_000119E0 clean (esi 0044A598 in and out) and sub_00340DE6 breaking it (esi -> 00F7FF0C, esp -68). sub_00340DE6 never touches esi; its callee sub_00340DAE is SEH-wrapped, and __SEH_epilog restores ebx/esi/edi by popping at a drifted esp. ROOT: __SEH_epilog reads its frame from the GLOBAL g_seh_ebp, and 0 of 58 call sites synced it first - the lifter emits 'g_seh_ebp = ebp;' before tail jumps but not before epilog calls, so a nested SEH function overwrites the global and the outer epilog restores from the WRONG frame. That also explains why the [ebp-24] save-area fix made things worse twice: it makes the epilog depend on ebp, which was stale. Synced all 58 sites. Result: hang GONE (now a definite crash), failed_icalls 234 -> 6, safe_stub 731 -> 12, kernel_calls held at 200. New crash sub_001A01D3+0x8B1 writing 0x7D6A9005, reached via sub_001A0B0C (RtlAllocateHeap) from __cinit. Corrections this session: sub_00011800 does NOT clobber esi (3 instructions, never touches it) and XapiBootToDash was NOT the recursion cause.",
+    "commit": "f9343f9"
   }
 ]
