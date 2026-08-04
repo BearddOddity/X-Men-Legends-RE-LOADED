@@ -64,9 +64,21 @@ def measure():
             if sym:
                 where = f"{sym['name']}+0x{sym['offset']:X}"
 
+    # How much code actually ran. The kernel-call count is a narrow proxy: it
+    # moved 54 -> 58 across the fall-through-edge fix while total indirect
+    # calls went 80 -> 60,164, i.e. ~750x more code executing. Tracking only
+    # the proxy made a large advance look like noise.
+    #
+    # Two sources: the running total the safe stub prints, and the
+    # "(total calls: N)" the ICALL failure log has always carried. Take the
+    # max, so an older stderr.txt still yields a number.
+    totals = [int(n) for n in re.findall(r"\[ICALL-TOTAL\] (\d+)", text)]
+    totals += [int(n) for n in re.findall(r"total calls: (\d+)", text)]
+
     return {
         "kernel_calls": len(re.findall(r"\[KERNEL\] #", text)),
         "failed_icalls": len(re.findall(r"Failed to resolve VA", text)),
+        "total_icalls": max(totals) if totals else None,
         "heap_allocs": len(re.findall(r"\[HEAP\] #", text)),
         "crash_in": where,
         "fault_va": (f"0x{crash['fault_va']:08X}"
@@ -92,17 +104,18 @@ def show(rows):
     if not rows:
         print("no entries yet - run: progress.py record -m \"...\"")
         return
-    print(f"{'date':<11} {'kern':>5} {'delta':>6} {'icall':>6}  "
+    print(f"{'date':<11} {'kern':>5} {'delta':>6} {'icall':>6} {'TOTAL':>9}  "
           f"{'commit':<8} what")
-    print("-" * 96)
+    print("-" * 106)
     prev = None
     for r in rows:
         k = r["kernel_calls"]
         delta = "" if prev is None else f"{k - prev:+d}"
-        # Early entries predate the failed-indirect-call metric; show "-"
-        # rather than inventing a zero.
+        # Early entries predate these metrics; show "-" rather than
+        # inventing a zero.
         ic = "-" if r.get("failed_icalls") is None else str(r["failed_icalls"])
-        print(f"{r['date']:<11} {k:>5} {delta:>6} {ic:>6}  "
+        tot = "-" if r.get("total_icalls") is None else f"{r['total_icalls']:,}"
+        print(f"{r['date']:<11} {k:>5} {delta:>6} {ic:>6} {tot:>9}  "
               f"{r.get('commit', ''):<8} {r['message']}")
         if r.get("note"):
             print(f"{'':<32}  ^ {r['note']}")
@@ -112,12 +125,20 @@ def show(rows):
         prev = k
     best = max(r["kernel_calls"] for r in rows)
     last = rows[-1]
-    print("-" * 96)
+    tots = [r["total_icalls"] for r in rows if r.get("total_icalls")]
+    best_tot = max(tots) if tots else None
+    print("-" * 106)
     print(f"best: {best} kernel calls   now: {last['kernel_calls']}   "
           f"failed indirect calls: {last['failed_icalls']}")
+    if best_tot:
+        cur_tot = last.get("total_icalls")
+        print(f"code executed (total indirect calls):  best {best_tot:,}   "
+              f"now {cur_tot:,}" if cur_tot else
+              f"code executed (total indirect calls):  best {best_tot:,}")
     if last["kernel_calls"] < best:
-        print("NOTE: current run is below the best ever. If that was a "
-              "deliberate trade, the note above should say why (Rule #1).")
+        print("NOTE: kernel calls are below the best ever - but that count is "
+              "a narrow proxy.\n      Check the total above before calling it "
+              "a regression (Rules #1, #8).")
 
 
 def improved(cur, prev):
@@ -129,6 +150,10 @@ def improved(cur, prev):
             and prev.get("failed_icalls") is not None
             and cur["failed_icalls"] < prev["failed_icalls"]):
         reasons.append(f"failed icalls {prev['failed_icalls']} -> {cur['failed_icalls']}")
+    # More code executing is progress even when the kernel-call proxy is flat.
+    if (cur.get("total_icalls") or 0) > (prev.get("total_icalls") or 0):
+        reasons.append(f"total icalls {prev.get('total_icalls')} -> "
+                       f"{cur.get('total_icalls')}")
     if (cur.get("heap_allocs") or 0) > (prev.get("heap_allocs") or 0):
         reasons.append(f"heap allocs {prev.get('heap_allocs')} -> {cur.get('heap_allocs')}")
     if cur.get("crash_in") and cur.get("crash_in") != prev.get("crash_in"):
