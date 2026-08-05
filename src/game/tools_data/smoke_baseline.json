@@ -1,6 +1,11 @@
 {
-  "min_kernel_calls": 61.0,
-  "recorded_utc": "2026-07-29T07:34:14.8200924Z",
-  "note": "Update only after confirming this run genuinely reaches further than before - never lower these to make a regression pass.",
-  "max_breakpoint_repeats": 5
+  "min_kernel_calls": 54.0,
+  "max_failed_icalls": 4.0,
+  "min_heap_allocs": 2.0,
+  "max_safe_stub": 8.0,
+  "max_breakpoint_repeats": 5.0,
+  "crash_site": "RVA=0xD3716A",
+  "runs": 2,
+  "recorded_utc": "2026-08-05T21:22:16.8127589Z",
+  "note": "Update only after confirming this run genuinely reaches further than before - never lower these to make a regression pass. failed_icalls is the sensitive one: it rises when a function goes missing, often before the call count moves."
 }

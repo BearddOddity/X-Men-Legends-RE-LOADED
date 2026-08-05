@@ -95,16 +95,40 @@ def extract_file(path):
 
         if any(line.lstrip().startswith(mk) for mk in MARKERS):
             start = i
-            # Consume the comment through its closing */ ...
-            while i < len(lines) and "*/" not in lines[i]:
+            while True:
+                # Consume the comment through its closing */ ...
+                while i < len(lines) and "*/" not in lines[i]:
+                    i += 1
                 i += 1
-            i += 1
-            # ...then the code lines it introduces, up to the first line that
-            # already exists in generated output. Generated statements are what
-            # we anchor on, so stop at the first line that is not obviously part
-            # of the inserted block.
-            while i < len(lines) and lines[i].strip() and _is_inserted(lines[i]):
-                i += 1
+                # ...then the code lines it introduces, up to the first line that
+                # already exists in generated output. Generated statements are what
+                # we anchor on, so stop at the first line that is not obviously part
+                # of the inserted block.
+                while i < len(lines) and lines[i].strip() and _is_inserted(lines[i]):
+                    i += 1
+                # Where does the next real line sit, and is it another guard?
+                j = i
+                while j < len(lines) and not lines[j].strip():
+                    j += 1
+                nxt_is_manual = (j < len(lines) and
+                                 any(lines[j].lstrip().startswith(mk)
+                                     for mk in MARKERS))
+                last = next((l for l in reversed(lines[start:i]) if l.strip()), "")
+                # COALESCE back-to-back guards into ONE record. Recording them
+                # separately anchors each to the other's comment text, and for a
+                # pair that is circular: neither can place in a fresh tree
+                # because each waits for the other. sub_001E8E20 (5 records) and
+                # sub_0020E520 (3) were unrestorable for exactly this reason -
+                # and because `apply` withholds any file with an unplaced edit,
+                # that silently discarded all 10 guards in recomp_0014.c.
+                #
+                # A block ending in `{` is a wrap: the following marker belongs
+                # inside the region it guards, so stop and let the wrap path
+                # take it.
+                if nxt_is_manual and not last.rstrip().endswith("{"):
+                    i = j
+                    continue
+                break
             block = lines[start:i]
             # Anchor on the first NON-BLANK line after the block. A blank line
             # is useless as an anchor (not unique, and falsy), and the blank
@@ -300,6 +324,63 @@ def _braces_balanced(lines):
     return depth == 0
 
 
+def _count_block(lines, lo, hi, block):
+    """How many times `block` appears verbatim inside [lo, hi)."""
+    b = [l.strip() for l in block]
+    n = len(b)
+    if not n:
+        return 0
+    stripped = [l.strip() for l in lines]
+    return sum(1 for i in range(lo, max(lo, hi - n + 1))
+               if stripped[i:i + n] == b)
+
+
+def _insert_quota(lines, edits):
+    """How many copies of each (function, block) still need inserting.
+
+    Positional idempotency cannot handle guards that are textually identical -
+    and many are, deliberately: sub_001E8E20 carries the same pointer-range
+    guard at four sites. _find_anchor picks A site, the "is my block just
+    above?" test looks at THAT site, and with several interchangeable copies
+    the answer is not reliable either way. Observed: with 4 recorded and 3 in
+    the tree, apply inserted 2 and left 5.
+
+    Counting sidesteps ordering entirely, and a count is also the only thing
+    that answers the question that matters - how many are MISSING. Insert
+    exactly the deficit and no more; whichever copy belongs to whichever
+    record is not a question worth asking.
+    """
+    groups = {}
+    for e in edits:
+        if e["kind"] not in ("insert_before", "wrap"):
+            continue
+        groups.setdefault((e.get("function"), tuple(e["block"])), []).append(e)
+    quota = {}
+    for key, group in groups.items():
+        fn, block = key
+        lo, hi = _function_span(lines, fn)
+        have = 0 if lo is None else _count_block(lines, lo, hi, list(block))
+        quota[key] = max(0, len(group) - have)
+    return quota
+
+
+def _moved_already(lines, e):
+    """Is this stub already replaced by its native implementation?
+
+    Exact-text idempotency is too brittle for these: all 67 moved-to-shim
+    records were re-worded in the tree ("(native PC implementation)" became
+    "- generated body removed so the hand-written definition links"), so the
+    text compare failed on the PROSE while the edit was fully in place. Key on
+    the symbol instead - the only thing that carries meaning here.
+    """
+    m = MOVED_RE.match(e["block"][0].strip())
+    if not m:
+        return False
+    sym = m.group(1)
+    return any(MOVED_RE.match(l.strip()) and MOVED_RE.match(l.strip()).group(1) == sym
+               for l in lines)
+
+
 def cmd_apply(args, dry_run=False):
     edits = json.load(open(args.store, encoding="utf-8"))
     placed, failed = 0, []
@@ -315,14 +396,29 @@ def cmd_apply(args, dry_run=False):
             failed.extend((e, "file missing") for e in file_edits)
             continue
         lines = open(path, encoding="utf-8", errors="ignore").read().split("\n")
+        # Computed once against the file as it arrives, before any insertion of
+        # ours can inflate the counts.
+        quota = _insert_quota(lines, file_edits)
 
         for e in file_edits:
+            # The count decides for insert_before/wrap, so the per-site
+            # positional idempotency checks below are bypassed for them - both
+            # answering the same question would let them disagree, and the
+            # count is the one that is right when copies are interchangeable.
+            counted = e["kind"] in ("insert_before", "wrap")
+            if counted:
+                key = (e.get("function"), tuple(e["block"]))
+                if quota.get(key, 0) <= 0:
+                    placed += 1          # already present the recorded number of times
+                    continue
+                quota[key] -= 1
+
             if e["kind"] == "replace_line":
                 pat = re.compile(e["match"])
                 hit = next((i for i, l in enumerate(lines) if pat.match(l.strip())), None)
                 if hit is None:
                     # Already applied is success, not failure.
-                    if e["block"][0] in lines:
+                    if e["block"][0] in lines or _moved_already(lines, e):
                         placed += 1
                     else:
                         failed.append((e, "no line matched"))
@@ -356,7 +452,7 @@ def cmd_apply(args, dry_run=False):
                 # silently drops it. (wrap does its own check below, once the
                 # enclosed run has located the site.)
                 n = len(e["block"])
-                if hit >= n and lines[hit - n:hit] == e["block"]:
+                if not counted and hit >= n and lines[hit - n:hit] == e["block"]:
                     placed += 1  # genuinely already applied at this site
                     continue
 
@@ -390,7 +486,7 @@ def cmd_apply(args, dry_run=False):
                     continue
                 # Idempotency, positionally: is the prefix already right above?
                 n = len(e["block"])
-                if hit >= n and lines[hit - n:hit] == e["block"]:
+                if not counted and hit >= n and lines[hit - n:hit] == e["block"]:
                     placed += 1
                     continue
                 # Insert the closing brace first: doing the opening first would
@@ -459,11 +555,26 @@ def cmd_apply(args, dry_run=False):
     verb = "would place" if dry_run else "placed"
     print(f"{verb} {placed}/{total} manual edits")
     if failed:
-        print(f"\nFAILED to place {len(failed)}:")
-        for e, why in failed[:20]:
-            print(f"  {e['file']} {e.get('function') or ''}: {why}")
-        if len(failed) > 20:
-            print(f"  ... and {len(failed)-20} more")
+        # "Failed to place" is two different things and reporting them as one
+        # number is why the loss was mis-sized twice. Split on whether the
+        # guard is actually in the tree.
+        gone = [(e, why) for e, why in failed
+                if _marker_present(args.gen_dir, e) is False]
+        noise = [(e, why) for e, why in failed if (e, why) not in gone]
+        print(f"\nFAILED to place {len(failed)}: "
+              f"{len(gone)} MISSING from the tree, "
+              f"{len(noise)} already present (re-run artefact)")
+        if gone:
+            print("\nMISSING - these guards are not in gen/ and are the worklist:")
+            for e, why in gone:
+                print(f"  {e['file']} {e.get('function') or ''} "
+                      f"[{e['kind']}]: {why}")
+        if noise:
+            print(f"\nalready present, anchor context moved ({len(noise)}):")
+            for e, why in noise[:10]:
+                print(f"  {e['file']} {e.get('function') or ''}: {why}")
+            if len(noise) > 10:
+                print(f"  ... and {len(noise)-10} more")
         print("\nRefusing to treat this as a successful restore.")
         return 1
     return 0
@@ -472,6 +583,15 @@ def cmd_apply(args, dry_run=False):
 _ICALL_TARGET_RE = re.compile(
     r"uint32_t _icall_target = (?P<t>.+?);\s*PUSH32\(esp, 0\);\s*"
     r"RECOMP_ICALL_SAFE\(_icall_target,")
+
+# Direct calls used to be emitted bare and are now routed through the ABI
+# wrapper: `sub_00119900();` became `RECOMP_ABI_CALL(sub_00119900);`. Every
+# `wrapped` run recorded before that change carries the old spelling, and
+# _match_run compares the run line by line, so ONE re-spelled call line makes
+# the whole run miss and the wrapping guard drops. That is what silently lost
+# all 18 "dependency type" D3D-null guards - the guards were fine, the
+# recording was written against a spelling the generator no longer emits.
+_ABI_CALL_RE = re.compile(r"RECOMP_ABI_CALL\((?P<f>sub_[0-9A-Fa-f]+)\)")
 
 
 def _normalise(line):
@@ -487,12 +607,15 @@ def _normalise(line):
         RECOMP_ICALL_SAFE(_icall_target, _icall_esp);
 
     Both spellings normalise to the same string so an edit anchored to either
-    still matches.
+    still matches. Direct calls get the same treatment - see _ABI_CALL_RE.
     """
     s = " ".join(line.split())
     m = _ICALL_TARGET_RE.search(s)
     if m:
         s = _ICALL_TARGET_RE.sub(f"RECOMP_ICALL_SAFE({m.group('t')},", s)
+    # Normalise towards the OLD bare-call spelling, which is what the stored
+    # records hold. Direction does not matter as long as both sides agree.
+    s = _ABI_CALL_RE.sub(lambda mm: f"{mm.group('f')}()", s)
     return s
 
 
@@ -592,6 +715,35 @@ def _function_span(lines, name):
         return None, None
     end = next((i for i in range(start + 1, len(lines)) if FUNC_RE.match(lines[i])), len(lines))
     return start, end
+
+
+def _marker_present(gen_dir, e):
+    """Is this edit's marker comment already inside its function in the tree?
+
+    An anchor-based failure is ambiguous on its own. Re-running against an
+    already-edited tree makes an edit that IS correctly in place report as
+    failed, because the line preceding its anchor is now its own block, so the
+    disambiguating context no longer matches. That artefact is what made the
+    85 failures look like 85 losses.
+
+    This answers the only question that matters - is the guard in the tree or
+    not - by looking for the marker comment itself, which no anchor logic
+    touches. A failure whose marker is present is noise; one whose marker is
+    absent is a real, load-bearing guard that is gone.
+    """
+    mark = next((l for l in (e.get("block") or [])
+                 if any(l.lstrip().startswith(mk) for mk in MARKERS)), None)
+    if mark is None:
+        return None          # nothing to look for - cannot classify
+    try:
+        lines = open(os.path.join(gen_dir, e["file"]),
+                     encoding="utf-8", errors="ignore").read().split("\n")
+    except OSError:
+        return False
+    lo, hi = _function_span(lines, e.get("function") or None)
+    if lo is None:
+        return False         # function itself is missing, so the guard is too
+    return mark in lines[lo:hi]
 
 
 def main():

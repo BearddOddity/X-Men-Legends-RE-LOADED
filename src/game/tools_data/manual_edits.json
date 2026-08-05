@@ -53,7 +53,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00119900(); /* call 0x00119900 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00119900); /* call 0x00119900 */",
    "",
    "loc_001198EF: ;",
    "    esp = esp + 8;"
@@ -90,7 +90,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00119A00(); /* call 0x00119A00 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00119A00); /* call 0x00119A00 */",
    "",
    "loc_001199EF: ;",
    "    esp = esp + 8;"
@@ -127,7 +127,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0011BDE0(); /* call 0x0011BDE0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0011BDE0); /* call 0x0011BDE0 */",
    "",
    "loc_0011BECF: ;",
    "    esp = esp + 8;"
@@ -164,7 +164,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0011D2C0(); /* call 0x0011D2C0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0011D2C0); /* call 0x0011D2C0 */",
    "",
    "loc_0011D4AF: ;",
    "    esp = esp + 8;"
@@ -201,7 +201,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0011D370(); /* call 0x0011D370 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0011D370); /* call 0x0011D370 */",
    "",
    "loc_0011D4FF: ;",
    "    esp = esp + 8;"
@@ -279,7 +279,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00124010(); /* call 0x00124010 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00124010); /* call 0x00124010 */",
    "",
    "loc_001241CF: ;",
    "    esp = esp + 8;"
@@ -316,7 +316,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00146870(); /* call 0x00146870 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00146870); /* call 0x00146870 */",
    "",
    "loc_00146A9F: ;",
    "    esp = esp + 8;"
@@ -353,7 +353,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00147F60(); /* call 0x00147F60 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00147F60); /* call 0x00147F60 */",
    "",
    "loc_0014856F: ;",
    "    esp = esp + 8;"
@@ -390,7 +390,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00148010(); /* call 0x00148010 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00148010); /* call 0x00148010 */",
    "",
    "loc_001485BF: ;",
    "    esp = esp + 8;"
@@ -427,7 +427,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B2B0(); /* call 0x0014B2B0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B2B0); /* call 0x0014B2B0 */",
    "",
    "loc_0014B99F: ;",
    "    esp = esp + 8;"
@@ -464,7 +464,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B360(); /* call 0x0014B360 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B360); /* call 0x0014B360 */",
    "",
    "loc_0014B9EF: ;",
    "    esp = esp + 8;"
@@ -501,7 +501,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B410(); /* call 0x0014B410 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B410); /* call 0x0014B410 */",
    "",
    "loc_0014BA3F: ;",
    "    esp = esp + 8;"
@@ -538,7 +538,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B4C0(); /* call 0x0014B4C0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B4C0); /* call 0x0014B4C0 */",
    "",
    "loc_0014BA8F: ;",
    "    esp = esp + 8;"
@@ -575,7 +575,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014ABB0(); /* call 0x0014ABB0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014ABB0); /* call 0x0014ABB0 */",
    "",
    "loc_0014BADF: ;",
    "    esp = esp + 8;"
@@ -612,7 +612,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B570(); /* call 0x0014B570 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B570); /* call 0x0014B570 */",
    "",
    "loc_0014BB2F: ;",
    "    esp = esp + 8;"
@@ -649,7 +649,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_0014B620(); /* call 0x0014B620 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_0014B620); /* call 0x0014B620 */",
    "",
    "loc_0014BB7F: ;",
    "    esp = esp + 8;"
@@ -686,7 +686,7 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00193FC0(); /* call 0x00193FC0 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00193FC0); /* call 0x00193FC0 */",
    "",
    "loc_001942CF: ;",
    "    esp = esp + 8;"
@@ -723,31 +723,11 @@
   "wrapped": [
    "    PUSH32(esp, eax);",
    "    PUSH32(esp, esi);",
-   "    PUSH32(esp, 0); sub_00194070(); /* call 0x00194070 */",
+   "    PUSH32(esp, 0); RECOMP_ABI_CALL(sub_00194070); /* call 0x00194070 */",
    "",
    "loc_0019431F: ;",
    "    esp = esp + 8;"
   ]
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_0019F765: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_0019F765\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
- },
- {
-  "file": "recomp_0011.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_001A016A: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_001A016A\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
  },
  {
   "file": "recomp_0011.c",
@@ -926,84 +906,44 @@
    "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
    "     * check only validates its own argument's VALUE, not whether reading",
    "     * it was safe. Validate eax the same way before using it. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86) - see the identical guard at",
-  "pre": "    eax = MEM32(esi);"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;",
    "    /* Manual guard (not in original x86) - see the identical guard at",
    "     * loc_001E8E41 above. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86): esi passed the pointer-range",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;",
    "    /* Manual guard (not in original x86): esi passed the pointer-range",
    "     * check above but the DATA stored there (a \"vtable\"-ish pointer) can",
    "     * still be garbage - MEM32(eax + 0x78) below would fault natively",
    "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
    "     * check only validates its own argument's VALUE, not whether reading",
    "     * it was safe. Validate eax the same way before using it. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86) - see the identical guard at",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;",
    "    /* Manual guard (not in original x86) - see the identical guard at",
    "     * loc_001E8E41 above. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86): esi passed the pointer-range",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;",
    "    /* Manual guard (not in original x86): esi passed the pointer-range",
    "     * check above but the DATA stored there (a \"vtable\"-ish pointer) can",
    "     * still be garbage - MEM32(eax + 0x78) below would fault natively",
    "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
    "     * check only validates its own argument's VALUE, not whether reading",
    "     * it was safe. Validate eax the same way before using it. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86) - see the identical guard at",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;",
+   "    /* Manual guard (not in original x86) - see the identical guard at",
+   "     * loc_001E8E41 above. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;",
+   "    /* Manual guard (not in original x86): esi passed the pointer-range",
+   "     * check above but the DATA stored there (a \"vtable\"-ish pointer) can",
+   "     * still be garbage - MEM32(eax + 0x78) below would fault natively",
+   "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
+   "     * check only validates its own argument's VALUE, not whether reading",
+   "     * it was safe. Validate eax the same way before using it. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;",
    "    /* Manual guard (not in original x86) - see the identical guard at",
    "     * loc_001E8E41 above. */",
    "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
   ],
   "match": null,
   "anchor": "    ecx = esi;",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
+  "pre": "    eax = MEM32(esi);"
  },
  {
   "file": "recomp_0014.c",
@@ -1018,36 +958,6 @@
   "match": null,
   "anchor": "loc_001E8E7F: ;",
   "pre": "    if (TEST_Z(esi, esi)) goto loc_001E8E99; /* je: equal / zero */"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
-   "    /* Manual guard (not in original x86): esi passed the pointer-range",
-   "     * check above but the DATA stored there (a \"vtable\"-ish pointer) can",
-   "     * still be garbage - MEM32(eax + 0x78) below would fault natively",
-   "     * before RECOMP_ICALL_SAFE's own bounds check even runs, since that",
-   "     * check only validates its own argument's VALUE, not whether reading",
-   "     * it was safe. Validate eax the same way before using it. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86) - see the identical guard at",
-  "pre": "    eax = MEM32(esi);"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "insert_before",
-  "function": "sub_001E8E20",
-  "block": [
-   "    /* Manual guard (not in original x86) - see the identical guard at",
-   "     * loc_001E8E41 above. */",
-   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E99;"
-  ],
-  "match": null,
-  "anchor": "    ecx = esi;",
-  "pre": "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E8E5B;"
  },
  {
   "file": "recomp_0014.c",
@@ -1078,26 +988,6 @@
   "match": null,
   "anchor": "    eax = MEM32(eax + 0x38);",
   "pre": "loc_001F75BA: ;"
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_001F84D0: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_001F84D0\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
- },
- {
-  "file": "recomp_0014.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_001F8890: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_001F8890\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
  },
  {
   "file": "recomp_0015.c",
@@ -1218,16 +1108,6 @@
  },
  {
   "file": "recomp_0015.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_002085CA: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_002085CA\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
- },
- {
-  "file": "recomp_0015.c",
   "kind": "insert_before",
   "function": "sub_00209650",
   "block": [
@@ -1257,65 +1137,31 @@
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "    PUSH32(esp, edi);"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_00209650",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_00209650",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
+   "    /* Manual fix (not in original x86): _icall_esp captured below the",
+   "     * callee-saved push of esi, which are register saves (the",
+   "     * epilogue pops them), not call arguments. With the save point above",
+   "     * them, a failed ICALL rolled esp back past the saves and left it",
+   "     * 4 bytes high for the rest of the function. Applied by",
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of edi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_00209650",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_00209650",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of edi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
@@ -1325,7 +1171,7 @@
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0015.c",
@@ -1389,47 +1235,17 @@
    "     * If the caller passes a garbage pointer (corrupted by stack escape or",
    "     * bad ICALL return), validate it before dereferencing at esi+0x3C below.",
    "     * Heap range per xbox_memory_layout.h. */",
-   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86): esi gets the ICALL return value here.",
-  "pre": "    esi = ecx;"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_0020E520",
-  "block": [
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }",
    "    /* Manual guard (not in original x86): esi gets the ICALL return value here.",
    "     * If the ICALL target was corrupted (float bit pattern, null, or garbage),",
    "     * the return value can be an invalid pointer. Validate before using it",
    "     * to read MEM32(esi + 0x3C) below. Heap range per xbox_memory_layout.h. */",
-   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86): esi gets the 'this' pointer from ecx.",
-  "pre": "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_0020E520",
-  "block": [
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }",
    "    /* Manual guard (not in original x86): esi gets the 'this' pointer from ecx.",
    "     * If the caller passes a garbage pointer (corrupted by stack escape or",
    "     * bad ICALL return), validate it before dereferencing at esi+0x3C below.",
    "     * Heap range per xbox_memory_layout.h. */",
-   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
-  ],
-  "match": null,
-  "anchor": "    /* Manual guard (not in original x86): esi gets the ICALL return value here.",
-  "pre": "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
- },
- {
-  "file": "recomp_0015.c",
-  "kind": "insert_before",
-  "function": "sub_0020E520",
-  "block": [
+   "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }",
    "    /* Manual guard (not in original x86): esi gets the ICALL return value here.",
    "     * If the ICALL target was corrupted (float bit pattern, null, or garbage),",
    "     * the return value can be an invalid pointer. Validate before using it",
@@ -1438,7 +1254,7 @@
   ],
   "match": null,
   "anchor": "    eax = MEM32(esi + 0x3C);",
-  "pre": "    if (!(esi >= 0x00880000u && esi < 0x04000000u)) { esi = 0; }"
+  "pre": "    esi = ecx;"
  },
  {
   "file": "recomp_0015.c",
@@ -1569,49 +1385,19 @@
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 16 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "    PUSH32(esp, edi);"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved pushes of ebx, ebp, esi, edi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 16 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_002235D0",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
@@ -1621,7 +1407,7 @@
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0016.c",
@@ -1665,49 +1451,19 @@
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 8 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "    PUSH32(esp, edi);"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_00236500",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 4 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_00236500",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved pushes of esi, edi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
    "     * them, a failed ICALL rolled esp back past the saves and left it",
    "     * 8 bytes high for the rest of the function. Applied by",
-   "     * tools_data/find_icall_esp_saves.py --fix. */"
-  ],
-  "match": null,
-  "anchor": "    /* Manual fix (not in original x86): _icall_esp captured below the",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
- },
- {
-  "file": "recomp_0016.c",
-  "kind": "insert_before",
-  "function": "sub_00236500",
-  "block": [
+   "     * tools_data/find_icall_esp_saves.py --fix. */",
    "    /* Manual fix (not in original x86): _icall_esp captured below the",
    "     * callee-saved push of esi, which are register saves (the",
    "     * epilogue pops them), not call arguments. With the save point above",
@@ -1717,7 +1473,7 @@
   ],
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
-  "pre": "     * tools_data/find_icall_esp_saves.py --fix. */"
+  "pre": "    PUSH32(esp, edi);"
  },
  {
   "file": "recomp_0016.c",
@@ -1778,6 +1534,56 @@
   "match": null,
   "anchor": "    PUSH32(esp, ebp);",
   "pre": "loc_003433B1: ;"
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0019F765: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_0019F765\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0011.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001A016A: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001A016A\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001F84D0: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001F84D0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001F8890: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001F8890\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_002085CA: moved to src/recomp_manual.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_002085CA\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  },
  {
   "file": "recomp_0025.c",

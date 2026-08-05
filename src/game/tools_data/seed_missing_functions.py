@@ -134,9 +134,13 @@ def containing_function(va, known):
     one byte apart, i.e. scan artefacts.
 
     The lifter already handles genuine mid-function entry points by splitting
-    the function into fragments. When one of these turns up unresolved it means
-    the split did not happen, and the fix belongs in the lifter - not in a
-    fabricated seed.
+    the function into fragments - but ONLY for addresses that translated code
+    references. A mid-function address reached only from a *seeded* body is
+    invisible to it, because seeded bodies are generated in a second pass the
+    lifter never sees. Those fall through every net: not seeded, not promoted,
+    not stubbed, and the link fails on them (observed: 80 LNK2019 from
+    recomp_seed.c). Callers emit a fragment for that case, which needs the
+    owner's END, so return the whole record rather than just its start.
     """
     best = None
     for f in known:
@@ -146,8 +150,8 @@ def containing_function(va, known):
             continue
         end = int(end_s, 16) if isinstance(end_s, str) else end_s
         if start < va < end:
-            if best is None or start > best:
-                best = start
+            if best is None or start > int(best["start"], 16):
+                best = f
     return best
 
 
@@ -252,8 +256,29 @@ def main(argv):
             continue
         owner = containing_function(va, known)
         if owner is not None:
-            skipped.append((va, "mid-function: +0x%X into sub_%08X - the lifter "
-                                "should split, not the seeder" % (va - owner, owner)))
+            # A mid-function address is a FRAGMENT, not a fabricated function.
+            # Skipping it was right about the diagnosis and wrong about the
+            # remedy: nothing downstream picks these up when the only caller is
+            # a seeded body, so the address simply never gets defined.
+            #
+            # Do what the lifter's own promotion does - run from the target to
+            # the OWNER's end, which is knowable here, instead of scanning for
+            # whatever `ret` turns up first (that guess is what made these
+            # never resolve). It inherits a half-built frame from the code that
+            # fell into it, so no prologue.
+            owner_start = int(owner["start"], 16)
+            owner_end = owner.get("end")
+            owner_end = (int(owner_end, 16) if isinstance(owner_end, str)
+                         else owner_end)
+            entries.append({
+                "start": f"0x{va:08X}", "end": f"0x{owner_end:08X}",
+                "size": owner_end - va, "name": f"sub_{va:08X}",
+                "section": ".text", "confidence": 0.8,
+                "detection_method": "seeded_fragment_of_%08X" % owner_start,
+                "num_instructions": 0, "has_prologue": False,
+                "frame_type": "fpo_leaf",
+                "calls_to": [], "called_by": [],
+            })
             continue
         end = function_extent(md, data, text, va)
         if end is None:
@@ -344,6 +369,33 @@ def main(argv):
         print(f"  carrying forward {len(carried)} previously seeded function(s)")
     bodies = carried + bodies
 
+    # Close the reference graph BEFORE writing, because the orphan
+    # declarations have to go in the forward-declaration block at the top.
+    #
+    # A seeded body can call an address that nothing defines: the generator only
+    # stubs what TRANSLATED code references, and it never sees these bodies.
+    # Seeding a fragment is preferred and handled above, but some targets have
+    # no decodable body at all (no terminating ret - scan artefacts pointing at
+    # data). Those are simply undefined and the link fails on them (that was
+    # LNK2019 x7 from recomp_seed.c).
+    #
+    # Declaring them LATE does not work: `RECOMP_ABI_CALL(sub_X)` expands to a
+    # call, so an undeclared sub_X gets an implicit `int sub_X()` at the call
+    # site and the definition below then collides - C2371, "redefinition;
+    # different basic types", 42 of them.
+    called = set()
+    for _, code in bodies:
+        called.update(re.findall(r"RECOMP_ABI_CALL\((sub_[0-9A-Fa-f]+)\)", code))
+        called.update(re.findall(r"\b(sub_[0-9A-Fa-f]+)\(\);", code))
+    defined = {name for name, _ in bodies}
+    try:
+        header = open(os.path.join(GEN_DIR, "recomp_funcs.h"),
+                      encoding="utf-8", errors="replace").read()
+        defined.update(re.findall(r"\b(sub_[0-9A-Fa-f]+)\s*\(", header))
+    except OSError:
+        pass
+    orphans = sorted(called - defined)
+
     with open(SEED_C, "w", encoding="utf-8", newline="") as f:
         f.write("/**\n"
                 " * Functions the disassembler never discovered.\n"
@@ -363,10 +415,26 @@ def main(argv):
                 "#include <math.h>\n\n")
         for name, code in bodies:
             f.write(f"void {name}(void);\n")
+        for name in orphans:
+            f.write(f"void {name}(void);\n")
         f.write("\n")
         for name, code in bodies:
             f.write(code.rstrip() + "\n\n")
+
+        # `g_esp += 4` is not decoration: the call site pushed a fake return
+        # address that the callee owes a pop, so an EMPTY body leaks 4 bytes of
+        # simulated stack per call. Same body the generator's own stub file
+        # emits - see recomp_stubs_unresolved.c.
+        if orphans:
+            f.write("/* Call targets with no decodable body. Each pops the fake\n"
+                    " * return address and nothing else. */\n")
+            for name in orphans:
+                f.write(f"void {name}(void) {{ g_esp += 4; "
+                        f"/* {name}: no body found */ }}\n")
     print(f"\nwrote {SEED_C}")
+    if orphans:
+        print(f"  stubbed {len(orphans)} unresolvable call target(s): "
+              f"{', '.join(orphans)}")
 
     if args.record:
         # Sorted, so the same set always produces the same file. This is the
