@@ -44,6 +44,27 @@
 #include <stddef.h>
 #include <string.h>
 
+/* Thread-local qualifier for the simulated register file.
+ *
+ * The x86 register file belongs to a CPU thread, not to a process. Modelling
+ * it as plain globals was only correct while the port had a single thread of
+ * execution - which it did, because PsCreateSystemThreadEx ran every start
+ * routine synchronously. Real threads are impossible until this is per-thread:
+ * two threads sharing g_esp corrupt each other on the first push.
+ *
+ * EVERY declaration of these must carry the qualifier. main.c used to declare
+ * its own copies without it; MSVC accepts the mismatch across translation
+ * units and silently resolves the reference to the image's read-only TLS
+ * template, so the first write faulted. That cost a full revert cycle.
+ */
+#ifndef RECOMP_TLS
+#if defined(_MSC_VER)
+#define RECOMP_TLS __declspec(thread)
+#else
+#define RECOMP_TLS _Thread_local
+#endif
+#endif
+
 /* MSVC's __forceinline -> gcc/clang equivalent on POSIX. */
 #if !defined(_MSC_VER) && !defined(__forceinline)
 #define __forceinline inline __attribute__((always_inline))
@@ -88,8 +109,8 @@ extern ptrdiff_t g_xbox_mem_offset;
  * NOT global: ebp - stays local in each function because FPO
  * functions use it as scratch. For SEH, g_seh_ebp bridges the gap.
  */
-extern uint32_t g_eax, g_ecx, g_edx, g_esp;
-extern uint32_t g_ebx, g_esi, g_edi;
+extern RECOMP_TLS uint32_t g_eax, g_ecx, g_edx, g_esp;
+extern RECOMP_TLS uint32_t g_ebx, g_esi, g_edi;
 
 /**
  * x87 stack. Global because the FPU is a machine resource, not a per-frame
@@ -99,8 +120,8 @@ extern uint32_t g_ebx, g_esi, g_edi;
  *
  * g_fp_top is the TOP field: 0 after finit, predecremented on push.
  */
-extern double g_fp_stack[8];
-extern int    g_fp_top;
+extern RECOMP_TLS double g_fp_stack[8];
+extern RECOMP_TLS int    g_fp_top;
 
 /**
  * x87 control word. Stored so the save/set/restore idiom around fistp
@@ -108,7 +129,7 @@ extern int    g_fp_top;
  * fist/fistp use C's truncate-toward-zero, which is the mode that idiom
  * selects anyway. 0x037F is the value after finit.
  */
-extern uint16_t g_fp_cw;
+extern RECOMP_TLS uint16_t g_fp_cw;
 
 /**
  * SEH frame pointer bridge.
@@ -118,7 +139,7 @@ extern uint16_t g_fp_cw;
  * The prolog writes g_seh_ebp, and the caller reads it after the call.
  * Similarly, __SEH_epilog reads g_seh_ebp at entry and writes it at exit.
  */
-extern uint32_t g_seh_ebp;
+extern RECOMP_TLS uint32_t g_seh_ebp;
 
 /* ================================================================
  * ICALL trace ring buffer (for debugging indirect calls)

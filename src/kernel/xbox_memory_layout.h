@@ -124,6 +124,27 @@ ptrdiff_t xbox_GetMemoryOffset(void);
 #define KDATA_ALT_SIGNATURE_KEYS 0x130 /* XboxAlternateSignatureKeys (256 bytes) */
 #define KDATA_XE_PUBLIC_KEY     0x300  /* XePublicKeyData (284 bytes) */
 
+/* Thread-local qualifier for the simulated register file.
+ *
+ * The x86 register file belongs to a CPU thread, not to a process. Modelling
+ * it as plain globals was only correct while the port had a single thread of
+ * execution - which it did, because PsCreateSystemThreadEx ran every start
+ * routine synchronously. Real threads are impossible until this is per-thread:
+ * two threads sharing g_esp corrupt each other on the first push.
+ *
+ * EVERY declaration of these must carry the qualifier. main.c used to declare
+ * its own copies without it; MSVC accepts the mismatch across translation
+ * units and silently resolves the reference to the image's read-only TLS
+ * template, so the first write faulted. That cost a full revert cycle.
+ */
+#ifndef RECOMP_TLS
+#if defined(_MSC_VER)
+#define RECOMP_TLS __declspec(thread)
+#else
+#define RECOMP_TLS _Thread_local
+#endif
+#endif
+
 /** Size of the simulated Xbox stack (8 MB).
  *  Increased from 1 MB because failed RECOMP_ICALL indirect calls
  *  can leak stdcall args onto the stack each frame. An 8 MB stack

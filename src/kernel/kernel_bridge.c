@@ -31,9 +31,12 @@
 #include <float.h>
 
 /* Access to recompiled code globals */
-extern uint32_t g_eax, g_ecx, g_edx, g_esp;
-extern uint32_t g_ebx, g_esi, g_edi;
-extern uint32_t g_seh_ebp;
+/* RECOMP_TLS must match the definition in xbox_memory_layout.c. A plain
+ * `extern uint32_t` here compiles and links, then resolves to the image's
+ * read-only TLS template and faults on the first write. */
+extern RECOMP_TLS uint32_t g_eax, g_ecx, g_edx, g_esp;
+extern RECOMP_TLS uint32_t g_ebx, g_esi, g_edi;
+extern RECOMP_TLS uint32_t g_seh_ebp;
 extern ptrdiff_t g_xbox_mem_offset;
 
 /* Dispatch table lookup (for function pointer args) */
