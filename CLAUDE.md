@@ -317,18 +317,49 @@ Boot progress is in `src/game/tools_data/progress.json`; the full investigation
 log is `src/game/DEBUGGING_NOTES.md`. Read `progress.py` output before reporting
 status — never from recollection.
 
-**Current live thread (as of the `native-threads-and-memory` branch):** the
-boot hangs in an infinite recursion inside Alchemy's `igMetaObject`
-registration - traced to `PsCreateSystemThreadEx` running thread start
-routines *synchronously* instead of as real threads, so a thread created
-during startup re-enters startup instead of running concurrently (71 nested
-entries measured). Fixing this needs per-thread register state + per-thread
+**Current live thread:** the boot dies in an infinite recursion inside
+Alchemy's `igMetaObject` registration.
+
+**The synchronous-thread explanation for it is STALE — measured 2026-08-05.**
+That theory rested on 71 nested `PsCreateSystemThreadEx` entries, measured in
+the 56-call tree. In the current tree the game creates **exactly one** thread
+before dying (`grep -c "PsCreateSystemThreadEx #" stderr.txt` → 1), so nothing
+is re-entering anything. The recursion is single-threaded and needs its own
+explanation.
+
+What is established about it:
+- A clean 4-function cycle, ~36 dwords of guest stack per lap, until `esp`
+  walks off the 8 MB stack (`esp = 0xFFFFFF88` at the fault).
+- The entry test is **faithfully lifted** - the raw XBE bytes at `0x002226E0`
+  decode to exactly `mov eax,[0x5BC508]; cmp byte [eax],0; je 0x222708`, which
+  is what `gen/` contains. The lifter is not at fault here.
+- `[0x5BC508]` is a 928-byte (`0x3A0`) singleton allocated and constructed by
+  `sub_00239E50` → `sub_003437F3` (operator new) → `sub_002154F0` (ctor). It is
+  a valid heap object at `0x00F81288`.
+- Its first four bytes are `0x003F4770`, a `.rdata` address - i.e. a **vtable
+  pointer**, so `cmp byte [eax],0` reads `0x70` and can never be zero. Real
+  hardware would see a vtable byte there too, so **the recursive path is the
+  normal path** and the early-out was never the terminator.
+
+So the open question is what terminates the cycle on hardware. Next step is to
+trace the termination condition through `sub_00209650` (which receives
+`0x2221E0` as a callback), `sub_002221E0`, and `sub_002235D0` - not to build
+more thread infrastructure. Fixing this needs per-thread register state + per-thread
 stack/SEH + actual OS threads for `PsCreateSystemThreadEx` - which is why
 `native-threads-and-memory` exists.
 
-**No longer blocked.** As of 2026-08-05 `gen/` reproduces, and the tree carries
-the thread-local register file plus the `fs:` indirection that per-thread TIBs
-need. The remaining work is entirely in hand-written code under `src/`:
+**No longer blocked, but no longer urgent either** — see the stale-premise note
+above: the current crash happens with one thread, so real threads are not what
+unblocks the boot. Keep this list for when a second thread actually gets
+created; do not treat it as the critical path.
+
+As of 2026-08-05 `gen/` reproduces, the tree carries the thread-local register
+file plus the `fs:` indirection per-thread TIBs need, and **critical sections
+are now real locks** rather than no-ops (`kernel_rtl.c`: a shadow map keyed on
+the guest VA masked to 64 MB, so the 28 RAM mirror views cannot hand two
+threads two different locks for one section). Verified neutral single-threaded:
+54/4/2/8, with 13 Enters and 13 Leaves perfectly balanced and no unbalanced
+release detected. The rest is:
 
 1. Allocate a guest TIB per thread and set `g_fs_base` per thread — this
    activates the 2,743 lifted `fs:` sites, which are inert only because the
