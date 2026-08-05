@@ -341,10 +341,53 @@ What is established about it:
   hardware would see a vtable byte there too, so **the recursive path is the
   normal path** and the early-out was never the terminator.
 
-So the open question is what terminates the cycle on hardware. Next step is to
-trace the termination condition through `sub_00209650` (which receives
-`0x2221E0` as a callback), `sub_002221E0`, and `sub_002235D0` - not to build
-more thread infrastructure. Fixing this needs per-thread register state + per-thread
+**The cycle is now fully mapped** (2026-08-05), and the terminator is known:
+
+```
+sub_002226E0+142 -> sub_00209650+276 -> sub_002221E0+281 -> sub_002235D0+1138 -> back
+```
+
+Those are **native** offsets into compiled C, which is much larger than the
+original x86 - `sub_002221E0` is 0x33 bytes of x86 but 304 native bytes, so
+"+281" is inside it. Resolve with `triage_crash.symbolise`, and do not
+"correct" these to x86 sizes.
+
+- `sub_002221E0` registers one class: the name at `0x3F9734` reads
+  **"igMetaObject"**, the root metaclass, size `0x64`.
+- `sub_002235D0` is the registrar. Its guard at source line 21409 -
+  `if (MEM32(ebx) != 0) goto loc_00223698` - is **correct and cannot help**:
+  the slot is written at line 21463, *after* the recursive call at 21459.
+- `sub_002226E0` is the gate: `if (MEM8(MEM32(0x5BC508)) == 0)` tail-calls
+  `sub_00222708`, which allocates `0x64` bytes, installs a vtable and returns
+  with **no recursion**. That gate firing is what terminates this on hardware.
+
+Measured: the first entry registers a *different* class (`ebx = 0x5BC2FC`), which
+needs `igMetaObject` (`0x5BC274`), whose slot stays 0 forever.
+
+**The gate byte is a vtable low byte, and that is the whole problem.**
+`[0x5BC508]` is a 928-byte manager; at publication a probe measured
+`byte0 = 0x00`, exactly as the gate needs. By the time `sub_002226E0` reads it,
+dword0 is `0x003F4770` - which contains `0x001FBA80`, `0x001FBB80`,
+`0x0015FDF0`, ... i.e. a **vtable**. So the gate can only fire in the window
+between publication and the vtable install, and our run reaches class
+registration after that window has closed.
+
+Next step: `sub_00239E50` publishes the manager then immediately calls
+`sub_00236500(this=manager)`. Find which `MEM32(...) = 0x3F4770` store runs on
+that path (candidates: `recomp_0015.c:44605, 44654, 56804`,
+`recomp_0016.c:57963`, `recomp_seed.c:68601, 72373`) and what sits between it
+and the registration. On hardware the registration must precede the vtable
+store.
+
+Two dead hypotheses, do not re-run: `[0x5BC508]` is **not** null (it is
+`0x00F81288`, so the byte read is not hitting the fake TIB at guest VA 0), and
+the lifter is **faithful** here - the raw XBE bytes at `0x002226E0` are
+`A1 08 C5 5B 00 | 80 38 00 | 74 1E`, exactly
+`mov eax,[0x5BC508]; cmp byte [eax],0; je 0x222708`.
+
+Init order is also freshly perturbed: the nine missing CRT static-init thunks
+were only fixed on 2026-08-05, so re-measure rather than trusting any earlier
+statement about ordering. Fixing this needs per-thread register state + per-thread
 stack/SEH + actual OS threads for `PsCreateSystemThreadEx` - which is why
 `native-threads-and-memory` exists.
 
