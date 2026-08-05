@@ -317,101 +317,53 @@ Boot progress is in `src/game/tools_data/progress.json`; the full investigation
 log is `src/game/DEBUGGING_NOTES.md`. Read `progress.py` output before reporting
 status — never from recollection.
 
-**Current live thread:** the boot dies in an infinite recursion inside
-Alchemy's `igMetaObject` registration.
+**Current live thread: a HANG, not a crash.** As of 2026-08-05 the boot
+reaches **100 kernel calls / 11 heap allocs** with no access violation, then
+spins until the 8 s watchdog fires (12.1M indirect dispatches).
 
-**The synchronous-thread explanation for it is STALE — measured 2026-08-05.**
-That theory rested on 71 nested `PsCreateSystemThreadEx` entries, measured in
-the 56-call tree. In the current tree the game creates **exactly one** thread
-before dying (`grep -c "PsCreateSystemThreadEx #" stderr.txt` → 1), so nothing
-is re-entering anything. The recursion is single-threaded and needs its own
-explanation.
+**The igMetaObject recursion is RESOLVED, and the cause was not what the
+recursion looked like.** `sub_001EC5E0` and `sub_001EC750` were missing from
+the function database. `sub_001EC5E0` is the engine memory manager's
+*allocate* method, reached only through vtable `0x003F4770` at `+0xCC`, so
+**every allocation through the manager failed**: `RECOMP_ICALL_SAFE` returned
+0, `sub_001F6FB0`'s failure path fell through `sub_001F6FCF` (`eax = 0`) into
+`sub_001F6FD1`, which stored that 0 into `MEM32(0x5BC538)` — the class
+registry's first table. A NULL registry is what made the bootstrap unable to
+converge. Two lines in `seed_list.json` fixed it.
 
-What is established about it:
-- A clean 4-function cycle, ~36 dwords of guest stack per lap, until `esp`
-  walks off the 8 MB stack (`esp = 0xFFFFFF88` at the fault).
-- The entry test is **faithfully lifted** - the raw XBE bytes at `0x002226E0`
-  decode to exactly `mov eax,[0x5BC508]; cmp byte [eax],0; je 0x222708`, which
-  is what `gen/` contains. The lifter is not at fault here.
-- `[0x5BC508]` is a 928-byte (`0x3A0`) singleton allocated and constructed by
-  `sub_00239E50` → `sub_003437F3` (operator new) → `sub_002154F0` (ctor). It is
-  a valid heap object at `0x00F81288`.
-- Its first four bytes are `0x003F4770`, a `.rdata` address - i.e. a **vtable
-  pointer**, so `cmp byte [eax],0` reads `0x70` and can never be zero. Real
-  hardware would see a vtable byte there too, so **the recursive path is the
-  normal path** and the early-out was never the terminator.
+Both had sat in the baseline's four failed indirect calls, every run, for the
+whole life of the 54-call plateau. **A failed indirect call to a clean `.text`
+address means a function is MISSING** — check that before suspecting the
+translator. The regression gate now prints exactly that on a `failed_icalls`
+rise.
 
-**The cycle is now fully mapped** (2026-08-05), and the terminator is known:
+Retracted: a widened bootstrap gate in `sub_002226E0`
+(`|| MEM32(0x5BC274) == 0`) was tried first and did break the recursion, but
+once the allocator was fixed it made **no difference to any signal** and was
+removed. It was a crutch for a symptom. Don't re-add it.
 
-```
-sub_002226E0+142 -> sub_00209650+276 -> sub_002221E0+281 -> sub_002235D0+1138 -> back
-```
+Also still true: the game creates **exactly one** thread
+(`grep -c "PsCreateSystemThreadEx #" stderr.txt` → 1), so real threads remain
+*not* the blocker, and the old synchronous-thread explanation stays retracted.
 
-Those are **native** offsets into compiled C, which is much larger than the
-original x86 - `sub_002221E0` is 0x33 bytes of x86 but 304 native bytes, so
-"+281" is inside it. Resolve with `triage_crash.symbolise`, and do not
-"correct" these to x86 sizes.
+### The current spin
 
-- `sub_002221E0` registers one class: the name at `0x3F9734` reads
-  **"igMetaObject"**, the root metaclass, size `0x64`.
-- `sub_002235D0` is the registrar. Its guard at source line 21409 -
-  `if (MEM32(ebx) != 0) goto loc_00223698` - is **correct and cannot help**:
-  the slot is written at line 21463, *after* the recursive call at 21459.
-- `sub_002226E0` is the gate: `if (MEM8(MEM32(0x5BC508)) == 0)` tail-calls
-  `sub_00222708`, which allocates `0x64` bytes, installs a vtable and returns
-  with **no recursion**. That gate firing is what terminates this on hardware.
+- Tail of the ICALL ring is kernel thunk slots 46/47 —
+  `RtlLeave`/`RtlEnterCriticalSection` — so it takes and releases a lock each
+  iteration.
+- `esp` is now around `0x03DAB9F0`, in the **heap** (base `0x00F80000`), not
+  the 8 MB stack. The game has switched to a stack it allocated itself.
+- **Not** a missing function: all 195 failed indirect calls occur exactly
+  **once** each against 12.1M successful dispatches — none is hot. 66 are
+  absent from the function DB but most are page-aligned round numbers
+  (`0x00140000`, `0x00382000`, `0x00011000`) that are data misread as
+  pointers. **Do not bulk-seed that list**; classify with `whatis.py` and seed
+  only what disassembles cleanly.
+- One oddity worth chasing: a `RtlEnterCriticalSection` with `cs_va = 0`, i.e.
+  a NULL critical section.
 
-Measured: the first entry registers a *different* class (`ebx = 0x5BC2FC`), which
-needs `igMetaObject` (`0x5BC274`), whose slot stays 0 forever.
+Next: name the spinning function, then probe its entry and exit to see whether
+it returns. `recomp_where` is callable from a bridge — `recomp_where("tag", N,
+a, b, c, d)` then `triage_crash.py --where tag` resolves the native stack, which
+is how the lock callers above were identified.
 
-**The gate byte is a vtable low byte, and that is the whole problem.**
-`[0x5BC508]` is a 928-byte manager; at publication a probe measured
-`byte0 = 0x00`, exactly as the gate needs. By the time `sub_002226E0` reads it,
-dword0 is `0x003F4770` - which contains `0x001FBA80`, `0x001FBB80`,
-`0x0015FDF0`, ... i.e. a **vtable**. So the gate can only fire in the window
-between publication and the vtable install, and our run reaches class
-registration after that window has closed.
-
-Next step: `sub_00239E50` publishes the manager then immediately calls
-`sub_00236500(this=manager)`. Find which `MEM32(...) = 0x3F4770` store runs on
-that path (candidates: `recomp_0015.c:44605, 44654, 56804`,
-`recomp_0016.c:57963`, `recomp_seed.c:68601, 72373`) and what sits between it
-and the registration. On hardware the registration must precede the vtable
-store.
-
-Two dead hypotheses, do not re-run: `[0x5BC508]` is **not** null (it is
-`0x00F81288`, so the byte read is not hitting the fake TIB at guest VA 0), and
-the lifter is **faithful** here - the raw XBE bytes at `0x002226E0` are
-`A1 08 C5 5B 00 | 80 38 00 | 74 1E`, exactly
-`mov eax,[0x5BC508]; cmp byte [eax],0; je 0x222708`.
-
-Init order is also freshly perturbed: the nine missing CRT static-init thunks
-were only fixed on 2026-08-05, so re-measure rather than trusting any earlier
-statement about ordering. Fixing this needs per-thread register state + per-thread
-stack/SEH + actual OS threads for `PsCreateSystemThreadEx` - which is why
-`native-threads-and-memory` exists.
-
-**No longer blocked, but no longer urgent either** — see the stale-premise note
-above: the current crash happens with one thread, so real threads are not what
-unblocks the boot. Keep this list for when a second thread actually gets
-created; do not treat it as the critical path.
-
-As of 2026-08-05 `gen/` reproduces, the tree carries the thread-local register
-file plus the `fs:` indirection per-thread TIBs need, and **critical sections
-are now real locks** rather than no-ops (`kernel_rtl.c`: a shadow map keyed on
-the guest VA masked to 64 MB, so the 28 RAM mirror views cannot hand two
-threads two different locks for one section). Verified neutral single-threaded:
-54/4/2/8, with 13 Enters and 13 Leaves perfectly balanced and no unbalanced
-release detected. The rest is:
-
-1. Allocate a guest TIB per thread and set `g_fs_base` per thread — this
-   activates the 2,743 lifted `fs:` sites, which are inert only because the
-   base is 0.
-2. Carve a per-thread guest stack out of the 64 MB map (which must stay exactly
-   64 MB — the engine probes for the boundary to size RAM).
-3. Make `PsCreateSystemThreadEx` spawn a real OS thread, return a handle, and
-   back it with a handle table and working wait primitives.
-
-The crash at `sub_002235D0+0xEA` (`esp = 0xFFFFFF88`, the four-function
-`igMetaObject` cycle) is expected to dissolve once startup ordering is correct,
-because it is a symptom of the synchronous re-entry, not a translation defect.
