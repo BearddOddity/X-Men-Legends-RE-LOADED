@@ -169,6 +169,170 @@ static void dump_native_stack(const uintptr_t *sp)
         fprintf(stderr, "    (no frames into this image found)\n");
 }
 
+/* ── recomp_where: probe-callable backtrace ─────────────────── */
+
+/*
+ * "Who called me?" used to be answerable only from a crash or a failed
+ * indirect call, because dump_native_stack ran solely from those two paths.
+ * Everywhere else the question cost a guess, and guesses have been wrong here
+ * before - one investigation chased a caller that was never on the live path.
+ *
+ * This exposes the same real frame walk to any probe. Declared in
+ * recomp_types.h next to the other recomp_* hooks.
+ *
+ * Rate limited per tag, because the interesting call is almost always one of
+ * the first few and an unlimited probe inside a loop buries it. The return
+ * value is the 1-based call number for this tag, so a probe can single out the
+ * first occurrence:
+ *
+ *     if (recomp_where("unwind", 4, rec, MEM32(rec+4), MEM32(rec+8),
+ *                      MEM32(rec+0xC)) == 1) { ... }
+ *
+ * Counting continues past the limit; only printing stops. The final count is
+ * reported by recomp_where_summary() at exit, so a probe that stopped printing
+ * still tells you how often it fired - a silent probe and a never-hit probe
+ * have looked identical here before, and that cost a wrong conclusion.
+ */
+#define WHERE_TAGS 16
+
+static struct {
+    const char *tag;
+    unsigned    hits;
+    unsigned    limit;
+} g_where[WHERE_TAGS];
+
+static int g_where_used;
+static int g_where_atexit;
+
+void recomp_where_summary(void);   /* registered with atexit below */
+
+unsigned recomp_where(const char *tag, unsigned limit,
+                      uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+{
+    int i;
+    for (i = 0; i < g_where_used; i++)
+        if (g_where[i].tag == tag || strcmp(g_where[i].tag, tag) == 0)
+            break;
+    if (i == g_where_used) {
+        if (g_where_used >= WHERE_TAGS)
+            return 0;                     /* out of slots - stay silent */
+        g_where[i].tag = tag;
+        g_where[i].hits = 0;
+        g_where[i].limit = limit;
+        g_where_used++;
+    }
+
+    if (!g_where_atexit) {          /* report totals however we exit */
+        g_where_atexit = 1;
+        atexit(recomp_where_summary);
+    }
+
+    unsigned n = ++g_where[i].hits;
+    if (limit && n > limit)
+        return n;                         /* still counting, no longer printing */
+
+    module_range();
+    fprintf(stderr, "[WHERE:%s] #%u  %08X %08X %08X %08X\n",
+            tag, n, a, b, c, d);
+
+    void *frames[24];
+    /* Skip frame 0: it is recomp_where itself, never the answer. */
+    USHORT got = CaptureStackBackTrace(1, 24, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t addr = (uintptr_t)frames[k];
+        if (in_module(addr))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(addr - g_mod_base));
+    }
+    fflush(stderr);
+    return n;
+}
+
+void recomp_where_summary(void)
+{
+    if (!g_where_used)
+        return;
+    fprintf(stderr, "\n[WHERE] final counts:\n");
+    for (int i = 0; i < g_where_used; i++)
+        fprintf(stderr, "  %-24s %u hit(s)%s\n", g_where[i].tag,
+                g_where[i].hits,
+                (g_where[i].limit && g_where[i].hits > g_where[i].limit)
+                    ? " (printing was capped)" : "");
+    fflush(stderr);
+}
+
+/*
+ * A callee returned with ebx, esi or edi changed. See recomp_types.h.
+ *
+ * Reported per callee, once each, with the backtrace that names the caller.
+ * Once-each matters: the interesting callee is usually invoked thousands of
+ * times, and a per-call report buries the one that runs first.
+ *
+ * Lifter fragments are expected to trip this. The lifter splits some
+ * functions at branch targets, and a fragment's pushes are matched by a pop
+ * in a sibling, so in isolation it looks unbalanced while the pair is fine.
+ * Cross-check a name against find_reg_clobbers.py before believing it.
+ */
+void recomp_abi_violation(const char *callee,
+                          uint32_t ebx0, uint32_t esi0, uint32_t edi0)
+{
+    static const char *seen[64];
+    static int n_seen;
+
+    for (int i = 0; i < n_seen; i++)
+        if (seen[i] == callee)
+            return;
+    if (n_seen < 64)
+        seen[n_seen++] = callee;
+
+    fprintf(stderr, "[ABI] %s did not restore:", callee);
+    if (g_ebx != ebx0) fprintf(stderr, "  ebx %08X->%08X", ebx0, g_ebx);
+    if (g_esi != esi0) fprintf(stderr, "  esi %08X->%08X", esi0, g_esi);
+    if (g_edi != edi0) fprintf(stderr, "  edi %08X->%08X", edi0, g_edi);
+    fprintf(stderr, "\n");
+
+    module_range();
+    void *frames[12];
+    USHORT got = CaptureStackBackTrace(1, 12, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t a = (uintptr_t)frames[k];
+        if (in_module(a))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(a - g_mod_base));
+    }
+    fflush(stderr);
+}
+
+/*
+ * A call left esp outside the simulated stack. See recomp_types.h.
+ *
+ * Reported once and once only: esp is already wrong by this point, so every
+ * later call trips the same test and the first report is the only one that
+ * names the cause.
+ */
+void recomp_esp_escape(const char *callee, uint32_t esp_before)
+{
+    static int reported;
+    if (reported)
+        return;
+    reported = 1;
+
+    fprintf(stderr, "[ESP] %s left esp outside the stack: %08X -> %08X"
+                    "  (delta %+d)\n",
+            callee, esp_before, g_esp, (int)(g_esp - esp_before));
+
+    module_range();
+    void *frames[16];
+    USHORT got = CaptureStackBackTrace(1, 16, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t a = (uintptr_t)frames[k];
+        if (in_module(a))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(a - g_mod_base));
+    }
+    fflush(stderr);
+}
+
 /* ── VEH crash handler ─────────────────────────────────────── */
 
 /*
@@ -216,12 +380,19 @@ typedef struct {
     uint32_t  va;                 /* xbox VA requested */
     uint32_t  size;
     int       armed;
+    unsigned  near_miss;          /* writes elsewhere on the page, stepped over */
+    uint32_t  skip;               /* matching writes to let past before reporting */
+    uint32_t  seen;               /* matching writes so far */
     char      label[32];
 } watch_t;
 
 static watch_t      g_watch[WATCH_MAX];
 static int          g_watch_n = 0;
 static volatile int g_watch_any = 0;   /* fast path: skip the loop entirely */
+
+/* Set while a neighbouring write is being single-stepped past; the trap that
+ * follows re-protects this watch's page. See the write-watch branch below. */
+static watch_t     *g_watch_pending = NULL;
 
 /* Parse RECOMP_WATCH and mark the requested pages read-only.
  * Called after the memory layout is populated - arming earlier would trip on
@@ -246,12 +417,22 @@ static void watch_init(void)
         uint32_t size = 4;
         const char *label = "watch";
 
+        uint32_t skip = 0;
         if (colon) {
             char *rest = colon + 1;
             char *colon2 = strchr(rest, ':');
             if (colon2) {
                 *colon2 = '\0';
                 label = colon2 + 1;
+                /* Optional 4th field: how many matching writes to let past
+                 * before reporting. The first write to a fresh heap block is
+                 * the allocator zeroing it, which is correct and not the
+                 * answer to any question worth asking - `:1` skips it. */
+                char *colon3 = strchr(colon2 + 1, ':');
+                if (colon3) {
+                    *colon3 = '\0';
+                    skip = (uint32_t)strtoul(colon3 + 1, NULL, 0);
+                }
             }
             if (*rest) size = (uint32_t)strtoul(rest, NULL, 0);
         }
@@ -262,6 +443,8 @@ static void watch_init(void)
         w->page_hi = ((host + size - 1) & ~(uintptr_t)0xFFF) + 0x1000;
         w->va = va;
         w->size = size;
+        w->skip = skip;
+        w->seen = 0;
         strncpy(w->label, label, sizeof w->label - 1);
         w->label[sizeof w->label - 1] = '\0';
 
@@ -275,6 +458,9 @@ static void watch_init(void)
                             "current value 0x%08X\n",
                     w->label, w->va, w->size,
                     *(volatile uint32_t *)host);
+            if (w->skip)
+                fprintf(stderr, "  (letting the first %u matching write(s) "
+                                "past before reporting)\n", w->skip);
         } else {
             fprintf(stderr, "[WATCH:%s] VirtualProtect failed for VA 0x%08X: %lu\n",
                     w->label, va, GetLastError());
@@ -299,6 +485,20 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         return EXCEPTION_CONTINUE_EXECUTION;
     }
 
+    /* Second half of the step-over: the neighbouring write has now completed,
+     * so put the page back under guard and clear the trap flag. */
+    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP
+            && g_watch_pending) {
+        DWORD old;
+        watch_t *w = g_watch_pending;
+        g_watch_pending = NULL;
+        ep->ContextRecord->EFlags &= ~0x100u;
+        if (w->armed)
+            VirtualProtect((void *)w->page_lo, w->page_hi - w->page_lo,
+                           PAGE_READONLY, &old);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
         uintptr_t fault_addr = ep->ExceptionRecord->ExceptionInformation[1];
 
@@ -315,6 +515,43 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
                 uint32_t hit_va = w->va + (uint32_t)(fault_addr
                                   - (w->page_lo + (w->va & 0xFFFu)));
 
+                /*
+                 * Protection is per page, but the question is almost always
+                 * about specific bytes. Disarming on the first write anywhere
+                 * in the page means a busy neighbour answers a question that
+                 * was never asked - which is exactly what happened hunting
+                 * the igMetaObject guard at 0x5BC508: a write to 0x5BC548,
+                 * 64 bytes away, consumed the watch.
+                 *
+                 * So a write outside the watched bytes is stepped over
+                 * instead: unprotect, set the trap flag, and re-protect on
+                 * the single-step that follows. The watch survives to catch
+                 * the write that was actually asked about.
+                 */
+                if (hit_va < w->va || hit_va >= w->va + w->size) {
+                    w->near_miss++;
+                    VirtualProtect((void *)w->page_lo,
+                                   w->page_hi - w->page_lo,
+                                   PAGE_READWRITE, &old);
+                    g_watch_pending = w;
+                    ep->ContextRecord->EFlags |= 0x100u;   /* TF */
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+
+                if (++w->seen <= w->skip) {
+                    VirtualProtect((void *)w->page_lo,
+                                   w->page_hi - w->page_lo,
+                                   PAGE_READWRITE, &old);
+                    g_watch_pending = w;
+                    ep->ContextRecord->EFlags |= 0x100u;   /* TF */
+                    fprintf(stderr, "[WATCH:%s] skipping matching write #%u "
+                                    "from RVA=0x%llX\n", w->label, w->seen,
+                            (unsigned long long)(ep->ContextRecord->Rip
+                                - (uintptr_t)GetModuleHandleA(NULL)));
+                    fflush(stderr);
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+
                 w->armed = 0;
                 VirtualProtect((void *)w->page_lo, w->page_hi - w->page_lo,
                                PAGE_READWRITE, &old);
@@ -325,10 +562,23 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
 
                 fprintf(stderr,
                         "[WATCH:%s] write to xbox VA 0x%08X from RIP=0x%llX "
-                        "(RVA=0x%llX) - disarmed, continuing\n",
+                        "(RVA=0x%llX) - disarmed, continuing\n"
+                        "  (%u write(s) elsewhere on the page were stepped "
+                        "over to get here)\n",
                         w->label, hit_va,
                         (unsigned long long)ep->ContextRecord->Rip,
-                        (unsigned long long)(ep->ContextRecord->Rip - base));
+                        (unsigned long long)(ep->ContextRecord->Rip - base),
+                        w->near_miss);
+
+                void *frames[16];
+                USHORT got = CaptureStackBackTrace(1, 16, frames, NULL);
+                module_range();
+                for (USHORT k = 0; k < got; k++) {
+                    uintptr_t a = (uintptr_t)frames[k];
+                    if (in_module(a))
+                        fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                                (unsigned long long)(a - g_mod_base));
+                }
                 fflush(stderr);
                 return EXCEPTION_CONTINUE_EXECUTION;
             }

@@ -77,6 +77,13 @@ solved bugs come back (#15).
 | `repair_wraps.py` | close or drop wrapping guards a regeneration left unbalanced |
 | `stub_overridden.py` | remove generated bodies that hand-written overrides replace (fixes LNK2005) |
 | `audit_kernel_ordinals.py` | cross-check the bridge's two ordinal tables |
+| `find_reg_clobbers.py` | functions that write ebx/esi/edi without saving them; `--only F --callees` walks a subtree |
+| `walk_chain.py` | follow a tail-call chain and account for a callee-saved register across all paths |
+| `dump_table.py` | dump a VA range as dwords, naming each entry - function-pointer tables |
+| `normalise_seed_names.py` | rewrite named call targets in the seed to their `sub_ADDRESS` form |
+| `fix_stub_purge.py` | make unresolved stubs pop the fake return address |
+| `dedupe_seed.py` | drop seeded functions the main sweep now discovers (fixes LNK2005 after a regeneration) |
+| `test_mmx_helpers.c` | standalone check of the packed-integer helpers - lane order, saturation, packing |
 
 ## Traps — enforced by tools, not memory
 
@@ -88,6 +95,19 @@ solved bugs come back (#15).
   garbage instead of faulting. Bugs surface far from their cause.
 - **`esp` is simulated and drifts.** Lifted code that reads relative to `esp`
   across a call is exposed; prefer a saved frame pointer where one exists.
+- **An unresolved stub is never harmless.** The call site pushes a fake
+  return address the callee must pop, so an empty body leaks stack on every
+  call - and a stub that ends a tail-call chain also swallows the
+  `PUSH32`/`POP32` pairs restoring `ebx`/`esi`/`edi`. Seed it:
+  `seed_missing_functions.py --stubs --tail-only --apply`.
+- **Backtraces were wrong before 2026-08-04.** `triage_crash.py` read only
+  MSVC's *Publics* section, missing 25,207 of 55,789 symbols, and attributed
+  every address to the nearest *loaded* symbol with a plausible offset.
+  Re-check any conclusion that rested on a call stack.
+- **Callee-saved registers are unenforced.** `ebx`/`esi`/`edi` are globals;
+  only the emitted `PUSH32`/`POP32` pairs uphold the contract. Build with
+  `-DRECOMP_CHECK_ABI=ON` to verify every direct call - it found a five-deep
+  corruption chain in one run. Indirect calls are not wrapped yet.
 
 ## Regenerating
 
@@ -100,8 +120,14 @@ py -3 tools_data/manual_edits.py apply --partial --force
 py -3 tools_data/repair_wraps.py --apply --drop-unclosed
 py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500
 py -3 tools_data/stub_overridden.py --apply
+py -3 tools_data/dedupe_seed.py --apply            # better discovery -> seed duplicates
 py -3 tools_data/manual_edits.py check-braces      # must say "all functions balanced"
-# then re-apply the __SEH_epilog replacement by hand (a replacement, not an insert)
+# `apply` placing only ~119/139 on the first pass is NORMAL: the steps above
+# restore the anchors it could not find. Re-run it afterwards - it should
+# then place all of them. Only investigate if the second pass is short too.
+# The __SEH_epilog save-area replacement is RETIRED - rejected 3x (40/50/52
+# against a 200 baseline). It compensated for esp drift that the fall-through
+# fix and the g_seh_ebp sync removed at source. Do not re-add it.
 py -3 tools_data/manual_edits.py extract           # re-sync the store
 ```
 
@@ -111,6 +137,8 @@ py -3 tools_data/manual_edits.py extract           # re-sync the store
 ./build_compile.bat && ./run.bat            # build, run
 py -3 tools_data/triage_crash.py --grep     # where and why
 py -3 tools_data/add_probe.py ...           # prove it (#5)
+py -3 tools_data/add_probe.py --where ...   # ...and who called it
+py -3 tools_data/triage_crash.py --where    # resolve those backtraces
 py -3 tools_data/strip_probes.py --apply    # clean up
 ./build_compile.bat && ./run.bat            # verify twice (#7)
 py -3 tools_data/progress.py record -m "…"  # (#13)

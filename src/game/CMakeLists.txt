@@ -21,6 +21,16 @@ add_compile_definitions(
     NOMINMAX
 )
 
+# Verify at every direct call that the callee gave back ebx/esi/edi. These are
+# callee-saved but modelled as globals, so nothing in C enforces it - see
+# recomp_types.h. Diagnostic only; leave OFF for normal runs.
+#   cmake -S . -B build -DRECOMP_CHECK_ABI=ON
+option(RECOMP_CHECK_ABI "check callee-saved registers across every call" OFF)
+if(RECOMP_CHECK_ABI)
+    add_compile_definitions(RECOMP_CHECK_ABI)
+    message(STATUS "RECOMP_CHECK_ABI is ON - callee-save checking enabled")
+endif()
+
 # ── xboxrecomp toolkit ──────────────────────────────────────────
 #
 # Option A: xboxrecomp as a subdirectory (simplest)

@@ -14,6 +14,7 @@ Memory model:
   - Xbox data sections mapped at original VAs
 """
 
+import re
 import struct
 
 from .disasm import Instruction, Operand
@@ -93,6 +94,96 @@ def _mem_accessor(size):
 def _smem_accessor(size):
     """Return the signed MEM macro for a given operand size."""
     return {1: "SMEM8", 2: "SMEM16", 4: "SMEM32"}.get(size, "SMEM32")
+
+
+# ── x87 operand helpers ──
+
+_ST_RE = re.compile(r"^st\((\d)\)$")
+
+
+def _st_index(op):
+    """Return N for an st(N) register operand, else None."""
+    if op is None or op.type != "reg" or not op.reg:
+        return None
+    m = _ST_RE.match(op.reg)
+    return int(m.group(1)) if m else None
+
+
+def _st_expr(n):
+    """C lvalue for x87 register st(n)."""
+    return "fp_top()" if n == 0 else f"fp_st({n})"
+
+
+# ── MMX operand helpers ──
+
+_MM_RE = re.compile(r"^mm[0-7]$")
+
+# Every MMX instruction of the form `dst = op(dst, src)`, i.e. one helper per
+# entry in recomp_mmx.h. Kept as a set rather than a mapping because the C
+# helper is always named mmx_<mnemonic>, so there is nothing to look up.
+_MMX_BINOPS = frozenset((
+    "paddb", "paddw", "paddd", "paddsw", "paddusb", "paddusw",
+    "psubb", "psubw", "psubd", "psubsw", "psubusb", "psubusw",
+    "pmullw", "pmulhw", "pmaddwd",
+    "pavgb", "pavgw",
+    "psraw", "psrad", "psrlw", "psrld", "psrlq", "psllw", "pslld", "psllq",
+    "packuswb", "packsswb", "packssdw",
+    "punpcklbw", "punpckhbw", "punpcklwd", "punpckhwd",
+    "punpckldq", "punpckhdq",
+    "pand", "pandn", "por", "pxor",
+    "pcmpgtb", "pcmpgtw", "pcmpgtd",
+    "pcmpeqb", "pcmpeqw", "pcmpeqd",
+))
+
+
+def _mmx_reg(op):
+    """Return the C name of an MMX register operand, else None."""
+    if op is None or op.type != "reg" or not op.reg:
+        return None
+    return op.reg if _MM_RE.match(op.reg) else None
+
+
+def _mmx_src(op):
+    """C expression for an MMX source: register, 64-bit memory, or a count."""
+    r = _mmx_reg(op)
+    if r:
+        return r
+    if op.type == "mem":
+        return f"MEM64({_fmt_mem(op)})"
+    if op.type == "imm":
+        # Shift counts arrive as immediates; the helpers take uint64_t.
+        return f"{op.imm}ULL"
+    return None
+
+
+_FPU_BINOPS = {"fadd": "+", "fsub": "-", "fmul": "*", "fdiv": "/"}
+
+
+def _fpu_decompose(m):
+    """Split an x87 arithmetic mnemonic into its parts.
+
+    Returns (c_operator, integer_source, reversed, pops), or None if `m`
+    is not an x87 arithmetic instruction.
+
+    The encoding is regular once the suffixes come off:
+      trailing 'p'  - pop st(0) after the operation
+      trailing 'r'  - reverse the operands (fsubr: dst = src - dst)
+      leading  'fi' - the memory source is an integer, not a float
+    """
+    s = m
+    pops = False
+    if s.endswith("p"):
+        s, pops = s[:-1], True
+    rev = False
+    if s.endswith("r"):
+        s, rev = s[:-1], True
+    isint = False
+    if s.startswith("fi"):
+        s, isint = "f" + s[2:], True
+    op = _FPU_BINOPS.get(s)
+    if op is None:
+        return None
+    return op, isint, rev, pops
 
 
 def _fmt_mem(op):
@@ -915,7 +1006,15 @@ class Lifter:
                  "sqrtps", "rsqrtps", "rcpps",
                  "cmpneqps", "cmpeqps", "cmpltps", "cmpleps",
                  "movmskps",
-                 "pand", "pandn", "por", "pxor", "pcmpgtd"):
+                 "movhlps", "movlhps", "movntq",
+                 "pextrw", "emms", "femms"):
+            return self._lift_sse(insn, m, ops)
+
+        # MMX packed integer, plus the 3DNow! forms _lift_sse rejects as
+        # unreachable. These used to miss the dispatch entirely and land in
+        # the generic TODO catch-all, which is why they read as "unknown
+        # instruction" rather than "known but unimplemented".
+        if m in _MMX_BINOPS or m.startswith("pf"):
             return self._lift_sse(insn, m, ops)
 
         # ── FPU ──
@@ -1214,8 +1313,16 @@ class Lifter:
             # right, and ebp was coming from the stale global.
             if insn.call_target == self.SEH_EPILOG:
                 lines.append("g_seh_ebp = ebp; /* publish our frame for __SEH_epilog */")
+            # RECOMP_ABI_CALL is plain `name()` unless RECOMP_CHECK_ABI is
+            # defined, in which case it verifies that the callee gave back
+            # ebx/esi/edi unchanged. Those are callee-saved, but they are
+            # globals here, so nothing in C enforces it - the contract rests
+            # entirely on the PUSH32/POP32 pairs, and a dropped one is silent.
+            # Emitted unconditionally so the check is a compile flag rather
+            # than another regeneration.
             lines.append(
-                f"PUSH32(esp, 0); {name}(); /* call 0x{insn.call_target:08X} */")
+                f"PUSH32(esp, 0); RECOMP_ABI_CALL({name});"
+                f" /* call 0x{insn.call_target:08X} */")
             # After __SEH_prolog/__SEH_epilog, read back the frame pointer.
             if insn.call_target in (self.SEH_PROLOG, self.SEH_EPILOG):
                 lines.append("ebp = g_seh_ebp; /* read back frame from SEH helper */")
@@ -1564,99 +1671,358 @@ class Lifter:
                 return [_fmt_operand_write(ops[0], f"0 /* movmskps {_sse_read(ops[1])} */")]
 
         # ── MMX / integer SIMD ──
-        if m in ("pand", "pandn", "por", "pxor", "pcmpgtd"):
+        #
+        # MMX registers are uint64_t locals (declared by the translator), so
+        # every operation is `dst = mmx_<op>(dst, src)` against the helpers in
+        # recomp_mmx.h. Sources may be a register, a 64-bit memory operand or
+        # an immediate shift count.
+        if m in _MMX_BINOPS and nops >= 2:
+            d = _mmx_reg(ops[0])
+            s = _mmx_src(ops[1])
+            if d and s:
+                return [f"{d} = mmx_{m}({d}, {s}); /* {m} {insn.op_str} */"]
+            return [f"/* {m} {insn.op_str} - UNHANDLED OPERAND FORM */"]
+
+        if m == "pextrw" and nops >= 3:
+            # pextrw r32, mm, imm8 - the destination is a general register.
+            s, sel = _mmx_reg(ops[1]), ops[2]
+            if s and sel.type == "imm":
+                return [_fmt_operand_write(ops[0], f"mmx_pextrw({s}, {sel.imm})")
+                        + f" /* pextrw */"]
+            return [f"/* pextrw {insn.op_str} - UNHANDLED OPERAND FORM */"]
+
+        if m in ("movq", "movntq"):
+            # 64-bit move between MMX registers and memory.
             if nops >= 2:
-                return [f"/* {m} {insn.op_str} (MMX/SIMD integer) */"]
+                d, s = ops[0], ops[1]
+                dr, sr = _mmx_reg(d), _mmx_reg(s)
+                if dr and sr:
+                    return [f"{dr} = {sr}; /* {m} */"]
+                if dr and s.type == "mem":
+                    return [f"{dr} = MEM64({_fmt_mem(s)}); /* {m} load */"]
+                if sr and d.type == "mem":
+                    return [f"MEM64({_fmt_mem(d)}) = {sr}; /* {m} store */"]
+            return [f"/* {m} {insn.op_str} - UNHANDLED OPERAND FORM */"]
+
+        if m in ("emms", "femms"):
+            # MMX is modelled independently of the x87 stack here, so there is
+            # no tag word to clear. See recomp_mmx.h.
+            return [f"/* {m} - MMX and x87 are not aliased, nothing to do */"]
+
+        # ── 3DNow! ──
+        #
+        # Unreachable on this target. The Xbox CPU is an Intel Coppermine
+        # Pentium III, and the game selects this path from cpuid's AMD
+        # extended feature bits, which recomp_cpuid never sets. Emitting a
+        # comment is correct here, not a gap.
+        if m.startswith("pf") or m in ("pavgusb", "pmulhrw", "pi2fd", "pf2id"):
+            return [f"/* {m} {insn.op_str} - 3DNow!, unreachable on a Pentium III */"]
 
         # ── Shuffle/unpack ──
-        if m in ("shufps", "unpcklps", "unpckhps"):
-            return [f"/* {m} {insn.op_str} */"]
+        #
+        # NOT IMPLEMENTED. These operate on all four floats of a 128-bit xmm
+        # register, but xmm is modelled above as a single C float, so there is
+        # nothing correct to emit. Fixing it means widening the xmm model to
+        # four lanes - a contained job, tracked separately.
+        if m in ("shufps", "unpcklps", "unpckhps", "movhlps", "movlhps"):
+            return [f"/* {m} {insn.op_str} - NEEDS A 4-LANE XMM MODEL */"]
 
         return [f"/* SSE: {m} {insn.op_str} */"]
 
     # ── FPU (x87) ──
 
     def _lift_fpu(self, insn, m, ops):
-        """Basic FPU instruction translation using double locals."""
-        # FPU is complex. We translate common patterns to double operations.
-        # Full accuracy would require an x87 stack emulator.
+        """Translate an x87 instruction against the global stack model.
+
+        The stack lives in g_fp_stack/g_fp_top (see recomp_types.h) and is
+        reached through the fp_push/fp_pop/fp_top/fp_st macros the translator
+        emits. Values are doubles, so 80-bit intermediate precision is not
+        modelled - that is a rounding difference, not a control-flow one.
+
+        What matters far more than precision is STACK DEPTH: every st(n)
+        reference is relative to TOP, so one missing pop shifts every later
+        register access in the function. The previous version of this
+        function got depth wrong in four places (fst popped when it must
+        not, fcomp/fcompp never popped when they must, fstp/fist never
+        popped, and the arithmetic forms popped unconditionally even for
+        memory operands). Those are silent miscompiles, not no-ops.
+
+        Not modelled, deliberately:
+          - NaN/unordered compare results (C2 is never set)
+          - the rounding-mode field of the control word; fist/fistp use C's
+            truncate-toward-zero, which is what the save/set/restore idiom
+            around them asks for anyway
+          - 80-bit loads and stores (fld/fstp tbyte)
+        Each of those emits a marked comment where it applies.
+        """
+
+        # ── loads ──
 
         if m == "fld":
-            if len(ops) >= 1:
-                if ops[0].type == "mem":
-                    if ops[0].mem_size == 4:
-                        return [f"fp_push(MEMF({_fmt_mem(ops[0])})); /* fld float */"]
-                    elif ops[0].mem_size == 8:
-                        return [f"fp_push(MEMD({_fmt_mem(ops[0])})); /* fld double */"]
-                    return [f"fp_push(MEMF({_fmt_mem(ops[0])})); /* fld */"]
+            if ops and ops[0].type == "mem":
+                sz = ops[0].mem_size
+                if sz == 4:
+                    return [f"fp_push((double)MEMF({_fmt_mem(ops[0])})); /* fld float */"]
+                if sz == 8:
+                    return [f"fp_push(MEMD({_fmt_mem(ops[0])})); /* fld double */"]
+                if sz == 10:
+                    # 80-bit long double. Pushing 0 keeps the stack DEPTH
+                    # correct, which is what later st(n) references depend on.
+                    return [f"fp_push(0.0); /* fld tbyte - VALUE NOT MODELLED */"]
+                return [f"fp_push((double)MEMF({_fmt_mem(ops[0])})); /* fld */"]
+            n = _st_index(ops[0]) if ops else None
+            if n is not None:
+                # Read st(n) into a temp first. fp_push predecrements g_fp_top,
+                # and the macro's subscript and value expression are
+                # unsequenced, so inlining fp_st(n) would be undefined.
+                return [f"{{ double _t = {_st_expr(n)}; fp_push(_t); }} /* fld st({n}) */"]
             return [f"/* fld {insn.op_str} */"]
 
-        if m in ("fst", "fstp"):
-            pop = "p" if m == "fstp" else ""
-            if len(ops) >= 1 and ops[0].type == "mem":
-                if ops[0].mem_size == 4:
-                    return [f"MEMF({_fmt_mem(ops[0])}) = (float)fp_top(); fp_pop{pop}(); /* {m} */"]
-                elif ops[0].mem_size == 8:
-                    return [f"MEMD({_fmt_mem(ops[0])}) = fp_top(); fp_pop{pop}(); /* {m} */"]
-            return [f"/* {m} {insn.op_str} */"]
-
         if m == "fild":
-            if len(ops) >= 1 and ops[0].type == "mem":
-                smem = _smem_accessor(ops[0].mem_size)
+            if ops and ops[0].type == "mem":
+                sz = ops[0].mem_size
+                if sz == 8:
+                    return [f"fp_push((double)(int64_t)MEM64({_fmt_mem(ops[0])})); /* fild qword */"]
+                smem = _smem_accessor(sz)
                 return [f"fp_push((double){smem}({_fmt_mem(ops[0])})); /* fild */"]
             return [f"/* fild {insn.op_str} */"]
 
-        if m in ("fist", "fistp"):
-            if len(ops) >= 1 and ops[0].type == "mem":
-                mem_acc = _mem_accessor(ops[0].mem_size)
-                return [f"{mem_acc}({_fmt_mem(ops[0])}) = (int32_t)fp_top(); /* {m} */"]
+        if m == "fldz":
+            return [f"fp_push(0.0); /* fldz */"]
+        if m == "fld1":
+            return [f"fp_push(1.0); /* fld1 */"]
+        if m == "fldpi":
+            return [f"fp_push(3.14159265358979323846); /* fldpi */"]
+
+        # ── stores ──
+
+        if m in ("fst", "fstp"):
+            pop = " fp_pop();" if m == "fstp" else ""
+            if ops and ops[0].type == "mem":
+                sz = ops[0].mem_size
+                if sz == 4:
+                    return [f"MEMF({_fmt_mem(ops[0])}) = (float)fp_top();{pop} /* {m} float */"]
+                if sz == 8:
+                    return [f"MEMD({_fmt_mem(ops[0])}) = fp_top();{pop} /* {m} double */"]
+                if sz == 10:
+                    return [f"MEMD({_fmt_mem(ops[0])}) = fp_top();{pop}"
+                            f" /* {m} tbyte - STORED AS 64-BIT DOUBLE */"]
+                return [f"MEMF({_fmt_mem(ops[0])}) = (float)fp_top();{pop} /* {m} */"]
+            n = _st_index(ops[0]) if ops else None
+            if n is not None:
+                # fst st(0) is a no-op; fstp st(0) is just a pop.
+                body = "" if n == 0 else f"{_st_expr(n)} = fp_top();"
+                return [f"{body}{pop} /* {m} st({n}) */".lstrip()]
             return [f"/* {m} {insn.op_str} */"]
 
-        if m == "fadd":
-            return [f"fp_st1() += fp_top(); fp_pop(); /* fadd */"]
-        if m == "faddp":
-            return [f"fp_st1() += fp_top(); fp_pop(); /* faddp */"]
-        if m == "fsub":
-            return [f"fp_st1() -= fp_top(); fp_pop(); /* fsub */"]
-        if m == "fsubp":
-            return [f"fp_st1() -= fp_top(); fp_pop(); /* fsubp */"]
-        if m == "fmul":
-            return [f"fp_st1() *= fp_top(); fp_pop(); /* fmul */"]
-        if m == "fmulp":
-            return [f"fp_st1() *= fp_top(); fp_pop(); /* fmulp */"]
-        if m == "fdiv":
-            return [f"fp_st1() /= fp_top(); fp_pop(); /* fdiv */"]
-        if m == "fdivp":
-            return [f"fp_st1() /= fp_top(); fp_pop(); /* fdivp */"]
+        if m in ("fist", "fistp"):
+            pop = " fp_pop();" if m == "fistp" else ""
+            if ops and ops[0].type == "mem":
+                sz = ops[0].mem_size
+                if sz == 8:
+                    return [f"MEM64({_fmt_mem(ops[0])}) = (uint64_t)(int64_t)fp_top();{pop}"
+                            f" /* {m} qword */"]
+                acc = _mem_accessor(sz)
+                return [f"{acc}({_fmt_mem(ops[0])}) = (int32_t)fp_top();{pop} /* {m} */"]
+            return [f"/* {m} {insn.op_str} */"]
+
+        # ── arithmetic ──
+        #
+        # One rule covers fadd/fsub/fmul/fdiv and every suffixed form:
+        #   no operands   -> st(1) op= st(0)   (the p-forms' default)
+        #   one memory    -> st(0) op= mem     (never pops)
+        #   one register  -> st(0) op= st(i)
+        #   two registers -> dst op= src, as written
+        # then 'r' swaps the operand order and 'p' appends a pop.
+
+        parts = _fpu_decompose(m)
+        if parts is not None:
+            cop, isint, rev, pops = parts
+            dst, src = None, None
+
+            if not ops:
+                dst, src = 1, "fp_top()"
+            elif len(ops) == 1:
+                o = ops[0]
+                if o.type == "mem":
+                    dst = 0
+                    if isint:
+                        if o.mem_size == 8:
+                            src = f"(double)(int64_t)MEM64({_fmt_mem(o)})"
+                        else:
+                            src = f"(double){_smem_accessor(o.mem_size)}({_fmt_mem(o)})"
+                    elif o.mem_size == 8:
+                        src = f"MEMD({_fmt_mem(o)})"
+                    else:
+                        src = f"(double)MEMF({_fmt_mem(o)})"
+                else:
+                    n = _st_index(o)
+                    if n is not None:
+                        dst, src = 0, _st_expr(n)
+            else:
+                dn, sn = _st_index(ops[0]), _st_index(ops[1])
+                if dn is not None and sn is not None:
+                    dst, src = dn, _st_expr(sn)
+
+            if dst is not None and src is not None:
+                d = _st_expr(dst)
+                body = (f"{d} = {src} {cop} {d};" if rev
+                        else f"{d} = {d} {cop} {src};")
+                if pops:
+                    # Separate statement: the pop must not be sequenced with
+                    # the g_fp_top reads in the expression above.
+                    body += " fp_pop();"
+                return [f"{body} /* {m} {insn.op_str} */".rstrip()]
+            return [f"/* {m} {insn.op_str} - UNHANDLED OPERAND FORM */"]
+
+        # ── unary ──
+
         if m == "fchs":
             return [f"fp_top() = -fp_top(); /* fchs */"]
         if m == "fabs":
             return [f"fp_top() = fabs(fp_top()); /* fabs */"]
         if m == "fsqrt":
             return [f"fp_top() = sqrt(fp_top()); /* fsqrt */"]
+        if m == "frndint":
+            return [f"fp_top() = nearbyint(fp_top()); /* frndint */"]
+
+        # ── transcendental ──
+        #
+        # Hardware restricts fsin/fcos/fptan to |st(0)| < 2^63 and leaves the
+        # operand untouched outside that range (setting C2). Game code never
+        # feeds them values that large, and libm has no such restriction, so
+        # the range check is not modelled.
+
+        if m == "fsin":
+            return [f"fp_top() = sin(fp_top()); /* fsin */"]
+        if m == "fcos":
+            return [f"fp_top() = cos(fp_top()); /* fcos */"]
+        if m == "fsincos":
+            # st(0) <- sin, then push cos. Temp first: the push moves TOP.
+            return [f"{{ double _s = sin(fp_top()), _c = cos(fp_top());"
+                    f" fp_top() = _s; fp_push(_c); }} /* fsincos */"]
+        if m == "fptan":
+            # st(0) <- tan(st(0)), then push the constant 1.0.
+            return [f"fp_top() = tan(fp_top()); fp_push(1.0); /* fptan */"]
+        if m == "fpatan":
+            # st(1) <- atan2(st(1), st(0)), then pop.
+            return [f"fp_st1() = atan2(fp_st1(), fp_top()); fp_pop(); /* fpatan */"]
+        if m == "f2xm1":
+            return [f"fp_top() = pow(2.0, fp_top()) - 1.0; /* f2xm1 */"]
+        if m == "fyl2x":
+            # st(1) <- st(1) * log2(st(0)), then pop.
+            return [f"fp_st1() = fp_st1() * log2(fp_top()); fp_pop(); /* fyl2x */"]
+        if m == "fyl2xp1":
+            return [f"fp_st1() = fp_st1() * log2(fp_top() + 1.0); fp_pop();"
+                    f" /* fyl2xp1 */"]
+        if m == "fscale":
+            # st(0) <- st(0) * 2^trunc(st(1)). st(1) is not popped.
+            return [f"fp_top() = ldexp(fp_top(), (int)fp_st1()); /* fscale */"]
+        if m in ("fprem", "fprem1"):
+            return [f"fp_top() = fmod(fp_top(), fp_st1()); /* {m} */"]
+
+        if m == "fldl2e":
+            return [f"fp_push(1.44269504088896340736); /* fldl2e */"]
+        if m == "fldl2t":
+            return [f"fp_push(3.32192809488736234787); /* fldl2t */"]
+        if m == "fldlg2":
+            return [f"fp_push(0.30102999566398119521); /* fldlg2 */"]
+        if m == "fldln2":
+            return [f"fp_push(0.69314718055994530942); /* fldln2 */"]
+
+        if m == "fxam":
+            # Classify st(0) into C3/C2/C0. Only the cases game code tests
+            # are distinguished: zero, normal, and negative via C1.
+            return [f"_fpu_cmp = (fp_top() == 0.0) ? 0 : 1; /* fxam - partial */"]
+
+        # ── stack management ──
+
         if m == "fxch":
-            return [f"{{ double _t = fp_top(); fp_top() = fp_st1(); fp_st1() = _t; }} /* fxch */"]
+            n = _st_index(ops[0]) if ops else 1
+            if n is None:
+                n = 1
+            return [f"{{ double _t = fp_top(); fp_top() = {_st_expr(n)};"
+                    f" {_st_expr(n)} = _t; }} /* fxch st({n}) */"]
+        if m == "fincstp":
+            return [f"fp_pop(); /* fincstp */"]
+        if m == "fdecstp":
+            return [f"g_fp_top--; /* fdecstp */"]
+        if m == "ffree" or m == "ffreep":
+            pop = " fp_pop();" if m == "ffreep" else ""
+            return [f"/* {m} {insn.op_str} - tag word not modelled */{pop}".rstrip()]
+
+        # ── compares ──
+
         if m in ("fcom", "fcomp", "fcompp", "fucom", "fucomp", "fucompp"):
-            # Set _fpu_cmp for the fcomp/fnstsw/sahf pattern
-            return [f"_fpu_cmp = (fp_top() < fp_st1()) ? -1 : (fp_top() > fp_st1()) ? 1 : 0;"
-                    f" /* {m} {insn.op_str} */"]
-        if m in ("fcompi", "fcomip", "fucomi", "fucompi", "fucomip", "fcomi"):
-            # These set EFLAGS directly (CF, ZF, PF) from FPU comparison
-            # fcompi/fucompi pop st(0) after comparing; fcomi/fucomi do not
-            pops = m.endswith("pi") or m.endswith("ip")
-            pop_code = " fp_pop();" if pops else ""
-            return [f"_fpu_cmp = (fp_top() < fp_st1()) ? -1 : (fp_top() > fp_st1()) ? 1 : 0;"
-                    f"{pop_code} /* {m} */"]
-        if m == "fnstsw":
-            return [f"/* fnstsw {insn.op_str} - store FPU status word */"]
-        if m == "fnstcw":
-            return [f"/* fnstcw {insn.op_str} - store FPU control word */"]
+            npop = 2 if m.endswith("pp") else (1 if m.endswith("p") else 0)
+            src = "fp_st1()"
+            if ops:
+                if ops[0].type == "mem":
+                    src = (f"MEMD({_fmt_mem(ops[0])})" if ops[0].mem_size == 8
+                           else f"(double)MEMF({_fmt_mem(ops[0])})")
+                else:
+                    n = _st_index(ops[0])
+                    if n is not None:
+                        src = _st_expr(n)
+            return [f"_fpu_cmp = (fp_top() < {src}) ? -1 : (fp_top() > {src}) ? 1 : 0;"
+                    f"{' fp_pop();' * npop} /* {m} {insn.op_str} */".rstrip()]
+
+        if m in ("fcomi", "fcomip", "fucomi", "fucomip",
+                 "fcompi", "fucompi"):
+            # These write EFLAGS directly; the flag tracker reads _fpu_cmp.
+            src = "fp_st1()"
+            if ops:
+                n = _st_index(ops[-1])
+                if n is not None:
+                    src = _st_expr(n)
+            pop_code = " fp_pop();" if (m.endswith("ip") or m.endswith("pi")) else ""
+            return [f"_fpu_cmp = (fp_top() < {src}) ? -1 : (fp_top() > {src}) ? 1 : 0;"
+                    f"{pop_code} /* {m} {insn.op_str} */".rstrip()]
+
+        if m == "ftst":
+            return [f"_fpu_cmp = (fp_top() < 0.0) ? -1 : (fp_top() > 0.0) ? 1 : 0;"
+                    f" /* ftst */"]
+
+        # ── status and control words ──
+
+        if m == "fnstsw" or m == "fstsw":
+            # Rebuild a real status word from the last compare so that both
+            # consumer idioms work: 'sahf' (handled by the flag tracker) and
+            # 'test ah, 0x41' / 'test ah, 5' (which read AH for real).
+            #   C0 = status bit 8  = ah bit 0  - set when st(0) < src
+            #   C2 = status bit 10 = ah bit 2  - unordered, never set here
+            #   C3 = status bit 14 = ah bit 6  - set when st(0) == src
+            sw = ("((_fpu_cmp < 0) ? 0x0100u : (_fpu_cmp == 0) ? 0x4000u : 0u)")
+            if ops and ops[0].type == "mem":
+                return [f"MEM16({_fmt_mem(ops[0])}) = (uint16_t){sw}; /* {m} */"]
+            return [f"g_eax = (g_eax & 0xFFFF0000u) | {sw}; /* {m} ax */"]
+
+        if m in ("fnstcw", "fstcw"):
+            if ops and ops[0].type == "mem":
+                return [f"MEM16({_fmt_mem(ops[0])}) = g_fp_cw; /* {m} */"]
+            return [f"/* {m} {insn.op_str} */"]
+
         if m == "fldcw":
-            return [f"/* fldcw {insn.op_str} - load FPU control word */"]
-        if m == "fldz":
-            return [f"fp_push(0.0); /* fldz */"]
-        if m == "fld1":
-            return [f"fp_push(1.0); /* fld1 */"]
+            if ops and ops[0].type == "mem":
+                # Stored so the save/set/restore round-trip is faithful.
+                # The rounding-mode bits are not acted on - fist/fistp
+                # truncate toward zero, which is what that idiom selects.
+                return [f"g_fp_cw = (uint16_t)MEM16({_fmt_mem(ops[0])}); /* fldcw */"]
+            return [f"/* fldcw {insn.op_str} */"]
+
+        if m in ("finit", "fninit"):
+            return [f"g_fp_top = 0; g_fp_cw = 0x037Fu; /* {m} */"]
+        if m in ("fclex", "fnclex", "fwait"):
+            return [f"/* {m} - no exception state modelled */"]
+        if m == "femms":
+            # AMD 3DNow! counterpart of emms. MMX is modelled independently
+            # of the x87 stack here, so there is no tag word to clear.
+            return [f"/* femms - MMX and x87 are not aliased, nothing to do */"]
+        if m in ("fnsave", "fsave", "frstor"):
+            # Whole-FPU state blob. The layout is architectural and the game
+            # only round-trips it, so leaving the memory untouched is wrong
+            # only if it inspects the fields - which it does not here.
+            return [f"/* {m} {insn.op_str} - FPU STATE BLOB NOT MODELLED */"]
 
         return [f"/* FPU: {m} {insn.op_str} */"]
 

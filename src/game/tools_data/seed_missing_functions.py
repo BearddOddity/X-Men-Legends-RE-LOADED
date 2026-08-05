@@ -87,6 +87,42 @@ def observed_failures():
                    for x in re.findall(r"Failed to resolve VA 0x([0-9A-Fa-f]+)", text)})
 
 
+def stub_addresses(tail_only=False):
+    """Addresses defined as empty bodies in recomp_stubs_unresolved.c.
+
+    With tail_only, keep just those reached by a lifter tail call
+    (`sub_XXXX(); return;`). Those terminate a fragment chain, so every
+    PUSH32 still pending in the chain never gets its POP32 - the caller's
+    ebx/esi/edi are silently lost, which is how _initterm's table cursor and
+    loop bound were both destroyed.
+    """
+    import glob
+    stub_file = os.path.join(GEN_DIR, "recomp_stubs_unresolved.c")
+    if not os.path.exists(stub_file):
+        return []
+    stub_re = re.compile(r"^void sub_([0-9A-Fa-f]+)\(void\) \{")
+    stubs = {}
+    for line in open(stub_file, encoding="utf-8", errors="replace"):
+        m = stub_re.match(line)
+        if m:
+            stubs["sub_" + m.group(1)] = int(m.group(1), 16)
+    if not tail_only:
+        return sorted(stubs.values())
+
+    tail_re = re.compile(
+        r"^\s*(?:g_seh_ebp = ebp; )?(?:RECOMP_ABI_CALL\()?"
+        r"(sub_[0-9A-Fa-f]+)\)?\(?\)?; return;")
+    hit = set()
+    for path in glob.glob(os.path.join(GEN_DIR, "*.c")):
+        if path.endswith("recomp_stubs_unresolved.c"):
+            continue
+        for line in open(path, encoding="utf-8", errors="replace"):
+            m = tail_re.match(line)
+            if m and m.group(1) in stubs:
+                hit.add(stubs[m.group(1)])
+    return sorted(hit)
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -94,6 +130,18 @@ def main(argv):
                     help="hex VA to seed (repeatable)")
     ap.add_argument("--observed", action="store_true",
                     help="seed every real .text VA that failed in stderr.txt")
+    ap.add_argument("--stubs", action="store_true",
+                    help="seed every address that recomp_stubs_unresolved.c "
+                         "defines as an empty body. Those are not harmless: in "
+                         "this calling convention the callee pops the fake "
+                         "return address, so a do-nothing stub pops nothing "
+                         "and leaks simulated stack on every call - and when "
+                         "one terminates a lifter tail-call chain it also "
+                         "swallows the PUSH32/POP32 pairs that restore "
+                         "ebx/esi/edi for the whole chain.")
+    ap.add_argument("--tail-only", action="store_true",
+                    help="with --stubs, restrict to stubs reached by a tail "
+                         "call - the ones that provably swallow a restore")
     ap.add_argument("--apply", action="store_true",
                     help="write recomp_seed.c and patch recomp_manual.c")
     args = ap.parse_args(argv)
@@ -111,6 +159,9 @@ def main(argv):
     wanted = [int(v, 16) for v in args.va]
     if args.observed:
         wanted += [v for v in observed_failures() if tlo <= v < thi]
+    if args.stubs:
+        wanted += [v for v in stub_addresses(args.tail_only)
+                   if tlo <= v < thi]
     wanted = sorted(set(wanted) - starts)
     if not wanted:
         print("nothing to seed")
@@ -163,6 +214,41 @@ def main(argv):
     if not bodies:
         print("nothing translated; leaving the tree alone")
         return 1
+
+    # Carry forward anything already seeded.
+    #
+    # Seeding is inherently iterative: a newly seeded body introduces call
+    # targets nothing had declared before, so the next link names more
+    # addresses to seed. This file used to be overwritten each run, which
+    # silently discarded the previous round - and because the addresses are
+    # also recorded in seeded_functions.json, re-running did NOT bring them
+    # back: they now count as known starts and get filtered out. The result
+    # linked against 121 functions where the previous run had 908.
+    existing = []
+    if os.path.exists(SEED_C):
+        old = open(SEED_C, encoding="utf-8", errors="replace").read().split("\n")
+        i = 0
+        while i < len(old):
+            m = re.match(r"^void (sub_[0-9A-Fa-f]+)\(void\)\s*$", old[i])
+            if not m:
+                i += 1
+                continue
+            j = i + 1
+            while j < len(old) and old[j] != "}":
+                j += 1
+            # Keep the doc comment that precedes the signature.
+            k = i
+            while k > 0 and (old[k - 1].startswith(" *") or
+                             old[k - 1].startswith("/**")):
+                k -= 1
+            existing.append((m.group(1), "\n".join(old[k:j + 1])))
+            i = j + 1
+
+    have = {n for n, _ in bodies}
+    carried = [(n, c) for n, c in existing if n not in have]
+    if carried:
+        print(f"  carrying forward {len(carried)} previously seeded function(s)")
+    bodies = carried + bodies
 
     with open(SEED_C, "w", encoding="utf-8", newline="") as f:
         f.write("/**\n"

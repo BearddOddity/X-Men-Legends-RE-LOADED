@@ -41,11 +41,30 @@ GEN = os.path.join(GAME_DIR, "src", "recomp", "gen")
 OVERRIDE_SOURCES = [
     os.path.join(GAME_DIR, "src", "recomp_manual.c"),
     os.path.join(GAME_DIR, "src", "d3d8_shim.c"),
+    # Seeded functions count too. seed_missing_functions.py recompiles
+    # addresses the sweep never found, and those same addresses already have
+    # an empty "not detected" body in recomp_stubs_unresolved.c - so seeding
+    # one without removing its stub is an immediate LNK2005.
+    #
+    # Worth being clear about why the empty stub is not harmless: in this
+    # calling convention the callee pops the fake return address, so a stub
+    # that does nothing pops nothing and leaks simulated stack on every call.
+    # That is how _initterm's cursor was destroyed - sub_001A0189 was a stub,
+    # its 16-byte purge never happened, and __SEH_epilog then restored
+    # ebx/esi/edi from 16 bytes off.
+    os.path.join(GAME_DIR, "src", "recomp", "gen", "recomp_seed.c"),
 ]
 
 # Non-static only: a `static void sub_X` is file-local and cannot collide.
 DEF_RE = re.compile(r"^void (sub_[0-9A-Fa-f]+)\(void\)\s*$")
 GEN_DEF_RE = re.compile(r"^void (sub_[0-9A-Fa-f]+)\(void\)\s*$")
+
+# recomp_stubs_unresolved.c writes its definitions on ONE line:
+#     void sub_001A0189(void) { /* 0x001A0189: not detected */ }
+# which GEN_DEF_RE cannot see, because it anchors on end-of-line after the
+# signature. Missing this form meant seeding a previously-unresolved address
+# still collided at link time.
+ONELINE_DEF_RE = re.compile(r"^void (sub_[0-9A-Fa-f]+)\(void\)\s*\{.*\}\s*$")
 
 
 def overridden():
@@ -72,13 +91,28 @@ def main(argv):
         print(f"  {n}  <- {src}")
     print()
 
+    # recomp_seed.c is an override source, not a target - it must never have
+    # its own bodies removed, or seeding would undo itself.
+    override_files = {os.path.basename(p) for p in OVERRIDE_SOURCES}
+
     stubbed = 0
     for fname in sorted(f for f in os.listdir(GEN)
-                        if f.startswith("recomp_") and f.endswith(".c")):
+                        if f.startswith("recomp_") and f.endswith(".c")
+                        and f not in override_files):
         path = os.path.join(GEN, fname)
         lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
         out, i, changed = [], 0, False
         while i < len(lines):
+            one = ONELINE_DEF_RE.match(lines[i])
+            if one and one.group(1) in names:
+                name = one.group(1)
+                out.append(f"/* {name}: moved to src/{names[name]} - generated "
+                           f"body removed so the hand-written definition links */")
+                print(f"  {fname}: stubbed {name} (1 line removed)")
+                stubbed += 1
+                changed = True
+                i += 1
+                continue
             m = GEN_DEF_RE.match(lines[i])
             if not m or m.group(1) not in names:
                 out.append(lines[i])

@@ -137,22 +137,37 @@ def parse_icalls(text):
 # ── symbolisation ───────────────────────────────────────────
 
 def load_map():
+    """Every symbol in the linker map, sorted by address.
+
+    An MSVC map has TWO symbol sections: "Publics by Value", then - after the
+    "entry point at" line - "Static symbols". This used to stop at that line
+    and read only the first, which in this build means 30,582 of 55,789
+    symbols. The other 25,207 did not simply go missing: symbolise() picks the
+    nearest PRECEDING known symbol, so every address inside an unlisted
+    function was silently attributed to whatever public happened to sit below
+    it, complete with a plausible-looking offset.
+
+    That is how a backtrace came to read `sub_001A016A+0x1CB` for a function
+    that is only 0x60 bytes long. Offsets past the end of a function are the
+    tell, so symbolise() now flags them rather than printing them straight.
+    """
     files = glob.glob(MAP_GLOB)
     if not files:
         return []
     lines = open(files[0], encoding="utf-8", errors="ignore").readlines()
-    try:
-        start = next(i for i, l in enumerate(lines) if "Publics by Value" in l)
-    except StopIteration:
-        return []
-    syms = []
-    for l in lines[start + 2:]:
-        if not l.strip():
+
+    syms, in_section = [], False
+    for l in lines:
+        if "Publics by Value" in l or "Static symbols" in l:
+            in_section = True
+            continue
+        if not in_section:
             continue
         if "entry point at" in l:
-            break
+            in_section = False          # the Static symbols header re-arms it
+            continue
         parts = l.split()
-        if len(parts) < 4:
+        if len(parts) < 3:
             continue
         try:
             syms.append((int(parts[2], 16), parts[1]))
@@ -171,8 +186,12 @@ def symbolise(syms, rva):
         return None
     addr, name = syms[i]
     nxt = syms[i + 1][0] if i + 1 < len(syms) else None
-    return {"name": name, "offset": IMAGE_BASE + rva - addr,
-            "start": addr, "size": (nxt - addr) if nxt else None}
+    size = (nxt - addr) if nxt else None
+    off = IMAGE_BASE + rva - addr
+    # An offset past the next symbol means the real owner is not in the map.
+    # Say so rather than printing a confident, wrong name+offset.
+    return {"name": name, "offset": off, "start": addr, "size": size,
+            "uncertain": size is not None and off >= size}
 
 
 def find_source(name):
@@ -282,6 +301,78 @@ def triage_hang(path):
     return 0
 
 
+def report_where(path, only_tag=""):
+    """Resolve the backtraces printed by recomp_where() into function names.
+
+    recomp_where emits raw RVAs because the runtime has no symbol table. That
+    made every use of it a two-step job - run, then resolve by hand against
+    build/*.map - which is exactly the manual step this file exists to remove.
+    """
+    if not os.path.exists(path):
+        print(f"no {path} - run first")
+        return 1
+
+    text = open(path, encoding="utf-8", errors="replace").read()
+    syms = load_map()
+    if not syms:
+        print("no build/*.map - cannot resolve; is this a Release build?")
+        return 1
+
+    # Walked line by line rather than matched with one multi-line regex: the
+    # block is a header followed by an indented run, which is trivial to walk
+    # and horrible to express as a pattern.
+    head = re.compile(r"^\[WHERE:(\w+)\] #(\d+)\s+(.*)$")
+    frame = re.compile(r"^\s+\[\s*(\d+)\] RVA 0x([0-9A-Fa-f]+)\s*$")
+
+    shown, seen_any, in_block, keep = 0, False, False, False
+    for line in text.splitlines():
+        m = head.match(line)
+        if m:
+            seen_any = True
+            tag, n, vals = m.group(1), m.group(2), m.group(3).strip()
+            in_block, keep = True, (not only_tag or tag == only_tag)
+            if keep:
+                shown += 1
+                print("")
+                print("[%s] call #%s   values: %s" % (tag, n, vals))
+            continue
+        if in_block:
+            f = frame.match(line)
+            if not f:
+                in_block = False
+                continue
+            if not keep:
+                continue
+            rva = int(f.group(2), 16)
+            sym = symbolise(syms, rva)
+            name = sym["name"] if sym else "?"
+            off = "+0x%X" % sym["offset"] if sym and sym["offset"] else ""
+            warn = "   (?? past end - real owner not in map)" \
+                if sym and sym.get("uncertain") else ""
+            print("    [%2d] %s%s%s" % (int(f.group(1)), name, off, warn))
+
+    if not seen_any:
+        print("no [WHERE:...] blocks - add a probe with "
+              "add_probe.py --where, then rebuild and run")
+        return 1
+
+    # The exit summary is the only place a capped probe reports its true
+    # total, so surface it here rather than making the reader go find it.
+    tail = re.search(r"^\[WHERE\] final counts:$", text, re.M)
+    if tail:
+        print("")
+        print("final counts:")
+        for line in text[tail.end():].splitlines():
+            if not line.startswith("  "):
+                break
+            print(line)
+
+    if not shown:
+        print("no blocks tagged %r" % only_tag)
+        return 1
+    return 0
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -290,7 +381,13 @@ def main(argv):
                     help="grep the function for the derived expression")
     ap.add_argument("--icall", action="store_true",
                     help="resolve each failed indirect call's backtrace to a caller")
+    ap.add_argument("--where", metavar="TAG", nargs="?", const="",
+                    help="resolve recomp_where probe backtraces to function "
+                         "names; optionally filter to one TAG")
     args = ap.parse_args(argv)
+
+    if args.where is not None:
+        return report_where(args.file, args.where)
 
     crash = parse_crash(args.file)
     if not crash:

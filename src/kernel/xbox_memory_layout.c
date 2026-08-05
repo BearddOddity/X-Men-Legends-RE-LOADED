@@ -61,6 +61,12 @@ uint32_t g_ebx = 0, g_esi = 0, g_edi = 0;
 /* SEH frame pointer bridge (see recomp_types.h for explanation) */
 uint32_t g_seh_ebp = 0;
 
+/* x87 stack. Global on purpose - see recomp_types.h. TOP starts at 0
+ * like a freshly finit'ed FPU. */
+double   g_fp_stack[8] = {0};
+int      g_fp_top = 0;
+uint16_t g_fp_cw = 0x037F;   /* value after finit */
+
 /* ICALL trace ring buffer */
 volatile uint32_t g_icall_trace[16] = {0};
 volatile uint32_t g_icall_trace_idx = 0;

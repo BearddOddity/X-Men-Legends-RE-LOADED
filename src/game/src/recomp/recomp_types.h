@@ -92,6 +92,25 @@ extern uint32_t g_eax, g_ecx, g_edx, g_esp;
 extern uint32_t g_ebx, g_esi, g_edi;
 
 /**
+ * x87 stack. Global because the FPU is a machine resource, not a per-frame
+ * one: a function returning float/double leaves it in st(0) for the caller
+ * to pop. These were function locals, so every float return value was lost
+ * at the call boundary and the caller popped an uninitialised slot.
+ *
+ * g_fp_top is the TOP field: 0 after finit, predecremented on push.
+ */
+extern double g_fp_stack[8];
+extern int    g_fp_top;
+
+/**
+ * x87 control word. Stored so the save/set/restore idiom around fistp
+ * round-trips faithfully. The rounding-mode field is NOT acted on:
+ * fist/fistp use C's truncate-toward-zero, which is the mode that idiom
+ * selects anyway. 0x037F is the value after finit.
+ */
+extern uint16_t g_fp_cw;
+
+/**
  * SEH frame pointer bridge.
  *
  * __SEH_prolog sets up ebp for the caller, but since ebp is a local
@@ -149,6 +168,82 @@ void recomp_icall_reject_dump(void);
  */
 void recomp_cpuid(void);
 
+/**
+ * Probe-callable backtrace. Prints a tag, four caller-supplied values and the
+ * real native call stack as RVAs, which triage_crash.py resolves against
+ * build/*.map.
+ *
+ * Answers "who called me?" from anywhere, not just from a crash or a failed
+ * indirect call. `limit` caps printing per tag; counting continues, and
+ * recomp_where_summary() reports the true total at exit so a capped probe is
+ * never mistaken for one that never fired.
+ *
+ * Returns the 1-based call number for this tag, so a probe can isolate the
+ * first occurrence - usually the only one that explains anything.
+ */
+unsigned recomp_where(const char *tag, unsigned limit,
+                      uint32_t a, uint32_t b, uint32_t c, uint32_t d);
+void recomp_where_summary(void);
+
+/* ================================================================
+ * Callee-save checking (RECOMP_CHECK_ABI)
+ * ================================================================ */
+
+/**
+ * ebx, esi and edi are callee-saved on x86. Here they are globals, so that
+ * contract is carried entirely by the PUSH32/POP32 pairs in the generated
+ * code - nothing in C enforces it, and a dropped pair is completely silent.
+ * The caller simply continues with someone else's value.
+ *
+ * That is not theoretical. _initterm walks the CRT initialiser table with the
+ * cursor in esi; a callee returned a stale esi, the cursor left the table, and
+ * the loop began calling dwords straight off the stack - reaching
+ * _except_handler3 in a boot where nothing had raised an exception.
+ *
+ * Build with -DRECOMP_CHECK_ABI to verify every direct call. Off by default:
+ * the macro is emitted into all generated call sites either way, so switching
+ * it on is a compile flag, not a regeneration.
+ */
+void recomp_abi_violation(const char *callee,
+                          uint32_t ebx0, uint32_t esi0, uint32_t edi0);
+
+/**
+ * A call left esp outside the simulated stack.
+ *
+ * esp cannot be compared before and after like the other registers - it
+ * legitimately moves by the callee's argument purge, and that amount is not
+ * known at the call site. What IS knowable is that esp must still point into
+ * the stack afterwards. Leaving it means some callee purged the wrong amount,
+ * and reporting the first call where that becomes true names the culprit
+ * directly instead of leaving a negative esp to surface as a wild write much
+ * later.
+ *
+ * That is the shape of the very bug this checker was built for: an empty stub
+ * purged nothing, and the damage appeared four frames up as a corrupted
+ * register.
+ */
+void recomp_esp_escape(const char *callee, uint32_t esp_before);
+
+#ifdef RECOMP_CHECK_ABI
+/* Deliberately wider than the 8 MB stack: the point is to catch esp running
+ * away entirely, not to police a few bytes either side of the guard page. */
+#define RECOMP_ESP_LO 0x00700000u
+#define RECOMP_ESP_HI 0x00F80000u
+#define RECOMP_ABI_CALL(fn)                                          \
+    do {                                                             \
+        uint32_t _abi_b = g_ebx, _abi_s = g_esi, _abi_d = g_edi;     \
+        uint32_t _abi_p = g_esp;                                     \
+        fn();                                                        \
+        if (g_ebx != _abi_b || g_esi != _abi_s || g_edi != _abi_d)   \
+            recomp_abi_violation(#fn, _abi_b, _abi_s, _abi_d);       \
+        if ((g_esp < RECOMP_ESP_LO || g_esp > RECOMP_ESP_HI) &&      \
+            (_abi_p >= RECOMP_ESP_LO && _abi_p <= RECOMP_ESP_HI))    \
+            recomp_esp_escape(#fn, _abi_p);                          \
+    } while (0)
+#else
+#define RECOMP_ABI_CALL(fn) fn()
+#endif
+
 
 /* ================================================================
  * Memory access helpers
@@ -176,6 +271,11 @@ void recomp_cpuid(void);
 /** Float/double memory access. */
 #define MEMF(addr)   (*(volatile float    *)XBOX_PTR(addr))
 #define MEMD(addr)   (*(volatile double   *)XBOX_PTR(addr))
+/* 64-bit access, for MMX loads and stores. */
+#define MEM64(addr)  (*(volatile uint64_t *)XBOX_PTR(addr))
+
+/* Packed-integer helpers for the MMX instructions. */
+#include "recomp_mmx.h"
 
 /* ================================================================
  * Flag computation helpers
@@ -276,11 +376,27 @@ static inline uint32_t ROR32(uint32_t val, int n) {
  * Evaluates val BEFORE decrementing sp, matching x86 semantics
  * where push [esp+N] reads the operand before adjusting ESP.
  */
+#ifdef RECOMP_CHECK_ABI
+/* Catch esp leaving the stack at the exact push that does it.
+ *
+ * RECOMP_ABI_CALL only sees call boundaries, so it cannot explain an esp that
+ * runs away inside a function or across an indirect call - and that is exactly
+ * where it was going wrong. This fires once, names the writing code through
+ * the native backtrace, and then stays quiet so the run continues. */
+#define PUSH32(sp, val) do { \
+    uint32_t _pv = (uint32_t)(val); \
+    (sp) -= 4; \
+    if ((uint32_t)(sp) < RECOMP_ESP_LO || (uint32_t)(sp) > RECOMP_ESP_HI) \
+        recomp_esp_escape("PUSH32", (uint32_t)(sp) + 4); \
+    MEM32(sp) = _pv; \
+} while(0)
+#else
 #define PUSH32(sp, val) do { \
     uint32_t _pv = (uint32_t)(val); \
     (sp) -= 4; \
     MEM32(sp) = _pv; \
 } while(0)
+#endif
 
 /** Pop a 32-bit value from the simulated stack. */
 #define POP32(sp, dst) do { \

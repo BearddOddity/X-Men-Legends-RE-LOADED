@@ -34,9 +34,18 @@ import sys
 MARK = "/* PROBE */"
 
 
-def build(tag, fmt, args, limit):
+def build(tag, fmt, args, limit, where=False):
     """Emit the probe as C. The format string is written here, in Python, so
     the escapes are correct by construction - no shell involved."""
+    if where:
+        # recomp_where prints the values AND the real native call stack, and
+        # does its own per-tag rate limiting - so no static guard here, or the
+        # two counters would disagree and its exit summary would under-report.
+        vals = ", ".join((args + ["0", "0", "0", "0"])[:4])
+        return (f'    {{ {MARK}\n'
+                f'      recomp_where("{tag}", {limit}, {vals});\n'
+                f'    }} {MARK}')
+
     body = f'      fprintf(stderr, "[{tag}] {fmt}\\n"'
     if args:
         body += ", " + ", ".join(args)
@@ -63,6 +72,11 @@ def main(argv):
                     help="comma-separated C expressions matching --fmt")
     ap.add_argument("--limit", type=int, default=20,
                     help="print at most N times (0 = unlimited)")
+    ap.add_argument("--where", action="store_true",
+                    help="also print the real native call stack (recomp_where). "
+                         "Answers 'who called this?'. Up to 4 --args are shown "
+                         "as hex; --fmt is ignored. Resolve the RVAs with "
+                         "triage_crash.py.")
     a = ap.parse_args(argv)
 
     if not os.path.exists(a.file):
@@ -71,7 +85,9 @@ def main(argv):
         raise SystemExit("--tag must be alphanumeric (it becomes a C identifier)")
 
     args = [x.strip() for x in a.args.split(",") if x.strip()]
-    if a.fmt.count("%") != len(args):
+    if a.where and len(args) > 4:
+        raise SystemExit("--where prints at most 4 values")
+    if not a.where and a.fmt.count("%") != len(args):
         raise SystemExit(
             f"--fmt has {a.fmt.count('%')} conversion(s) but --args has "
             f"{len(args)} value(s); they must match or the probe prints garbage")
@@ -85,7 +101,7 @@ def main(argv):
             + (f"\n  first few: {hits[:5]}" if hits else ""))
 
     at = hits[0] + 1 if a.after is not None else hits[0]
-    lines[at:at] = build(a.tag, a.fmt, args, a.limit).split("\n")
+    lines[at:at] = build(a.tag, a.fmt, args, a.limit, a.where).split("\n")
 
     src = "\n".join(lines)
     if f"#include <stdio.h> {MARK}" not in src:
