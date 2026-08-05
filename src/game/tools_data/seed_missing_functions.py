@@ -123,6 +123,48 @@ def stub_addresses(tail_only=False):
     return sorted(hit)
 
 
+def containing_function(va, known):
+    """Return the entry of the known function containing va, or None.
+
+    An address that falls INSIDE another function is a label, not a function
+    start. Seeding it fabricates a function that begins mid-instruction-stream
+    and ends at whatever ret it happens to reach - which is why these never
+    resolved no matter how many closure rounds ran. sub_0023BF80 is +0xA0 into
+    sub_0023BEE0; sub_00397554 and sub_00397555 are +0xD4 into sub_00397480 and
+    one byte apart, i.e. scan artefacts.
+
+    The lifter already handles genuine mid-function entry points by splitting
+    the function into fragments. When one of these turns up unresolved it means
+    the split did not happen, and the fix belongs in the lifter - not in a
+    fabricated seed.
+    """
+    best = None
+    for f in known:
+        start = int(f["start"], 16)
+        end_s = f.get("end")
+        if end_s is None:
+            continue
+        end = int(end_s, 16) if isinstance(end_s, str) else end_s
+        if start < va < end:
+            if best is None or start > best:
+                best = start
+    return best
+
+
+def overridden_names():
+    """Functions implemented by hand - never seed over these."""
+    names = set()
+    for rel in ("src/recomp_manual.c", "src/d3d8_shim.c"):
+        p = os.path.join(GAME_DIR, rel)
+        if not os.path.exists(p):
+            continue
+        for line in open(p, encoding="utf-8", errors="replace"):
+            m = re.match(r"^void (sub_[0-9A-Fa-f]+)\(void\)\s*$", line)
+            if m:
+                names.add(m.group(1))
+    return names
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -147,6 +189,16 @@ def main(argv):
                          "list already records them. Needed to rebuild "
                          "recomp_seed.c after a regeneration, because the "
                          "recorded entries otherwise filter themselves out.")
+    ap.add_argument("--record", metavar="FILE", default="seed_list.json",
+                    help="write the resolved seed address list here (default "
+                         "seed_list.json). This record is what makes a rebuild "
+                         "reproducible.")
+    ap.add_argument("--from-list", metavar="FILE",
+                    help="seed exactly the addresses in FILE and nothing else. "
+                         "Implies --force. This is how recomp_seed.c is rebuilt "
+                         "after a regeneration: one pass from a recorded list, "
+                         "instead of iterating on whatever the linker happens "
+                         "to complain about next.")
     ap.add_argument("--apply", action="store_true",
                     help="write recomp_seed.c and patch recomp_manual.c")
     args = ap.parse_args(argv)
@@ -160,6 +212,12 @@ def main(argv):
 
     known = json.load(open(FUNCS_JSON, encoding="utf-8"))
     starts = {int(f["start"], 16) for f in known}
+
+    if args.from_list:
+        with open(args.from_list, encoding="utf-8") as f:
+            args.va = ["0x%08X" % v for v in json.load(f)["addresses"]]
+        args.force = True
+        args.stubs = args.observed = False
 
     wanted = [int(v, 16) for v in args.va]
     if args.observed:
@@ -185,8 +243,18 @@ def main(argv):
         print("nothing to seed")
         return 0
 
+    overrides = overridden_names()
+
     entries, skipped = [], []
     for va in wanted:
+        if "sub_%08X" % va in overrides:
+            skipped.append((va, "hand-written override - must not be seeded"))
+            continue
+        owner = containing_function(va, known)
+        if owner is not None:
+            skipped.append((va, "mid-function: +0x%X into sub_%08X - the lifter "
+                                "should split, not the seeder" % (va - owner, owner)))
+            continue
         end = function_extent(md, data, text, va)
         if end is None:
             skipped.append((va, "no terminating ret found"))
@@ -263,7 +331,15 @@ def main(argv):
             i = j + 1
 
     have = {n for n, _ in bodies}
-    carried = [(n, c) for n, c in existing if n not in have]
+    if args.from_list:
+        # Rebuilding from a recorded list must produce EXACTLY that list.
+        # Carrying forward makes the file grow on every replay (1059 -> 2118
+        # when this was first measured), so the output depends on what was
+        # already there - which is the non-reproducibility this flag exists
+        # to remove.
+        carried = []
+    else:
+        carried = [(n, c) for n, c in existing if n not in have]
     if carried:
         print(f"  carrying forward {len(carried)} previously seeded function(s)")
     bodies = carried + bodies
@@ -291,6 +367,20 @@ def main(argv):
         for name, code in bodies:
             f.write(code.rstrip() + "\n\n")
     print(f"\nwrote {SEED_C}")
+
+    if args.record:
+        # Sorted, so the same set always produces the same file. This is the
+        # artefact that makes a rebuild reproducible: without it, which
+        # addresses got seeded depended on the order the linker complained,
+        # and a regeneration could not reproduce the tree it replaced.
+        rec = os.path.join(GAME_DIR, args.record)
+        addrs = sorted(int(n[4:], 16) for n, _ in bodies)
+        with open(rec, "w", encoding="utf-8", newline="") as f:
+            json.dump({"count": len(addrs), "addresses": addrs}, f, indent=1)
+        print("recorded %d address(es) -> %s" % (len(addrs), args.record))
+        print("rebuild this exact set with:")
+        print("  py -3 tools_data/seed_missing_functions.py "
+              "--from-list %s --apply" % args.record)
 
     # Register through the manual hook.
     src = open(MANUAL_C, encoding="utf-8", errors="ignore").read()
