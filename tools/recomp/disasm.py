@@ -80,6 +80,7 @@ class Operand:
     mem_scale: int = 1
     mem_disp: int = 0
     mem_size: int = 0  # operand size in bytes
+    mem_seg: str = None
 
 
 @dataclass
@@ -130,6 +131,7 @@ def _parse_operand(cs, cs_op, insn_obj):
             mem_scale=cs_op.mem.scale,
             mem_disp=cs_op.mem.disp & 0xFFFFFFFF if cs_op.mem.disp >= 0 else cs_op.mem.disp,
             mem_size=cs_op.size,
+            mem_seg=_reg_names.get(cs_op.mem.segment) if cs_op.mem.segment else None,
         )
     else:
         # Register operand

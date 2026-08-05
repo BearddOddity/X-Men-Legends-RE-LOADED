@@ -149,7 +149,26 @@ def restore(name):
             shutil.rmtree(gen)
         tf.extractall(GAME)
 
+    # Stamp everything as modified now. tar restores the ORIGINAL mtimes, so
+    # the restored sources look older than the object files left over from the
+    # build being undone - ninja rebuilds nothing, and the "restored" exe is
+    # still the broken one. Seen for real: a restore reported success and the
+    # numbers did not move until the files were touched by hand.
+    now = None
+    touched = 0
+    for c in CONTENTS:
+        full = os.path.join(GAME, c)
+        if os.path.isfile(full):
+            os.utime(full, now)
+            touched += 1
+        elif os.path.isdir(full):
+            for root, _, files in os.walk(full):
+                for f in files:
+                    os.utime(os.path.join(root, f), now)
+                    touched += 1
+
     print("restored %s" % os.path.basename(path))
+    print("  touched %d file(s) so the next build actually rebuilds them" % touched)
     print("rebuild and confirm the numbers before trusting it:")
     print("  ./build_compile.bat && py -3 tools_data/smoke_spread.py 2")
 

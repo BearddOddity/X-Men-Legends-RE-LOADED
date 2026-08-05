@@ -189,6 +189,8 @@ def _fpu_decompose(m):
 def _fmt_mem(op):
     """Format a memory operand as a C expression (the address computation)."""
     parts = []
+    if getattr(op, "mem_seg", None) == "fs":
+        parts.append("g_fs_base")
     if op.mem_base:
         parts.append(_fmt_reg(op.mem_base))
     if op.mem_index:

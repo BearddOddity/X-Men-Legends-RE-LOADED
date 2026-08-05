@@ -141,6 +141,20 @@ extern RECOMP_TLS uint16_t g_fp_cw;
  */
 extern RECOMP_TLS uint32_t g_seh_ebp;
 
+/**
+ * Base this thread's fs: resolves to - its TIB.
+ *
+ * Segment overrides were discarded by the lifter, so fs:[0] became MEM32(0)
+ * and one fake TIB at VA 0 served the whole process. That holds only while
+ * there is a single thread: the SEH chain head at fs:[0] is pushed by every
+ * __SEH_prolog and popped by every __SEH_epilog, so two threads sharing it
+ * would splice their exception chains into each other.
+ *
+ * Zero until per-thread TIBs are allocated, so MEM32(g_fs_base + X) is
+ * exactly the MEM32(X) that was emitted before.
+ */
+extern RECOMP_TLS uint32_t g_fs_base;
+
 /* ================================================================
  * ICALL trace ring buffer (for debugging indirect calls)
  * ================================================================ */

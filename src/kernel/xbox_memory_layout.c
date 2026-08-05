@@ -61,6 +61,10 @@ RECOMP_TLS uint32_t g_ebx = 0, g_esi = 0, g_edi = 0;
 /* SEH frame pointer bridge (see recomp_types.h for explanation) */
 RECOMP_TLS uint32_t g_seh_ebp = 0;
 
+/* fs: base for this thread. 0 = the shared fake TIB at VA 0, i.e. exactly
+ * the previous behaviour, until per-thread TIBs exist. */
+RECOMP_TLS uint32_t g_fs_base = 0;
+
 /* x87 stack. Global on purpose - see recomp_types.h. TOP starts at 0
  * like a freshly finit'ed FPU. */
 RECOMP_TLS double   g_fp_stack[8] = {0};
