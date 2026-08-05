@@ -2424,5 +2424,58 @@
   "match": null,
   "anchor": "    uint32_t _icall_esp = g_esp;",
   "pre": "    PUSH32(esp, edi);"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001186A0",
+  "block": [
+   "    /* Manual guard (not in original x86): step counter for the tree walk",
+   "     * below - see the guard at loc_001186B3. */"
+  ],
+  "match": null,
+  "anchor": "    uint32_t _walk_steps = 0;",
+  "pre": "    int _flags = 0; /* fallback flag var */"
+ },
+ {
+  "file": "recomp_0007.c",
+  "kind": "insert_before",
+  "function": "sub_001186A0",
+  "block": [
+   "    /* Manual guard (not in original x86): eax is scaled into an address",
+   "     * here, so it is an index rather than a pointer and a heap-range",
+   "     * test says nothing useful about it. The original trusts it because",
+   "     * on hardware it cannot be out of range; here it can hold unrelated",
+   "     * garbage, and `base + eax*N` then lands anywhere. Bound it at",
+   "     * 0x40000u. eax is the current node index into a 16-byte-node pool;",
+   "     * 0x3FFFFFFF is the no-child sentinel. Observed eax = 0x3F800000 (a",
+   "     * float bit pattern), so eax<<4 wrapped to 0xF8000000 and the node",
+   "     * read landed at 0xF8502654. The iteration cap above bounds how LONG",
+   "     * the walk runs but never checks the index itself. Bail out as",
+   "     * not-found, exactly as that cap does.",
+   "     * Bound emitted by tools_data/add_guard.py --index-max. */",
+   "    if (!(eax < 0x40000u)) { eax = 0x3FFFFFFF; goto loc_001186D3; }",
+   "    /* Manual guard (not in original x86): bound the WALK, not just the index.",
+   "     *",
+   "     * The guard above says \"the iteration cap above bounds how LONG the walk",
+   "     * runs\" - there is no such cap. This is `while (eax != 0x3FFFFFFF)`",
+   "     * descending a binary tree by child index with no step counter, so a tree",
+   "     * whose child link points back at an ancestor descends forever with every",
+   "     * index perfectly in range. The index bound cannot see that, because each",
+   "     * individual index is valid; only the number of steps gives it away.",
+   "     *",
+   "     * That is the quiet hang at 100 kernel calls: no kernel calls, no indirect",
+   "     * dispatches, nothing for a probe to catch - the watchdog's RIP capture",
+   "     * (main.c, normally #if 0) put us at sub_001186A0+0xD6, inside this loop.",
+   "     *",
+   "     * A search over a pool of at most 0x40000 nodes cannot legitimately take",
+   "     * more steps than there are nodes; past that the structure is cyclic and",
+   "     * the key is not findable. Bail out as not-found, which is exactly what",
+   "     * the sentinel path does. */",
+   "    if (++_walk_steps > 0x40000u) { eax = 0x3FFFFFFF; goto loc_001186D3; }"
+  ],
+  "match": null,
+  "anchor": "    edx = eax;",
+  "pre": "loc_001186B3: ;"
  }
 ]

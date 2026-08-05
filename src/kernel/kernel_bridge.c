@@ -1719,7 +1719,11 @@ static void kernel_thunk_dispatch(void)
         }
     }
 
-    if (g_kernel_call_count <= 200) {
+    /* Raised from 200 on 2026-08-05: the boot passed 200 kernel calls that day,
+     * and smoke_spread/progress derive kernel_calls by COUNTING these lines - so
+     * a cap at or below the real count silently pins every measurement at the
+     * cap and hides all further progress. Keep this comfortably ahead. */
+    if (g_kernel_call_count <= 4000) {
         fprintf(stderr, "  [KERNEL] #%d: ordinal %u (slot %d) esp=0x%08X\n",
                 g_kernel_call_count, ordinal, slot, g_esp);
         fflush(stderr);
