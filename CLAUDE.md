@@ -109,6 +109,19 @@ solved bugs come back (#15).
   only the emitted `PUSH32`/`POP32` pairs uphold the contract. Build with
   `-DRECOMP_CHECK_ABI=ON` to verify every direct call - it found a five-deep
   corruption chain in one run. Indirect calls are not wrapped yet.
+- **Conclusions already disproven this project - don't re-chase them:**
+  - "Our heap overwrote the game's buffer" - no, it was the allocator
+    correctly zeroing a fresh block; a byte-exact write-watch confirmed it.
+  - "`manual_edits.py` drops ~85 edits" - no, that was a re-run artefact from
+    applying the store to an already-applied tree. The real loss is 7 guards,
+    found by diffing two independently-built trees (see `gen/` section above).
+  - "The XAPI rename is *why* regeneration loses ~22 calls" - it's a real bug
+    (fixed), but not the cause; the loss persisted after fixing it.
+  - "The 195 seed addresses the classifier skips are junk" - no, they're real
+    mid-function call targets something genuinely calls; skipping them made
+    the build *worse* (8 unresolved → 80).
+  - Pattern behind all four: trusting a number before checking how it was
+    produced. Verify the instrument, not just the result.
 
 ## Regenerating
 
@@ -159,22 +172,50 @@ did not even land on the same numbers.
 ## `gen/` is not reproducible - treat it as an artefact
 
 Rebuilding `gen/` from the same commit does **not** reproduce the same build.
-Measured: a commit recorded at 56/3/2/5 rebuilt to 54/4/2/8. Seeding is
-order-dependent - which addresses get seeded versus stubbed depends on what
-the linker happens to demand next, which depends on the previous round.
+Measured repeatedly: a working tree at 54/4/2/8 regenerates to 32/13/3/8 -
+about 22 kernel calls lost, same amount regardless of what change triggered
+the regeneration.
+
+**Root cause, found by diffing the working tree against a fresh regen
+function-by-function (not by theorizing about it):** the working tree carries
+39 "Manual guard" hand-edits; a regeneration + full recipe restores only 32.
+Seven are silently lost, including the `_heap_init` guard in `sub_001A23F3` -
+its own comment explains that losing it makes every later `HeapAlloc` return
+NULL. **The 7 have not yet been individually identified or fixed** - that's
+the next concrete step, and it doesn't require another regeneration: diff the
+"Manual guard" markers between a saved working tree and a saved rebuilt tree,
+then inspect those 7 edit records in `manual_edits.json`.
+
+Two things it is *not* (ruled out this way, don't re-chase):
+- Not the XAPI naming (`XAPILIB_*` vs `sub_ADDRESS`) - real bug, fixed, but
+  the 22-call loss persisted after fixing it.
+- Not seeding order/completeness - `seed_missing_functions.py --record` /
+  `--from-list` is proven byte-identical on replay.
 
 Consequences:
 
 - A recorded number belongs to a specific `gen/`, not to a commit. Snapshot
-  the build whenever you record one.
+  the build whenever you record one: `py -3 tools_data/snapshot.py -m "..."`.
 - Never compare a number across a regeneration boundary without re-measuring
   the baseline in the same tree.
-- Making seeding deterministic - one pass from a recorded address list rather
-  than iterating on linker errors - is a prerequisite for trusting any A/B
-  result. Until then, `snapshot.py` is the mitigation.
+- Until the 7 guards are fixed, landing any lifter/translator change costs
+  ~22 calls at the regeneration step. Several correct, tested changes are
+  sitting on `native-threads-and-memory` unlanded for exactly this reason
+  (thread-local registers, `fs:` segment lifting, fragment promotion,
+  consistent naming) - land them together once the guard loss is fixed.
 
 ## State
 
 Boot progress is in `src/game/tools_data/progress.json`; the full investigation
 log is `src/game/DEBUGGING_NOTES.md`. Read `progress.py` output before reporting
 status — never from recollection.
+
+**Current live thread (as of the `native-threads-and-memory` branch):** the
+boot hangs in an infinite recursion inside Alchemy's `igMetaObject`
+registration - traced to `PsCreateSystemThreadEx` running thread start
+routines *synchronously* instead of as real threads, so a thread created
+during startup re-enters startup instead of running concurrently (71 nested
+entries measured). Fixing this needs per-thread register state + per-thread
+stack/SEH + actual OS threads for `PsCreateSystemThreadEx` - which is why
+`native-threads-and-memory` exists. That branch is currently blocked on the
+`gen/` reproducibility issue above, not on the thread work itself.
