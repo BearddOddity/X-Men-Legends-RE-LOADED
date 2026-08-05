@@ -142,6 +142,11 @@ def main(argv):
     ap.add_argument("--tail-only", action="store_true",
                     help="with --stubs, restrict to stubs reached by a tail "
                          "call - the ones that provably swallow a restore")
+    ap.add_argument("--force", action="store_true",
+                    help="seed addresses given with --va even if the function "
+                         "list already records them. Needed to rebuild "
+                         "recomp_seed.c after a regeneration, because the "
+                         "recorded entries otherwise filter themselves out.")
     ap.add_argument("--apply", action="store_true",
                     help="write recomp_seed.c and patch recomp_manual.c")
     args = ap.parse_args(argv)
@@ -162,7 +167,20 @@ def main(argv):
     if args.stubs:
         wanted += [v for v in stub_addresses(args.tail_only)
                    if tlo <= v < thi]
-    wanted = sorted(set(wanted) - starts)
+    # `starts` is every address the function list already knows about, which
+    # after one seeding run INCLUDES everything seeded. Filtering against it
+    # makes re-seeding a silent no-op - and if a regeneration has since wiped
+    # recomp_seed.c, those addresses can never get a body again. That is what
+    # stalled the closure loop at 14 unresolved symbols, which then became
+    # purging stubs instead of real functions and cost 54 kernel calls -> 3.
+    #
+    # --force seeds explicitly named addresses regardless, which is what makes
+    # rebuilding recomp_seed.c from a recorded list deterministic.
+    if args.force:
+        explicit = {int(v, 16) for v in args.va}
+        wanted = sorted(set(wanted) - (starts - explicit))
+    else:
+        wanted = sorted(set(wanted) - starts)
     if not wanted:
         print("nothing to seed")
         return 0
