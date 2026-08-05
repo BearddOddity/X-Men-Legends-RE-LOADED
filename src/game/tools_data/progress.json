@@ -861,5 +861,47 @@
     "message": "The 195 skipped addresses are NOT junk - retracting that",
     "note": "Regenerated with the cleaned seed list. 864 seeded instead of 1,059, exactly the 195 the new classifier rejects as mid-function or override. Result: the closure went from 8 unresolved to 80, and the build still would not link. Restored the baseline; 54/4/2/8 confirmed. CORRECTION TO THE PREVIOUS ENTRY: I called those 195 addresses 'junk' and '18% of the seed set that was never valid'. That was wrong. They are mid-function call targets - real code that something genuinely calls. The classifier is right that the SEEDER should not manufacture them (a seeded body starting mid-instruction-stream and ending at whatever ret it reaches is a fabrication), but refusing to seed them does not make the calls go away. They fall through to purging stubs instead, which is the original defect this whole thread started from: an empty stub swallows the PUSH32/POP32 pairs that restore ebx/esi/edi. So a fabricated body was apparently serving better than no body. WHERE THE FIX ACTUALLY BELONGS: the lifter. It already splits functions at branch targets into fragments; these 195 are targets where the split did not happen, so nothing defines them. The right change is to make the splitter cover them - then they are real fragments of their containing function, with correct entry state, and neither the seeder nor a stub is involved. Concretely, sub_0023BF80 should be emitted as a label inside sub_0023BEE0's translation and reachable as a fragment, not conjured as a standalone function. WHAT IS SOLID FROM THIS ROUND: seeding replay is deterministic and proven (two runs byte-identical); --from-list is idempotent; the classifier correctly identifies what the seeder must not fabricate, and its output is now the worklist for the lifter fix. Snapshot restore used twice more today, both clean. Baseline unchanged at 54/4/2/8.",
     "commit": "0f6f8e7"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 4,
+    "total_icalls": 60275,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 2,
+    "crash_in": "sub_002235D0+0xEA",
+    "fault_va": "0xFFFFFF88",
+    "date": "2026-08-05",
+    "message": "Every regeneration lands on 32/13/3/8 regardless of what changed - the recipe does not reproduce the baseline",
+    "note": "Applied the fragment promotion (3,272 -> 3,009 stubs, 263 mid-function targets now real code) through the full documented recipe. Result: 32/13/3/8 against a 54/4/2/8 baseline. Restored, baseline re-confirmed. THE DECISIVE OBSERVATION: this is the SAME 32/13/3/8 the fs: regeneration produced earlier today, with a completely different change applied. Two unrelated changes, identical outcome. So the regression is not caused by either change - it is caused by regenerating at all. The documented recipe reproduces a tree that is roughly 22 kernel calls worse than the one we have, every time, deterministically. WHAT THAT MEANS: the working gen/ contains accumulated state that the recipe does not recreate. Candidates, in order of suspicion: manual_edits.json no longer holds every hand edit that the live tree has (apply reports 973/1042 and 33/1042 on first pass, and the ones it cannot place are silently lost); find_icall_esp_saves only re-fixes four named functions, so any other icall_esp save point present in the live tree is gone; the 214 hand-written guards referenced in seed_missing_functions' own docstring may not all be represented. The live tree is therefore the only copy of some fixes, which is exactly why it measures better and why it cannot be rebuilt. STOP REGENERATING UNTIL THIS IS CLOSED. The next step is a diff, not a change: regenerate to scratch, run the recipe, and compare the result against the live tree function by function to enumerate precisely what the recipe fails to restore. That list is the missing piece of the pipeline. Until then every lifter improvement is unlandable, because landing one requires a regeneration that costs 22 kernel calls. The fragment promotion itself is committed (efa8fce) and verified at the generation step; it is correct and waiting. Baseline restored and verified at 54/4/2/8.",
+    "commit": "efa8fce"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 4,
+    "total_icalls": 60275,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 2,
+    "crash_in": "sub_002235D0+0xEA",
+    "fault_va": "0xFFFFFF88",
+    "date": "2026-08-05",
+    "message": "FOUND IT: manual_edits.py places only 68 of 153 edits against the tree it was extracted from",
+    "note": "Direct test of the round-trip hypothesis, no regeneration needed. Ran 'manual_edits.py apply --partial --force' against the LIVE 54/4/2/8 tree - the same tree the store was extracted from, so every anchor should match by construction. It placed 68/153. Eighty-five edits cannot be re-applied even to their own source. That is the ~22 kernel calls: every regeneration silently drops them, which is why two unrelated changes both landed on exactly 32/13/3/8. The store is not incomplete - it has 153 entries against ~60 in-tree markers plus 73 'moved to' stub replacements, which is proportionate. The defect is in APPLY, not in EXTRACT. The anchors are single source lines, and after a regeneration - or even after an earlier edit in the same file shifts context - they no longer match uniquely, so the edit is dropped. --force then writes the partial result anyway and reports success per file, which is how this stayed invisible: the failure is per-edit, the reporting is per-file. WHAT TO FIX, in order: (1) apply must fail loudly and refuse to write when it cannot place an edit, rather than writing a partial tree under --force; (2) anchors need to be more robust than one exact line - function name plus an offset or a small context window; (3) the 85 that cannot place need enumerating individually so each is either re-anchored or re-derived. That list is now a concrete worklist rather than a mystery. ALSO NOTE: the diagnostic run itself wrote to the live tree under --force and had to be rolled back from a snapshot - apply is destructive even when it fails, which is its own argument for fix (1). Baseline restored and re-verified at 54/4/2/8.",
+    "commit": "efa8fce"
+  },
+  {
+    "kernel_calls": 54,
+    "failed_icalls": 4,
+    "total_icalls": 60275,
+    "distinct_ordinals": 15,
+    "ended": "crash",
+    "heap_allocs": 2,
+    "crash_in": "sub_002235D0+0xEA",
+    "fault_va": "0xFFFFFF88",
+    "date": "2026-08-05",
+    "message": "RETRACTION: the 68/153 result does not mean 85 edits are lost",
+    "note": "Correcting the previous entry, which recorded a wrong conclusion. I ran 'manual_edits.py apply' against the already-applied live tree, got 68/153, and called it proof that 85 hand fixes are silently dropped on every regeneration. That inference does not hold. READING THE TOOL PROPERLY: replace_line has an explicit 'already applied is success, not failure' branch. insert_before has one too, and it is POSITIONAL rather than a whole-file text search, with a comment explaining why - many guards are worded identically, so a text search would make every duplicate look already-applied and silently drop it. wrap locates by the whole enclosed run rather than the anchor line, for the same reason. This is careful, well-reasoned code and I mischaracterised it. WHAT 68/153 ACTUALLY SHOWS: applying to a tree that already carries the edits is not the round-trip test I claimed it was. The reported failures are 'anchor line not found in function', and the likely mechanism is narrow - _find_anchor disambiguates using preceding context, and once a block has been inserted the line before the anchor IS that block, so the context no longer matches and an edit that is correctly in place reports as failed. That is a reporting artefact of re-running, not evidence of loss. WHAT IS STILL TRUE AND STILL UNEXPLAINED: two unrelated changes both regenerated to exactly 32/13/3/8 against a 54/4/2/8 baseline. Something in the recipe does not restore the live tree. But manual_edits is no longer the identified culprit - it is back to being one candidate among several, alongside find_icall_esp_saves only re-fixing four named functions. THE TEST THAT WOULD ACTUALLY SETTLE IT, and which I have not run: regenerate to scratch, run the full recipe, then diff the result against the live tree function by function. The differences ARE the loss. Anything short of that diff is inference. Also worth noting: apply --force wrote a partial tree during the diagnostic and I had to roll back from a snapshot. That behaviour is deliberate and documented in the source - it preserves ~100 good guards rather than discarding a whole file - but it does mean the tool is destructive on a re-run, which is worth a guard. Baseline restored and verified at 54/4/2/8.",
+    "commit": "efa8fce"
   }
 ]
