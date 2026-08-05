@@ -154,7 +154,7 @@ class FunctionTranslator:
         if end <= start:
             return None
 
-        name = func_info.get("name", f"sub_{start:08X}")
+        name = f"sub_{start:08X}"
         size = end - start
 
         # Read bytes from XBE
@@ -670,7 +670,7 @@ class BatchTranslator:
 
         # Forward declarations
         for addr, func_info in func_list:
-            name = func_info.get("name", f"sub_{addr:08X}")
+            name = f"sub_{addr:08X}"
             decl = self._make_declaration(addr, name)
             c_chunks.append(f"{decl};")
         c_chunks.append("")
@@ -679,7 +679,7 @@ class BatchTranslator:
 
         # Translate each function
         for i, (addr, func_info) in enumerate(func_list):
-            name = func_info.get("name", f"sub_{addr:08X}")
+            name = f"sub_{addr:08X}"
             if verbose and (i % 100 == 0 or i == len(func_list) - 1):
                 print(f"  [{i+1}/{len(func_list)}] Translating {name} at 0x{addr:08X}...")
 
@@ -767,7 +767,7 @@ class BatchTranslator:
         }
 
         for i, (addr, func_info) in enumerate(func_list):
-            name = func_info.get("name", f"sub_{addr:08X}")
+            name = f"sub_{addr:08X}"
             if verbose and (i % 500 == 0 or i == len(func_list) - 1):
                 print(f"  [{i+1}/{len(func_list)}] Translating {name}...",
                       file=sys.stderr)

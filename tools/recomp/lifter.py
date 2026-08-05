@@ -855,7 +855,7 @@ class Lifter:
         that are not known function starts.
         """
         if addr in self.func_db:
-            name = self.func_db[addr].get("name", f"sub_{addr:08X}")
+            name = f"sub_{addr:08X}"
         elif addr in self.label_db:
             name = self.label_db[addr]
         else:
