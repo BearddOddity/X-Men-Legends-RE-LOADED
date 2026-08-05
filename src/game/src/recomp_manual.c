@@ -926,6 +926,8 @@ extern void sub_001E7F50(void);
 extern void sub_001E8682(void);
 extern void sub_001EC0D9(void);
 extern void sub_001EC0E4(void);
+extern void sub_001EC5E0(void);
+extern void sub_001EC750(void);
 extern void sub_001ECA9D(void);
 extern void sub_001ED185(void);
 extern void sub_001ED2E7(void);
@@ -2008,6 +2010,8 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001E8682u) return sub_001E8682;
     if (xbox_va == 0x001EC0D9u) return sub_001EC0D9;
     if (xbox_va == 0x001EC0E4u) return sub_001EC0E4;
+    if (xbox_va == 0x001EC5E0u) return sub_001EC5E0;
+    if (xbox_va == 0x001EC750u) return sub_001EC750;
     if (xbox_va == 0x001ECA9Du) return sub_001ECA9D;
     if (xbox_va == 0x001ED185u) return sub_001ED185;
     if (xbox_va == 0x001ED2E7u) return sub_001ED2E7;
