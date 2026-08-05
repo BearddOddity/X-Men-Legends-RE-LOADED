@@ -797,6 +797,82 @@ class BatchTranslator:
             for addr, name in self.translator.lifter.referenced_calls.items()
             if name not in defined
         }
+
+        # Promote mid-function call targets to real fragments.
+        #
+        # An empty stub is not a neutral placeholder here. The call site pushes
+        # a fake return address the callee must pop, so a do-nothing body leaks
+        # simulated stack on every call - and when the target ends a tail-call
+        # chain it also swallows the PUSH32/POP32 pairs that restore
+        # ebx/esi/edi for the whole chain. That is what destroyed _initterm's
+        # table cursor and sent it walking the stack calling garbage.
+        #
+        # Seeding these afterwards was the previous workaround, and it is a
+        # fabrication: the seeder guesses the extent by scanning for a ret,
+        # having no idea which function the address belongs to. Here we do
+        # know - the address lands inside a function already being translated,
+        # so the fragment runs from the target to that function's real end.
+        # Containment must be tested against the FULL function database, not
+        # against func_list. func_list is filtered by category, so using it
+        # meant most owners were invisible and nothing was ever promoted -
+        # which looked exactly like "no candidates found".
+        ranges = []
+        for a, info in self.func_db.items():
+            e = info.get("end")
+            if e is None:
+                continue
+            e = int(e, 16) if isinstance(e, str) else e
+            ranges.append((a, e, info))
+        ranges.sort()
+
+        import bisect
+        starts = [a for a, _, _ in ranges]
+
+        promoted = 0
+        for addr in sorted(unresolved):
+            i = bisect.bisect_right(starts, addr) - 1
+            if i < 0:
+                continue
+            owner_start, owner_end, owner_info = ranges[i]
+            if not (owner_start < addr < owner_end):
+                continue
+            frag = dict(owner_info)
+            frag["name"] = unresolved[addr]
+            # "start" stays a hex string and "end" stays an int: that is how
+            # the loader normalises them (it converts only "end"). Passing a
+            # string end here made every fragment translation fail silently.
+            frag["start"] = f"0x{addr:08X}"
+            frag["end"] = owner_end
+            # A fragment inherits a half-built frame from the code that fell
+            # into it, exactly like the fragments the splitter already emits.
+            frag["frame_type"] = "fpo_leaf"
+            frag["has_prologue"] = False
+            try:
+                code = self.translator.translate_function(addr, frag)
+            except Exception as e:
+                # Do NOT swallow this. A silent failure here is
+                # indistinguishable from "no candidates found", and that is
+                # exactly what made the first version of this look like a
+                # no-op when it was really failing on every address.
+                if verbose:
+                    print(f"  fragment {unresolved[addr]} failed: {e}",
+                          file=sys.stderr)
+                code = None
+            if code:
+                translations.append((addr, unresolved[addr], code))
+                promoted += 1
+
+        if promoted:
+            if verbose:
+                print(f"  Promoted {promoted} mid-function call target(s) to "
+                      f"fragments instead of empty stubs", file=sys.stderr)
+            defined = {name for _, name, _ in translations}
+            unresolved = {
+                addr: name
+                for addr, name in self.translator.lifter.referenced_calls.items()
+                if name not in defined
+            }
+        stats["promoted_fragments"] = promoted
         stats["unresolved_stubs"] = len(unresolved)
 
         # Generate header with all forward declarations
