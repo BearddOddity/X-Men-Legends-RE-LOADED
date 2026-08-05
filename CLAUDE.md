@@ -73,7 +73,8 @@ solved bugs come back (#15).
 | `seed_missing_functions.py` | recompile those additively into `gen/recomp_seed.c` |
 | `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures, `--fix --only F` applies |
 | `find_stale_flag_tests.py` | deferred-flag miscompiles |
-| `manual_edits.py` | extract/re-apply hand edits across a regeneration; `--partial --force` to write what places, `check-braces` to verify |
+| `manual_edits.py` | extract/re-apply hand edits across a regeneration; `--partial --force` to write what places, `check-braces` to verify, **`lost` to name the guards that never landed** |
+| `restore_lost_guards.py` | splice back guards `lost` named, from a pre-regeneration `gen/`; only where the new body is provably the old one minus the edits |
 | `repair_wraps.py` | close or drop wrapping guards a regeneration left unbalanced |
 | `stub_overridden.py` | remove generated bodies that hand-written overrides replace (fixes LNK2005) |
 | `audit_kernel_ordinals.py` | cross-check the bridge's two ordinal tables |
@@ -123,6 +124,13 @@ py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,
 py -3 tools_data/stub_overridden.py --apply
 py -3 tools_data/dedupe_seed.py --apply            # better discovery -> seed duplicates
 py -3 tools_data/manual_edits.py check-braces      # must say "all functions balanced"
+py -3 tools_data/manual_edits.py lost              # must say "in tree: N/N"
+# `lost` asks the TREE, not apply's own report. Apply prints per file and
+# truncates its failure list at 20, and the note below trains you to ignore a
+# short first pass - which is exactly how 7 guards went missing, including the
+# _heap_init guard in sub_001A23F3 whose comment says losing it makes every
+# later HeapAlloc return NULL. Anything `lost` names is GONE; restore it with
+# restore_lost_guards.py --old <pre-regeneration gen/> before measuring.
 # `apply` placing only ~119/139 on the first pass is NORMAL: the steps above
 # restore the anchors it could not find. Re-run it afterwards - it should
 # then place all of them. Only investigate if the second pass is short too.

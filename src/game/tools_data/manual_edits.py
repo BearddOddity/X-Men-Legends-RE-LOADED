@@ -39,6 +39,11 @@ Usage (from src/game/):
     py -3 tools_data/manual_edits.py extract [-o edits.json]
     py -3 tools_data/manual_edits.py apply   [-i edits.json] [--gen-dir DIR]
     py -3 tools_data/manual_edits.py verify  [-i edits.json] [--gen-dir DIR]
+    py -3 tools_data/manual_edits.py lost    [--json lost.json]
+
+`lost` is the audit: it asks the TREE which recorded edits are actually there,
+rather than trusting apply's own report. Run it after every regeneration, once
+the recipe is finished. Anything it names is a guard that is gone.
 """
 import argparse
 import glob
@@ -594,11 +599,101 @@ def _function_span(lines, name):
     return start, end
 
 
+def cmd_lost(args):
+    """Name the recorded edits that are NOT in the tree right now.
+
+    This asks the tree, not apply's bookkeeping. `apply --partial --force`
+    reports per file and truncates its failure list at 20, and the recipe
+    tells the operator that a short first pass is normal - so an edit that
+    never lands is indistinguishable from one that lands on the second pass.
+    Seven guards went missing that way, including the _heap_init guard in
+    sub_001A23F3 whose own comment says losing it makes every later HeapAlloc
+    return NULL.
+
+    Presence test per kind:
+      insert_before / wrap  the recorded block appears inside its function
+      replace_line          the recorded line appears in the file
+      manual_review         never auto-placed; always reported
+
+    A missing FUNCTION is reported separately from a missing GUARD: those mean
+    different things. The XAPI rename made 35 functions vanish under new names,
+    and reading that as "the guards were dropped" sends you after the wrong bug.
+    """
+    edits = json.load(open(args.store, encoding="utf-8"))
+    by_file = {}
+    for e in edits:
+        by_file.setdefault(e["file"], []).append(e)
+
+    lost, no_func, no_file, review, present = [], [], [], [], 0
+    for fname, file_edits in sorted(by_file.items()):
+        path = os.path.join(args.gen_dir, fname)
+        if not os.path.exists(path):
+            no_file.extend(file_edits)
+            continue
+        lines = open(path, encoding="utf-8", errors="ignore").read().split("\n")
+
+        for e in file_edits:
+            if e["kind"] == "manual_review":
+                review.append(e)
+                continue
+
+            if e["kind"] == "replace_line":
+                if e["block"][0] in lines:
+                    present += 1
+                else:
+                    lost.append(e)
+                continue
+
+            lo, hi = _function_span(lines, e["function"])
+            if lo is None:
+                no_func.append(e)
+                continue
+            block = [l for l in e["block"] if l.strip()]
+            if any(_match_run(lines, i, hi, block) is not None
+                   for i in range(lo, hi)):
+                present += 1
+            else:
+                lost.append(e)
+
+    def marker(e):
+        """The edit's first comment line - what a human recognises it by."""
+        for l in e["block"]:
+            if l.strip():
+                return l.strip()
+        return "(empty block)"
+
+    total = len(edits)
+    print(f"in tree: {present}/{total} recorded edits")
+
+    for title, group in (("LOST - recorded but not in the tree", lost),
+                         ("function missing from the tree", no_func),
+                         ("file missing from the tree", no_file),
+                         ("needs hand re-application", review)):
+        if not group:
+            continue
+        print(f"\n{title}: {len(group)}")
+        for e in group:
+            fn = e.get("function") or "(file scope)"
+            print(f"  {e['file']} {fn} [{e['kind']}]")
+            print(f"      {marker(e)[:110]}")
+
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump({"present": present, "total": total,
+                       "lost": lost, "function_missing": no_func,
+                       "file_missing": no_file, "manual_review": review},
+                      fh, indent=1)
+        print(f"\nwrote {args.json}")
+
+    return 1 if (lost or no_func or no_file) else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command",
-                    choices=["extract", "apply", "verify", "check-braces"])
+                    choices=["extract", "apply", "verify", "check-braces",
+                             "lost"])
     ap.add_argument("-o", "--store", default=DEFAULT_STORE)
     ap.add_argument("-i", "--input", dest="store_in")
     ap.add_argument("--gen-dir", default=DEFAULT_GEN)
@@ -608,6 +703,8 @@ def main():
     ap.add_argument("--partial", action="store_true",
                     help="write the edits that placed and list the rest "
                          "as a to-do (default refuses a partial restore)")
+    ap.add_argument("--json", help="with `lost`, also write the report as "
+                                   "JSON for a follow-up tool to consume")
     args = ap.parse_args()
     if args.store_in:
         args.store = args.store_in
@@ -616,6 +713,8 @@ def main():
         return cmd_extract(args)
     if args.command == "apply":
         return cmd_apply(args, dry_run=False)
+    if args.command == "lost":
+        return cmd_lost(args)
     if args.command == "check-braces":
         bad = 0
         for path in sorted(glob.glob(os.path.join(args.gen_dir, "recomp_*.c"))):
