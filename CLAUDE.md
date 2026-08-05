@@ -77,6 +77,7 @@ solved bugs come back (#15).
 | `repair_wraps.py` | close or drop wrapping guards a regeneration left unbalanced |
 | `stub_overridden.py` | remove generated bodies that hand-written overrides replace (fixes LNK2005) |
 | `audit_kernel_ordinals.py` | cross-check the bridge's two ordinal tables |
+| `snapshot.py` | archive/restore a known-good `gen/` + exe outside the repo; `--list`, `--restore` |
 | `find_reg_clobbers.py` | functions that write ebx/esi/edi without saving them; `--only F --callees` walks a subtree |
 | `walk_chain.py` | follow a tail-call chain and account for a callee-saved register across all paths |
 | `dump_table.py` | dump a VA range as dwords, naming each entry - function-pointer tables |
@@ -129,6 +130,9 @@ py -3 tools_data/manual_edits.py check-braces      # must say "all functions bal
 # against a 200 baseline). It compensated for esp drift that the fall-through
 # fix and the g_seh_ebp sync removed at source. Do not re-add it.
 py -3 tools_data/manual_edits.py extract           # re-sync the store
+# NEVER run `extract` after seeding. recomp_seed.c lives in gen/, so extract
+# captures all ~1,000 seeded bodies as "manual edits" (139 -> 1042 entries).
+# The next regeneration then cannot place them and the tree stops linking.
 ```
 
 ## The loop
@@ -145,8 +149,29 @@ py -3 tools_data/progress.py record -m "…"  # (#13)
 py -3 tools_data/progress.py stalled        # (#14)
 ```
 
-Back up `gen/` before anything risky:
-`tar --force-local -czf <scratch>/gen-$(date +%H%M%S).tar.gz src/recomp/gen`
+Back up `gen/` before anything risky - **including every regeneration**:
+```bash
+py -3 tools_data/snapshot.py -m "before <whatever>"
+```
+Skipping this exactly once turned an untar into an hour-long rebuild that
+did not even land on the same numbers.
+
+## `gen/` is not reproducible - treat it as an artefact
+
+Rebuilding `gen/` from the same commit does **not** reproduce the same build.
+Measured: a commit recorded at 56/3/2/5 rebuilt to 54/4/2/8. Seeding is
+order-dependent - which addresses get seeded versus stubbed depends on what
+the linker happens to demand next, which depends on the previous round.
+
+Consequences:
+
+- A recorded number belongs to a specific `gen/`, not to a commit. Snapshot
+  the build whenever you record one.
+- Never compare a number across a regeneration boundary without re-measuring
+  the baseline in the same tree.
+- Making seeding deterministic - one pass from a recorded address list rather
+  than iterating on linker errors - is a prerequisite for trusting any A/B
+  result. Until then, `snapshot.py` is the mitigation.
 
 ## State
 
