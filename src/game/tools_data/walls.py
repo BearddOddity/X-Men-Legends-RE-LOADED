@@ -265,6 +265,66 @@ def pattern_chain_terminate(span, wall):
     return None
 
 
+def pattern_iteration_cap(span, wall):
+    """Bound a loop that has a back edge and no step counter.
+
+    Proven at sub_001186A0, and it broke a wall nothing else could see. That is
+    `while (eax != 0x3FFFFFFF)` descending a tree by child index, with every
+    individual index perfectly in range - so an index bound could not detect it -
+    but a child link pointing back at an ancestor descends forever. No kernel
+    calls, no indirect dispatches, nothing for any probe to catch. Only the
+    watchdog's RIP capture found it. Capping the steps broke the hang and the
+    boot moved on.
+
+    Applies to HANG walls specifically: a quiet loop making no calls. It is the
+    wrong tool for a spin, where the loop is calling something and the calls are
+    what fail.
+
+    The transformation only ever REMOVES iterations, and it exits through the
+    loop's own fallthrough path - the same exit the loop takes when its condition
+    goes false - so it cannot invent a control-flow path the original lacked.
+    The condition is evaluated first so any side effect in it still happens.
+
+    0x40000 is the bound the proven fix used: a pool of at most that many nodes
+    cannot legitimately need more steps than it has nodes.
+    """
+    path, s, e = span
+    lines = open(path, encoding="utf-8", errors="ignore").read().split("\n")
+    labels = {}
+    for i in range(s, min(e + 1, len(lines))):
+        m = LABEL.match(lines[i])
+        if m:
+            labels[m.group(1)] = i
+
+    rx = re.compile(r"^(\s*)if \((.+)\) goto (loc_[0-9A-Fa-f]{8});(.*)$")
+    for i in range(s, min(e + 1, len(lines))):
+        m = rx.match(lines[i])
+        if not m:
+            continue
+        indent, cond, tgt, tail = m.groups()
+        ti = labels.get(tgt)
+        if ti is None or ti >= i:
+            continue                       # forward branch: not a loop back edge
+        if "_wcap" in lines[i] or "_wcap" in lines[max(0, i - 1)]:
+            continue                       # already capped
+        # counter local, declared at the top of the function body
+        brace = None
+        for j in range(s, min(s + 6, len(lines))):
+            if lines[j].strip() == "{":
+                brace = j
+                break
+        if brace is None:
+            continue
+        lines[i] = (NOTE.format(pat="iteration-cap")
+                    + f"{indent}if (({cond}) && ++_wcap <= 0x40000u)"
+                      f" goto {tgt};{tail}")
+        lines.insert(brace + 1, "    uint32_t _wcap = 0; "
+                                "/* walls.py iteration cap */")
+        open(path, "w", encoding="utf-8").write("\n".join(lines))
+        return f"capped loop back-edge to {tgt} at {os.path.basename(path)}:{i + 1}"
+    return None
+
+
 # count-clamp is DISPROVEN and deliberately not in this list.
 #
 # It looked airtight: the loop's count field held a heap address, every call in
@@ -280,7 +340,12 @@ def pattern_chain_terminate(span, wall):
 # nobody re-derives it from scratch and re-adds it. A pattern goes in this list
 # only after a measurement shows kernel_calls RISING, never because the argument
 # for it sounds good.
-PATTERNS = [("chain-terminate", pattern_chain_terminate)]
+# Patterns are tried in order, and each is matched against the wall KIND it was
+# proven on. Applying a hang fix to a spin is how a library becomes a liability.
+PATTERNS = [
+    ("chain-terminate", pattern_chain_terminate, ("spin", "hang")),
+    ("iteration-cap", pattern_iteration_cap, ("hang",)),
+]
 
 
 # ------------------------------------------------------------------ errors
@@ -573,8 +638,14 @@ def main(argv=None):
                     break
 
                 applied = None
-                for name, fn in PATTERNS:
+                for name, fn, kinds in PATTERNS:
                     if name in rec["tried"]:
+                        continue
+                    if wall["kind"] not in kinds:
+                        # Proven on a different wall shape. A hang fix on a spin
+                        # is not a long shot, it is a different bug's remedy.
+                        print(f"  skipping {name} - proven for "
+                              f"{'/'.join(kinds)}, this is a {wall['kind']}")
                         continue
                     applied = fn(span, wall)
                     if applied:
