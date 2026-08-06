@@ -2772,13 +2772,23 @@ void recomp_icall_fail_log(uint32_t va)
     static int seen_count = 0;
     static int overflowed = 0;
 
-    /* One-shot trace that bypasses the dedup below: fires on the Nth total
-     * failure regardless of VA, to catch a spin loop repeatedly failing on
-     * an already-seen VA (which the dedup would otherwise silence). */
+    /* Trace that bypasses the dedup below: fires on the Nth total failure
+     * regardless of VA, to catch a spin loop repeatedly failing on an
+     * already-seen VA (which the dedup would otherwise silence).
+     *
+     * Fires at GEOMETRIC milestones, not just once. A single shot at #1000
+     * only ever samples early startup: on 2026-08-05 it fired at failure
+     * #1000 while the actual spin was 600 MILLION failures later, so the one
+     * backtrace worth having was the one it could not take. Powers of ten
+     * cost at most a handful of dumps across a whole run and catch a spin
+     * whenever it starts. */
     static uint64_t total_fails = 0;
+    static uint64_t next_probe = 1000;
     total_fails++;
-    if (total_fails == 1000) {
-        fprintf(stderr, "[ICALL] Spin-loop probe: failure #1000, VA 0x%08X (total calls: %llu)\n",
+    if (total_fails == next_probe) {
+        next_probe *= 10;
+        fprintf(stderr, "[ICALL] Spin-loop probe: failure #%llu, VA 0x%08X (total calls: %llu)\n",
+                (unsigned long long)total_fails,
                 va, (unsigned long long)g_icall_count);
         void *frames[8];
         USHORT n = CaptureStackBackTrace(1, 8, frames, NULL);
