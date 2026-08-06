@@ -362,6 +362,28 @@ static void d3d8_init_default_states(D3D8DeviceState *state)
  * IDirect3DDevice8 method implementations
  * ================================================================ */
 
+/*
+ * Report an unimplemented entry point once.
+ *
+ * These are reached only after device creation, which the boot has never got to,
+ * so today they cost nothing. The moment it does get there, this turns "black
+ * screen, no idea why" into a list of exactly which gaps the game touches - and
+ * which it never asks for, which is just as useful to know.
+ *
+ * Once per site: some of these sit in per-frame paths and an unlimited log would
+ * bury everything else.
+ */
+#define D3D8_STUB_ONCE(what)                                                  \
+    do {                                                                      \
+        static int _said;                                                      \
+        if (!_said) {                                                          \
+            _said = 1;                                                         \
+            fprintf(stderr, "[d3d8] UNIMPLEMENTED: %s - reached at least "     \
+                            "once; the game depends on it\n", (what));        \
+            fflush(stderr);                                                    \
+        }                                                                     \
+    } while (0)
+
 static HRESULT __stdcall dev_QueryInterface(IDirect3DDevice8 *self, const IID *riid, void **ppv)
 {
     (void)self; (void)riid; (void)ppv;
@@ -403,13 +425,21 @@ static HRESULT __stdcall dev_GetDirect3D(IDirect3DDevice8 *self, IDirect3D8 **pp
 {
     (void)self; (void)ppD3D8;
     /* TODO: return the factory */
+    D3D8_STUB_ONCE("GetDirect3D");
     return E_NOTIMPL;
 }
 
 static HRESULT __stdcall dev_GetDeviceCaps(IDirect3DDevice8 *self, void *pCaps)
 {
     (void)self; (void)pCaps;
-    /* TODO: fill with Xbox NV2A capabilities */
+    /* TODO: fill with Xbox NV2A capabilities.
+     * Deliberately NOT guessed: D3DCAPS8 is not defined in this tree, so
+     * filling it would mean inventing a binary layout, and wrong offsets
+     * are worse than zeros. Returning S_OK while writing nothing is
+     * already known to make the game compute zero-size resources - see
+     * the minimum-allocation note in xbox_HeapAlloc. Needs the real
+     * layout before it can be filled honestly. */
+    D3D8_STUB_ONCE("GetDeviceCaps (returns S_OK but fills nothing)");
     return S_OK;
 }
 
@@ -429,6 +459,7 @@ static HRESULT __stdcall dev_Reset(IDirect3DDevice8 *self, D3DPRESENT_PARAMETERS
 {
     (void)self; (void)pPP;
     /* TODO: resize swap chain */
+    D3D8_STUB_ONCE("Reset (swap chain is not resized)");
     return S_OK;
 }
 
@@ -486,6 +517,7 @@ static HRESULT __stdcall dev_GetBackBuffer(IDirect3DDevice8 *self, INT iBackBuff
 {
     (void)self; (void)iBackBuffer; (void)Type; (void)ppSurface;
     /* TODO: wrap back buffer as D3D8 surface */
+    D3D8_STUB_ONCE("GetBackBuffer");
     return E_NOTIMPL;
 }
 
@@ -1011,6 +1043,7 @@ static HRESULT __stdcall dev_SetRenderTarget(IDirect3DDevice8 *self, IDirect3DSu
 {
     (void)self; (void)pRenderTarget; (void)pZStencilSurface;
     /* TODO: resolve D3D8 surface to D3D11 RTV/DSV */
+    D3D8_STUB_ONCE("SetRenderTarget");
     return S_OK;
 }
 
@@ -1164,6 +1197,7 @@ static HRESULT __stdcall dev_BeginPush(IDirect3DDevice8 *self, DWORD Count, DWOR
 {
     (void)self; (void)Count; (void)ppPush;
     /* TODO: Xbox push buffer emulation */
+    D3D8_STUB_ONCE("BeginPush (Xbox push buffer)");
     return E_NOTIMPL;
 }
 
