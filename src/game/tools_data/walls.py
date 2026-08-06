@@ -137,6 +137,8 @@ class Symbols:
         return self.syms[i][1] if i >= 0 else None
 
 
+LABEL = re.compile(r"^(loc_[0-9A-Fa-f]{8}):")
+
 OURS = ("dump_native_stack", "veh_handler", "recomp_where", "print_rip",
         "recomp_icall_", "watch_", "watchdog_", "kernel_thunk", "bridge_")
 
@@ -340,12 +342,44 @@ def pattern_iteration_cap(span, wall):
 # nobody re-derives it from scratch and re-adds it. A pattern goes in this list
 # only after a measurement shows kernel_calls RISING, never because the argument
 # for it sounds good.
-# Patterns are tried in order, and each is matched against the wall KIND it was
-# proven on. Applying a hang fix to a spin is how a library becomes a liability.
+# Two tiers, and the difference is evidence, not confidence.
+#
+#   proven     a measurement on THIS codebase showed the boot advance with it.
+#   candidate  an invented guess. Plausible, unverified, and applied ONLY inside
+#              the measured experiment loop, where it is reverted unless the
+#              numbers move.
+#
+# Inventing candidates is the point: the run generates a hypothesis, measures it
+# twice, and promotes or refutes it. What must never happen is a candidate being
+# applied as though it were proven - that is exactly how count-clamp cost 1452
+# kernel calls while sounding airtight.
+#
+# A candidate that earns a gain is promoted: recorded in walls.json and written
+# to the ledger as confirmed WITH the numbers. A candidate that fails is written
+# to the ledger as refuted and never retried on that wall.
+#
+# (name, transform, proven_for, candidate_for)
 PATTERNS = [
-    ("chain-terminate", pattern_chain_terminate, ("spin", "hang")),
-    ("iteration-cap", pattern_iteration_cap, ("hang",)),
+    ("chain-terminate", pattern_chain_terminate, ("spin", "hang"), ("crash",)),
+    # iteration-cap is proven on a quiet hang. Extending it to a spin is a
+    # genuine guess: a spin's loop IS calling something, so capping the back edge
+    # may skip work the boot needs - which is precisely what happened when the
+    # same reasoning was applied by hand as count-clamp. Worth ONE measured
+    # attempt rather than an assumption in either direction.
+    ("iteration-cap", pattern_iteration_cap, ("hang",), ("spin",)),
 ]
+
+
+def tiers_for(name, kind, promoted):
+    """proven / candidate / skip for this pattern against this wall kind."""
+    for n, _fn, proven, cand in PATTERNS:
+        if n != name:
+            continue
+        if kind in proven or f"{n}@{kind}" in promoted:
+            return "proven"
+        if kind in cand:
+            return "candidate"
+    return "skip"
 
 
 # ------------------------------------------------------------------ errors
@@ -638,19 +672,27 @@ def main(argv=None):
                     break
 
                 applied = None
-                for name, fn, kinds in PATTERNS:
-                    if name in rec["tried"]:
-                        continue
-                    if wall["kind"] not in kinds:
-                        # Proven on a different wall shape. A hang fix on a spin
-                        # is not a long shot, it is a different bug's remedy.
-                        print(f"  skipping {name} - proven for "
-                              f"{'/'.join(kinds)}, this is a {wall['kind']}")
-                        continue
-                    applied = fn(span, wall)
+                promoted = set(kb.get("promoted", []))
+                tier_used = None
+                # Proven first, candidates only once the proven ones are spent -
+                # a known-good fix should never lose its turn to a guess.
+                for want in ("proven", "candidate"):
+                    for name, fn, _p, _c in PATTERNS:
+                        if name in rec["tried"]:
+                            continue
+                        tier = tiers_for(name, wall["kind"], promoted)
+                        if tier != want:
+                            if tier == "skip" and want == "proven":
+                                print(f"  skipping {name} - not proven or "
+                                      f"offered for a {wall['kind']}")
+                            continue
+                        applied = fn(span, wall)
+                        if applied:
+                            rec["tried"].append(name)
+                            tier_used = tier
+                            print(f"  applying {name} [{tier}]: {applied}")
+                            break
                     if applied:
-                        rec["tried"].append(name)
-                        print(f"  applying {name}: {applied}")
                         break
                 if not applied:
                     rec["note"] = ("no known pattern matches this shape; "
@@ -684,6 +726,34 @@ def main(argv=None):
                     rec["note"] = f"{applied} took {before} -> {after} steps"
                     print(f"  PASSED: {before} -> {after} steps")
                     snap = snapshot_gen()      # new known-good baseline
+
+                    # A candidate that earned a gain is now proven for this wall
+                    # kind. Promotion is recorded so later runs reach for it
+                    # first instead of re-deriving that it works, and the ledger
+                    # gets the NUMBERS, which is the only thing that makes it
+                    # proven rather than merely believed.
+                    if tier_used == "candidate":
+                        key_pat = f"{rec['tried'][-1]}@{wall['kind']}"
+                        kb.setdefault("promoted", [])
+                        if key_pat not in kb["promoted"]:
+                            kb["promoted"].append(key_pat)
+                        print(f"  PROMOTED {key_pat} from candidate to proven")
+                        try:
+                            import ledger
+                            db = ledger.load()
+                            ledger.seed_from_today(db)
+                            ledger.add(
+                                db,
+                                f"{rec['tried'][-1]} gets the boot past a "
+                                f"{wall['kind']} wall",
+                                "confirmed",
+                                f"applied at {wall['site']}: {applied}. "
+                                f"worst-of-{max(1, a.runs)} runs moved "
+                                f"{before} -> {after}.",
+                                [rec["tried"][-1], wall["kind"], "promoted"])
+                            ledger.save(db)
+                        except Exception as exc:
+                            print(f"  (could not write the ledger: {exc})")
                 else:
                     print(f"  no gain ({before} -> {after}) - reverting")
                     rec["note"] = f"{rec['tried'][-1]} gave no gain"
