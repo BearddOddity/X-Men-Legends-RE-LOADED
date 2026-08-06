@@ -547,6 +547,42 @@ def report_errors(err):
     return out
 
 
+# ------------------------------------------------------------------ static work
+def static_sweeps(deadline):
+    """Read-only sweeps that do not need the boot to get anywhere.
+
+    The measure-change-measure loop is useless behind a wall: every reading is
+    identical, so there is nothing to steer by, and an unattended run that only
+    knows how to do that just stops. Both real defects found on 2026-08-06 came
+    from reading code rather than running it - the WIN32 build had no
+    CreateWindow at all, and the CRT __active_heap had four readers and no
+    writer - and neither needed the wall passed.
+
+    So when the walls are exhausted, keep working statically instead of ending
+    the run. Every sweep here is read-only and cannot disturb the tree.
+    """
+    out = []
+    tools = [
+        ("globals read but never written", ["unwritten.py", "--min-readers", "3"],
+         "Each is a missing initialisation or set by something outside the XBE. "
+         "This is how the CRT heap-mode bug was found."),
+        ("generated code vs the original bytes", ["faithful.py", "--sweep", "0"],
+         "Dropped branch edges make real code unreachable; deferred-flag sites "
+         "may test the wrong value."),
+        ("functions vtables call that were never lifted", ["recon.py"],
+         "The binary proves each exists AND proves something calls it."),
+    ]
+    for title, argv, why in tools:
+        if time.time() > deadline:
+            out.append((title, "skipped - out of time", why))
+            continue
+        print(f"  sweeping: {title}")
+        r = sh([sys.executable or "py", os.path.join("tools_data", argv[0])] + argv[1:])
+        head = [l for l in (r.stdout or "").splitlines() if l.strip()][:14]
+        out.append((title, "\n".join(head) or "(no output)", why))
+    return out
+
+
 # ------------------------------------------------------------------ knowledge
 def load_kb():
     try:
@@ -606,6 +642,20 @@ def write_report(kb, journey, start):
                     f"- tried: {', '.join(v.get('tried', [])) or 'nothing matched'}",
                     f"- note: {v.get('note', 'no known pattern fits this shape')}",
                     ""]
+    # Static findings and the error worklist. report_errors() existed but was
+    # never called - an earlier wiring attempt did not match and failed quietly,
+    # so the harvested worklist was computed every run and then thrown away.
+    if kb.get("sweeps"):
+        out += ["## Static findings (no wall needed)", "",
+                "The boot is stuck, so measure-and-compare cannot learn anything "
+                "new: every reading is identical. These read the code instead of "
+                "running it, which is how both real defects so far were found - "
+                "the missing host window and the uninitialised CRT heap mode.", ""]
+        for title, body, why in kb["sweeps"]:
+            out += [f"### {title}", "", why, "", "```", body, "```", ""]
+    if kb.get("errors"):
+        out += report_errors(kb["errors"])
+
     with open(REPORT, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out) + "\n")
 
@@ -719,9 +769,16 @@ def main(argv=None):
                     break
                 if wall is None:
                     print(f"all {len(walls_seen)} visible wall(s) exhausted "
-                          f"at {before} steps - stopping")
+                          f"at {before} steps")
                     for w in walls_seen:
                         print(f"    {wall_key(w)}")
+                    # Do NOT end the run here. Static sweeps need no runtime
+                    # progress, and they found the only two real defects so far.
+                    print("")
+                    print("switching to static sweeps (read-only)...")
+                    kb["sweeps"] = static_sweeps(deadline)
+                    save_kb(kb)
+                    write_report(kb, journey, start)
                     break
                 if len(walls_seen) > 1:
                     print(f"  ({len(walls_seen)} wall(s) visible this run)")
