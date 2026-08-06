@@ -100,7 +100,67 @@ def index_gen():
     return out
 
 
-def disasm_function(md, d, secs, start, limit=4096):
+def disasm_function(md, d, secs, start, limit=4096, end=None):
+    """Disassemble [start, end). `end` is the next known function entry.
+
+    Without it this ran a flat 4 KB from the entry and walked straight through
+    into neighbouring functions, counting THEIR branch targets as missing labels.
+    The first sweep reported 277 missing labels for a 10-byte fragment and 4,735
+    functions with findings - almost all of it that artefact. An unbounded linear
+    sweep cannot tell code from the next function from data.
+    """
+    if end is not None:
+        limit = max(1, min(limit, end - start))
+    return _disasm_bounded(md, d, secs, start, limit, end)
+
+
+def _disasm_bounded(md, d, secs, start, limit, end=None):
+    """Recursive descent within [start, end): follow every branch target.
+
+    A linear sweep cannot do this job. Stopping at the first jmp/ret under-reads
+    - sub_001F09D0 got 24 of its ~112 instructions and so MISSED the deferred-flag
+    bug this tool exists to find. Continuing past a forward jmp over-reads - it
+    swept 0x75 bytes of unrelated blocks into sub_00344BA0 and invented 9 dropped
+    edges in a function that is lifted perfectly. Both failures came from guessing
+    where a function ends from a straight line through it.
+
+    Following branches is what the code itself does, so it visits exactly the
+    bytes that are reachable and no others. Bounded by `end` (the next known
+    function entry) so a tail call leaves the function rather than continuing
+    into the neighbour.
+
+    Three attempts at this; the first two shipped wrong numbers. Both ground-truth
+    cases are asserted in test_faithful.py so a fourth cannot regress silently.
+    """
+    lo = start
+    hi = end if end else start + limit
+    seen, todo, out = set(), [start], []
+    while todo:
+        pc = todo.pop()
+        while lo <= pc < hi and pc not in seen:
+            off = to_file(secs, pc)
+            if off is None:
+                break
+            ins = next(md.disasm(d[off:off + 16], pc, 1), None)
+            if ins is None:
+                break
+            seen.add(pc)
+            out.append(ins)
+            if ins.mnemonic in ("ret", "retn"):
+                break
+            m = re.match(r"^0x([0-9a-f]+)$", ins.op_str)
+            if ins.mnemonic in BRANCH and m:
+                t = int(m.group(1), 16)
+                if lo <= t < hi and t not in seen:
+                    todo.append(t)
+            if ins.mnemonic == "jmp":
+                break                       # unconditional: no fallthrough
+            pc += ins.size
+    out.sort(key=lambda i: i.address)
+    return out
+
+
+def _disasm_linear_unused(md, d, secs, start, limit, end=None):
     """Linear sweep from the entry until a terminator with nothing after it.
 
     Linear is right here: the generated C is itself a linear translation, so a
@@ -111,25 +171,47 @@ def disasm_function(md, d, secs, start, limit=4096):
     if off is None:
         return []
     ins = list(md.disasm(d[off:off + limit], start))
-    out, depth_end = [], start
+    out = []
     for x in ins:
         out.append(x)
-        if x.mnemonic in ("ret", "retn") and x.address >= depth_end:
+        # Stop at the first ret or unconditional jmp, full stop.
+        #
+        # The previous rule continued past a FORWARD jmp, on the theory that it
+        # was an internal jump over a block. That is sometimes true, but a tail
+        # jmp looks identical, and sub_00344BA0 is exactly that: three
+        # instructions ending in `jmp 0x00344C15`. Continuing swept 0x75 bytes of
+        # unrelated blocks and reported 9 dropped edges in a function that is
+        # lifted perfectly.
+        #
+        # The next-entry bound does not save us, because the blocks in between
+        # are not separate functions in gen/ and so are invisible to it.
+        #
+        # Conservative on purpose: this now UNDER-reads any function with an
+        # internal forward jump, so real findings can be missed. For a tool whose
+        # whole value is that it does not lie, a false negative costs a missed
+        # bug and a false positive costs a day. Two sweeps were already lost to
+        # false positives of this exact shape.
+        if x.mnemonic in ("ret", "retn"):
             break
         if x.mnemonic == "jmp":
             m = re.match(r"^0x([0-9a-f]+)$", x.op_str)
-            if m and int(m.group(1), 16) > x.address:
-                depth_end = max(depth_end, int(m.group(1), 16))
-            elif x.address >= depth_end:
+            if not m:
+                break                       # jmp through a register - stop
+            t = int(m.group(1), 16)
+            # Inside the function: an internal jump over a block, keep reading.
+            # At or past the next function entry, or backwards out of range: a
+            # tail jump, so the function ends here.
+            if not (start < t < (end if end else start + limit)):
                 break
     return out
 
 
-def check(name, gen, md, d, secs):
+def check(name, gen, md, d, secs, ends=None):
     path, s, e, lines = gen[name]
     body = lines[s:e + 1]
     addr = int(name[4:], 16)
-    ins = disasm_function(md, d, secs, addr)
+    ins = disasm_function(md, d, secs, addr,
+                          end=(ends or {}).get(addr))
     if not ins:
         return {"name": name, "error": "not in any XBE section"}
 
@@ -211,6 +293,14 @@ def main(argv=None):
     d, secs = load_xbe()
     gen = index_gen()
 
+    # Upper bound for each function: the next known entry address. Without this
+    # a linear sweep walks into the following function and reports its branch
+    # targets as missing labels - the first full sweep produced 277 such
+    # "findings" for a 10-byte fragment.
+    addrs = sorted(int(n[4:], 16) for n in gen)
+    ends = {a: (addrs[i + 1] if i + 1 < len(addrs) else a + 4096)
+            for i, a in enumerate(addrs)}
+
     if a.sweep is not None:
         names = sorted(gen)
         if a.sweep:
@@ -218,7 +308,7 @@ def main(argv=None):
         rows = []
         for n in names:
             try:
-                r = check(n, gen, md, d, secs)
+                r = check(n, gen, md, d, secs, ends)
             except Exception:
                 continue
             if r.get("error"):
@@ -246,7 +336,7 @@ def main(argv=None):
         f"sub_{int(a.target, 16):08X}"
     if name not in gen:
         sys.exit(f"{name} is not in gen/")
-    show(check(name, gen, md, d, secs))
+    show(check(name, gen, md, d, secs, ends))
     return 0
 
 
