@@ -175,6 +175,7 @@ static void dump_native_stack(const uintptr_t *sp)
      * diagnosed on the hang path by the same dump. A diagnostic that only
      * prints on the one path that does not happen is not a diagnostic. */
     recomp_icall_reject_dump();
+    recomp_coverage_dump();
     fflush(stderr);
 }
 
@@ -797,6 +798,7 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
      * last 16 targets, which on a spin are all the same address, while the
      * counts say which target dominates across the whole run. */
     recomp_icall_reject_dump();
+    recomp_coverage_dump();
     fflush(stderr);
 
     /* Capturing the hung thread's RIP names the spinning function outright,

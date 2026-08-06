@@ -43,6 +43,33 @@ extern volatile uint32_t g_icall_trace[16];
 extern volatile uint32_t g_icall_trace_idx;
 extern volatile uint64_t g_icall_count;
 
+/* -- Coverage: how much of the game actually ran -------------- */
+
+/*
+ * Set by recomp_mark_reached() (recomp_types.h) on every SUCCESSFUL indirect
+ * dispatch, so g_reached_count is the number of distinct guest functions the
+ * run actually entered through the dispatcher.
+ *
+ * This exists because kernel_calls could not steer an automated search. It read
+ * exactly 1452 for every experiment on 2026-08-06 - 566 seeded functions, 31
+ * lifter repairs, a fixed freeze - because it saturates wherever the boot stops
+ * and says nothing about how much ran before that. 25 batches of work produced
+ * 25 identical numbers, so the tools had no gradient to climb.
+ *
+ * About 128 KB of bitmap. Printed on every exit path that exists, because a
+ * diagnostic which only prints on a clean exit prints never: this boot ends in
+ * a crash or a watchdog kill, and neither reaches atexit handlers.
+ */
+uint8_t  g_reached[RECOMP_COVER_BITS / 8u];
+uint32_t g_reached_count;
+
+void recomp_coverage_dump(void)
+{
+    fprintf(stderr, "[COVERAGE] distinct=%u of %u dispatch targets reached\n",
+            g_reached_count, (unsigned)RECOMP_COVER_BITS);
+    fflush(stderr);
+}
+
 /* ── CPUID ─────────────────────────────────────────────────── */
 
 /*
@@ -934,31 +961,96 @@ extern void sub_001ECA9D(void);
 extern void sub_001ED185(void);
 extern void sub_001ED2E7(void);
 extern void sub_001EF6F8(void);
+extern void sub_001F001A(void);
+extern void sub_001F003F(void);
+extern void sub_001F0069(void);
+extern void sub_001F04F0(void);
+extern void sub_001F0930(void);
+extern void sub_001F0940(void);
+extern void sub_001F0950(void);
+extern void sub_001F0960(void);
+extern void sub_001F0D10(void);
+extern void sub_001F10C6(void);
+extern void sub_001F10CC(void);
+extern void sub_001F13E0(void);
+extern void sub_001F1430(void);
+extern void sub_001F3670(void);
+extern void sub_001F4230(void);
+extern void sub_001F45A0(void);
+extern void sub_001F45B0(void);
+extern void sub_001F4E50(void);
 extern void sub_001F51CC(void);
 extern void sub_001F51CF(void);
+extern void sub_001F5540(void);
 extern void sub_001F5633(void);
 extern void sub_001F56A8(void);
 extern void sub_001F5804(void);
+extern void sub_001F5860(void);
+extern void sub_001F6DD0(void);
+extern void sub_001F76D0(void);
+extern void sub_001F8AB0(void);
+extern void sub_001FBA90(void);
 extern void sub_001FBD3C(void);
 extern void sub_001FC17B(void);
 extern void sub_001FC457(void);
+extern void sub_001FC880(void);
 extern void sub_001FCE30(void);
 extern void sub_001FD034(void);
+extern void sub_001FDEC0(void);
 extern void sub_001FE8A0(void);
 extern void sub_001FE8E7(void);
+extern void sub_001FF705(void);
+extern void sub_001FF70B(void);
+extern void sub_001FFC10(void);
+extern void sub_00200000(void);
+extern void sub_00200008(void);
+extern void sub_00200010(void);
+extern void sub_00200020(void);
+extern void sub_00200028(void);
+extern void sub_00200770(void);
+extern void sub_002016E0(void);
+extern void sub_00201CA0(void);
+extern void sub_00202020(void);
 extern void sub_002025B2(void);
 extern void sub_002025DA(void);
 extern void sub_00202890(void);
 extern void sub_002028B8(void);
 extern void sub_00202A31(void);
 extern void sub_00202A59(void);
+extern void sub_00202C30(void);
+extern void sub_00202D20(void);
 extern void sub_00202D89(void);
+extern void sub_00202EC0(void);
+extern void sub_00203550(void);
+extern void sub_00203610(void);
+extern void sub_002036F0(void);
+extern void sub_002039A0(void);
+extern void sub_00203B80(void);
+extern void sub_00204452(void);
 extern void sub_00204967(void);
 extern void sub_00204999(void);
 extern void sub_00204DD7(void);
 extern void sub_00204DE2(void);
+extern void sub_00205920(void);
+extern void sub_002059B0(void);
+extern void sub_00205C70(void);
+extern void sub_00206560(void);
 extern void sub_00206E2E(void);
+extern void sub_00207B20(void);
+extern void sub_00207D20(void);
+extern void sub_00208700(void);
+extern void sub_00208830(void);
+extern void sub_00209280(void);
+extern void sub_00209B70(void);
+extern void sub_00209F50(void);
+extern void sub_0020A020(void);
+extern void sub_0020A2C0(void);
+extern void sub_0020B4E0(void);
+extern void sub_0020BF60(void);
+extern void sub_0020CC80(void);
+extern void sub_0020DC70(void);
 extern void sub_0020E493(void);
+extern void sub_0020EBC0(void);
 extern void sub_002126F6(void);
 extern void sub_00215B7D(void);
 extern void sub_0021624C(void);
@@ -2032,31 +2124,96 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001ED185u) return sub_001ED185;
     if (xbox_va == 0x001ED2E7u) return sub_001ED2E7;
     if (xbox_va == 0x001EF6F8u) return sub_001EF6F8;
+    if (xbox_va == 0x001F001Au) return sub_001F001A;
+    if (xbox_va == 0x001F003Fu) return sub_001F003F;
+    if (xbox_va == 0x001F0069u) return sub_001F0069;
+    if (xbox_va == 0x001F04F0u) return sub_001F04F0;
+    if (xbox_va == 0x001F0930u) return sub_001F0930;
+    if (xbox_va == 0x001F0940u) return sub_001F0940;
+    if (xbox_va == 0x001F0950u) return sub_001F0950;
+    if (xbox_va == 0x001F0960u) return sub_001F0960;
+    if (xbox_va == 0x001F0D10u) return sub_001F0D10;
+    if (xbox_va == 0x001F10C6u) return sub_001F10C6;
+    if (xbox_va == 0x001F10CCu) return sub_001F10CC;
+    if (xbox_va == 0x001F13E0u) return sub_001F13E0;
+    if (xbox_va == 0x001F1430u) return sub_001F1430;
+    if (xbox_va == 0x001F3670u) return sub_001F3670;
+    if (xbox_va == 0x001F4230u) return sub_001F4230;
+    if (xbox_va == 0x001F45A0u) return sub_001F45A0;
+    if (xbox_va == 0x001F45B0u) return sub_001F45B0;
+    if (xbox_va == 0x001F4E50u) return sub_001F4E50;
     if (xbox_va == 0x001F51CCu) return sub_001F51CC;
     if (xbox_va == 0x001F51CFu) return sub_001F51CF;
+    if (xbox_va == 0x001F5540u) return sub_001F5540;
     if (xbox_va == 0x001F5633u) return sub_001F5633;
     if (xbox_va == 0x001F56A8u) return sub_001F56A8;
     if (xbox_va == 0x001F5804u) return sub_001F5804;
+    if (xbox_va == 0x001F5860u) return sub_001F5860;
+    if (xbox_va == 0x001F6DD0u) return sub_001F6DD0;
+    if (xbox_va == 0x001F76D0u) return sub_001F76D0;
+    if (xbox_va == 0x001F8AB0u) return sub_001F8AB0;
+    if (xbox_va == 0x001FBA90u) return sub_001FBA90;
     if (xbox_va == 0x001FBD3Cu) return sub_001FBD3C;
     if (xbox_va == 0x001FC17Bu) return sub_001FC17B;
     if (xbox_va == 0x001FC457u) return sub_001FC457;
+    if (xbox_va == 0x001FC880u) return sub_001FC880;
     if (xbox_va == 0x001FCE30u) return sub_001FCE30;
     if (xbox_va == 0x001FD034u) return sub_001FD034;
+    if (xbox_va == 0x001FDEC0u) return sub_001FDEC0;
     if (xbox_va == 0x001FE8A0u) return sub_001FE8A0;
     if (xbox_va == 0x001FE8E7u) return sub_001FE8E7;
+    if (xbox_va == 0x001FF705u) return sub_001FF705;
+    if (xbox_va == 0x001FF70Bu) return sub_001FF70B;
+    if (xbox_va == 0x001FFC10u) return sub_001FFC10;
+    if (xbox_va == 0x00200000u) return sub_00200000;
+    if (xbox_va == 0x00200008u) return sub_00200008;
+    if (xbox_va == 0x00200010u) return sub_00200010;
+    if (xbox_va == 0x00200020u) return sub_00200020;
+    if (xbox_va == 0x00200028u) return sub_00200028;
+    if (xbox_va == 0x00200770u) return sub_00200770;
+    if (xbox_va == 0x002016E0u) return sub_002016E0;
+    if (xbox_va == 0x00201CA0u) return sub_00201CA0;
+    if (xbox_va == 0x00202020u) return sub_00202020;
     if (xbox_va == 0x002025B2u) return sub_002025B2;
     if (xbox_va == 0x002025DAu) return sub_002025DA;
     if (xbox_va == 0x00202890u) return sub_00202890;
     if (xbox_va == 0x002028B8u) return sub_002028B8;
     if (xbox_va == 0x00202A31u) return sub_00202A31;
     if (xbox_va == 0x00202A59u) return sub_00202A59;
+    if (xbox_va == 0x00202C30u) return sub_00202C30;
+    if (xbox_va == 0x00202D20u) return sub_00202D20;
     if (xbox_va == 0x00202D89u) return sub_00202D89;
+    if (xbox_va == 0x00202EC0u) return sub_00202EC0;
+    if (xbox_va == 0x00203550u) return sub_00203550;
+    if (xbox_va == 0x00203610u) return sub_00203610;
+    if (xbox_va == 0x002036F0u) return sub_002036F0;
+    if (xbox_va == 0x002039A0u) return sub_002039A0;
+    if (xbox_va == 0x00203B80u) return sub_00203B80;
+    if (xbox_va == 0x00204452u) return sub_00204452;
     if (xbox_va == 0x00204967u) return sub_00204967;
     if (xbox_va == 0x00204999u) return sub_00204999;
     if (xbox_va == 0x00204DD7u) return sub_00204DD7;
     if (xbox_va == 0x00204DE2u) return sub_00204DE2;
+    if (xbox_va == 0x00205920u) return sub_00205920;
+    if (xbox_va == 0x002059B0u) return sub_002059B0;
+    if (xbox_va == 0x00205C70u) return sub_00205C70;
+    if (xbox_va == 0x00206560u) return sub_00206560;
     if (xbox_va == 0x00206E2Eu) return sub_00206E2E;
+    if (xbox_va == 0x00207B20u) return sub_00207B20;
+    if (xbox_va == 0x00207D20u) return sub_00207D20;
+    if (xbox_va == 0x00208700u) return sub_00208700;
+    if (xbox_va == 0x00208830u) return sub_00208830;
+    if (xbox_va == 0x00209280u) return sub_00209280;
+    if (xbox_va == 0x00209B70u) return sub_00209B70;
+    if (xbox_va == 0x00209F50u) return sub_00209F50;
+    if (xbox_va == 0x0020A020u) return sub_0020A020;
+    if (xbox_va == 0x0020A2C0u) return sub_0020A2C0;
+    if (xbox_va == 0x0020B4E0u) return sub_0020B4E0;
+    if (xbox_va == 0x0020BF60u) return sub_0020BF60;
+    if (xbox_va == 0x0020CC80u) return sub_0020CC80;
+    if (xbox_va == 0x0020DC70u) return sub_0020DC70;
     if (xbox_va == 0x0020E493u) return sub_0020E493;
+    if (xbox_va == 0x0020EBC0u) return sub_0020EBC0;
     if (xbox_va == 0x002126F6u) return sub_002126F6;
     if (xbox_va == 0x00215B7Du) return sub_00215B7D;
     if (xbox_va == 0x0021624Cu) return sub_0021624C;

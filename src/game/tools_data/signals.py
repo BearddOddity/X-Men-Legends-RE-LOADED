@@ -38,9 +38,20 @@ COUNTS = {
     "safe_stub": r"ICALL_SAFE_STUB",
 }
 
+# Signals read as a single number rather than counted occurrences.
+VALUES = {
+    "reached": r"\[COVERAGE\] distinct=(\d+)",
+}
+
 # name -> "up" (higher is better) or "down" (lower is better).
 # Anything absent from this dict is reported but never gates a decision.
 GATED = {
+    # Distinct dispatch targets entered. FIRST because it is the only signal
+    # with any resolution: kernel_calls saturates where the boot stops and read
+    # 1452 for every experiment across a whole day of automated work, so no tool
+    # could tell a small gain from none. This one moves whenever more of the
+    # engine runs, even when the boot still stops in the same place.
+    "reached": "up",
     "kernel_calls": "up",
     "failed_icalls": "down",
     "heap_allocs": "up",
@@ -53,6 +64,9 @@ HANG = r"\[WATCHDOG\] No progress"
 
 def parse(text):
     sig = {n: len(re.findall(p, text)) for n, p in COUNTS.items()}
+    for name, pat in VALUES.items():
+        m = re.findall(pat, text)
+        sig[name] = int(m[-1]) if m else 0
     sig["hung"] = bool(re.search(HANG, text))
     return sig
 

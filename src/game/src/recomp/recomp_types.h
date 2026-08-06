@@ -193,6 +193,56 @@ void sub_00ICALL_SAFE_STUB(void);
 void recomp_icall_reject_log(uint32_t va, const char *file, int line);
 void recomp_icall_reject_dump(void);
 
+/* ================================================================
+ * Coverage: how much of the game actually ran
+ * ================================================================ */
+
+/**
+ * Mark a guest code address as reached, and count DISTINCT addresses.
+ *
+ * Why this exists: kernel_calls, the metric every tool gates on, sat at exactly
+ * 1452 through every experiment on 2026-08-06 - 566 seeded functions, 31 lifter
+ * repairs, a freeze fixed. All of it read as "no change", because the number
+ * saturates wherever the boot stops and says nothing about how much code ran
+ * before that. Tools cannot hill-climb against a flat signal, so a whole day of
+ * automated grinding produced 25 identical readings.
+ *
+ * Distinct reached addresses move whenever more of the engine executes, even
+ * when the boot still stops in the same place. That is the difference between
+ * a gate that can steer and one that cannot.
+ *
+ * A bitmap over the code range, one bit per 4-byte-aligned address: about
+ * 128 KB, one shift and one OR on the hot path. Cheap enough for the 622
+ * million dispatches a spin produces.
+ *
+ * It counts indirect-call targets, not every function - direct calls are
+ * ordinary C calls with nothing to hook. In this engine that is a good proxy:
+ * 18,556 generated call sites are indirect, because the whole thing is
+ * virtual dispatch through igMetaObject.
+ */
+#define RECOMP_COVER_LO 0x00010000u
+#define RECOMP_COVER_HI 0x00400000u
+#define RECOMP_COVER_BITS ((RECOMP_COVER_HI - RECOMP_COVER_LO) / 4u)
+
+extern uint8_t  g_reached[RECOMP_COVER_BITS / 8u];
+extern uint32_t g_reached_count;
+
+void recomp_coverage_dump(void);
+
+static inline void recomp_mark_reached(uint32_t va)
+{
+    if (va < RECOMP_COVER_LO || va >= RECOMP_COVER_HI) {
+        return;
+    }
+    uint32_t bit = (va - RECOMP_COVER_LO) >> 2;
+    uint8_t  msk = (uint8_t)(1u << (bit & 7u));
+    uint8_t *cell = &g_reached[bit >> 3];
+    if (!(*cell & msk)) {
+        *cell |= msk;
+        g_reached_count++;
+    }
+}
+
 /**
  * CPUID. Reads the leaf from g_eax (and subleaf from g_ecx) and writes
  * g_eax/g_ebx/g_ecx/g_edx, modelling the Xbox's Pentium III.
@@ -524,7 +574,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) _fn(); \
+    if (_fn) { recomp_mark_reached(_va); _fn(); } \
     else { recomp_icall_fail_log(_va); g_esp += 4; eax = 0; } \
 } while(0)
 
@@ -561,7 +611,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) _fn(); \
+    if (_fn) { recomp_mark_reached(_va); _fn(); } \
     else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 
@@ -576,7 +626,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     recomp_func_t _fn = recomp_lookup_manual((uint32_t)(xbox_va)); \
     if (!_fn) _fn = recomp_lookup((uint32_t)(xbox_va)); \
     if (!_fn) _fn = recomp_lookup_kernel((uint32_t)(xbox_va)); \
-    if (_fn) _fn(); \
+    if (_fn) { recomp_mark_reached((uint32_t)(xbox_va)); _fn(); } \
 } while(0)
 
 /* ================================================================
