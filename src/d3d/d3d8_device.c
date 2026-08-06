@@ -139,6 +139,73 @@ UINT                 d3d8_GetNumLights(void) {
  * D3D11 initialization helpers
  * ================================================================ */
 
+/*
+ * A window for the swap chain to present into.
+ *
+ * An Xbox game never creates one - the console owns the display, so
+ * D3DPRESENT_PARAMETERS::hDeviceWindow arrives as NULL or as a value that means
+ * nothing on Windows. DXGI requires a real HWND, so without this
+ * D3D11CreateDeviceAndSwapChain fails and nothing can ever be presented.
+ *
+ * Nothing in the WIN32 build created a window at all: the only CreateWindow in
+ * the tree is in d3d8_gl.c, which is the POSIX/OpenGL backend and is not
+ * compiled here. It went unnoticed because the boot has never reached graphics -
+ * every run to date emits zero [d3d8] lines.
+ *
+ * Created on demand and kept for the process lifetime. Messages are pumped in
+ * Present so the window stays responsive rather than showing as "not
+ * responding"; there is no separate UI thread to do it.
+ */
+static HWND d3d8_host_window(UINT width, UINT height)
+{
+    static HWND s_hwnd;
+    WNDCLASSEXA wc;
+    RECT r;
+
+    if (s_hwnd && IsWindow(s_hwnd)) {
+        return s_hwnd;
+    }
+
+    memset(&wc, 0, sizeof(wc));
+    wc.cbSize = sizeof(wc);
+    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.hInstance = GetModuleHandleA(NULL);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.lpszClassName = "XboxRecompWindow";
+    /* A duplicate class registration is expected on a device reset; only a
+     * different failure is worth reporting. */
+    if (!RegisterClassExA(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+        fprintf(stderr, "D3D8: RegisterClassExA failed: %lu\n", GetLastError());
+        return NULL;
+    }
+
+    /* Size the CLIENT area to the back buffer, or the visible image is smaller
+     * than the render target by the border and caption. */
+    r.left = 0;
+    r.top = 0;
+    r.right = (LONG)width;
+    r.bottom = (LONG)height;
+    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+
+    s_hwnd = CreateWindowExA(0, wc.lpszClassName, "X-Men Legends",
+                             WS_OVERLAPPEDWINDOW,
+                             CW_USEDEFAULT, CW_USEDEFAULT,
+                             r.right - r.left, r.bottom - r.top,
+                             NULL, NULL, wc.hInstance, NULL);
+    if (!s_hwnd) {
+        fprintf(stderr, "D3D8: CreateWindowExA failed: %lu\n", GetLastError());
+        return NULL;
+    }
+    ShowWindow(s_hwnd, SW_SHOW);
+    UpdateWindow(s_hwnd);
+    fprintf(stderr, "[d3d8] created host window %ux%u (hwnd=%p)\n",
+            width, height, (void *)s_hwnd);
+    fflush(stderr);
+    return s_hwnd;
+}
+
 static HRESULT d3d11_create_device_and_swap_chain(
     D3D8DeviceState *state,
     D3DPRESENT_PARAMETERS *pp)
@@ -160,7 +227,15 @@ static HRESULT d3d11_create_device_and_swap_chain(
     scd.BufferDesc.RefreshRate.Numerator = 60;
     scd.BufferDesc.RefreshRate.Denominator = 1;
     scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    scd.OutputWindow = pp->hDeviceWindow;
+    /* Use the game's window only if it really is one. An Xbox title has no
+     * window to give, so in practice this always falls through to ours. */
+    scd.OutputWindow = (pp->hDeviceWindow && IsWindow(pp->hDeviceWindow))
+                       ? pp->hDeviceWindow
+                       : d3d8_host_window(scd.BufferDesc.Width,
+                                          scd.BufferDesc.Height);
+    if (!scd.OutputWindow) {
+        return E_FAIL;
+    }
     scd.SampleDesc.Count = 1;
     scd.SampleDesc.Quality = 0;
     scd.Windowed = pp->Windowed;
@@ -185,7 +260,9 @@ static HRESULT d3d11_create_device_and_swap_chain(
         return hr;
     }
 
-    state->hwnd = pp->hDeviceWindow;
+    /* Record the window actually presented into, not what the game asked for -
+     * d3d8_GetHWND() hands this to input and anything else that needs focus. */
+    state->hwnd = scd.OutputWindow;
     state->width = scd.BufferDesc.Width;
     state->height = scd.BufferDesc.Height;
 
