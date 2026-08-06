@@ -64,6 +64,7 @@ solved bugs come back (#15).
 | tool | use |
 |---|---|
 | `phase.py` | run a whole pipeline phase in the right ORDER — `status`, `reseed`, `rebuild`, `verify`. Add `--dry-run` to see the steps. The order is the part that keeps going wrong; this encodes it |
+| `probe_struct.py` | dump MANY fields of one object in a single probe — `--base esi --offsets 0xA8:limit,0xC8:size`. Answering "what is in this object" used to cost one build-and-run per field |
 | `find_icall_gaps.py` | which failed indirect calls are MISSING FUNCTIONS? Classifies every unresolved target and offers only the confident ones (`--add`). **Seeding a real one has been the highest-yield fix on this project, three times over** |
 | `triage_crash.py` | crash → function, source line, register analysis. `--grep` finds the faulting expression, `--icall` resolves failure backtraces to callers. On a HANG it symbolises the watchdog RIP and stack |
 | `add_probe.py` | emit a debug probe with correct escaping |
