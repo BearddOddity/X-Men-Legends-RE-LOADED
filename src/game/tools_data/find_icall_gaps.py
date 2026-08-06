@@ -169,15 +169,25 @@ def classify(va, head, owner=None, boundaries=None):
     if not head:
         return "UNDECODABLE", "no decodable instructions at this VA"
 
-    # Inside a known function: the boundary test is decisive, so use it and
-    # ignore the prologue heuristics entirely.
+    # Inside a known function: the boundary test decides whether the address is
+    # real, but NOT whether seeding it is safe. Those are different questions
+    # and conflating them cost 1452 -> 56 kernel calls on 2026-08-05.
+    #
+    # A boundary-verified mid-function address is a genuine jump target. Seeding
+    # it emits a FRAGMENT running from there to the owner's end, which
+    # duplicates the owner's tail and inherits a half-built frame. Sometimes
+    # that is exactly right - it is how the 195 skipped addresses were fixed -
+    # and sometimes it wrecks the boot. Nothing in the disassembly distinguishes
+    # the two, so these are reported as FRAGMENT and NOT offered to --add unless
+    # asked for explicitly.
     if owner and boundaries is not None:
         start, _end, name, _f = owner
         if va == start:
             return "UNLIKELY", f"already the entry of {name} - not missing"
         if va in boundaries:
-            return "LIKELY", (f"instruction boundary +0x{va - start:X} into "
-                              f"{name} - a real mid-function target (fragment)")
+            return "FRAGMENT", (f"instruction boundary +0x{va - start:X} into "
+                                f"{name} - real, but seeding it duplicates that "
+                                f"function's tail; add one at a time")
         return "UNLIKELY", (f"NOT on an instruction boundary of {name} "
                             f"(+0x{va - start:X}) - decoding mid-instruction")
 
@@ -219,7 +229,12 @@ def main(argv=None):
     ap.add_argument("-f", "--file", default=STDERR,
                     help="log to read (default stderr.txt)")
     ap.add_argument("--add", action="store_true",
-                    help="append LIKELY candidates to seed_list.json")
+                    help="append LIKELY candidates to seed_list.json "
+                         "(fragments are excluded - see --add-fragment)")
+    ap.add_argument("--add-fragment", metavar="0xADDR", action="append",
+                    help="append ONE fragment by address. Repeatable, but "
+                         "measure between each: a batch of these regressed the "
+                         "boot by 25x once")
     ap.add_argument("--all", action="store_true",
                     help="also list UNLIKELY / UNDECODABLE candidates")
     a = ap.parse_args(argv)
@@ -237,7 +252,7 @@ def main(argv=None):
     data, secs = whatis.load_sections()
     funcs = whatis.load_functions()
 
-    likely, unlikely, undec, known, notext = [], [], [], [], []
+    likely, fragment, unlikely, undec, known, notext = [], [], [], [], [], []
     for va in sorted(targets):
         sec = whatis.find_section(secs, va)
         if not sec or ".text" not in sec["name"]:
@@ -251,14 +266,14 @@ def main(argv=None):
         bounds = instruction_boundaries(owner, data, secs) if owner else None
         verdict, reason = classify(va, head, owner, bounds)
         row = (va, reason, head[0] if head else None, owner)
-        {"LIKELY": likely, "UNLIKELY": unlikely,
+        {"LIKELY": likely, "FRAGMENT": fragment, "UNLIKELY": unlikely,
          "UNDECODABLE": undec}[verdict].append(row)
 
     print(f"failed indirect calls in log : {len(targets)}")
     print(f"  outside .text (data/small ints/thunks) : {len(notext)}")
     print(f"  already in the function database       : {len(known)}")
     print(f"  in .text and unknown                   : "
-          f"{len(likely) + len(unlikely) + len(undec)}")
+          f"{len(likely) + len(fragment) + len(unlikely) + len(undec)}")
     print()
     print(f"=== LIKELY missing functions ({len(likely)}) ===")
     if not likely:
@@ -271,6 +286,19 @@ def main(argv=None):
                   f"(0x{owner[0]:08X}-0x{owner[1]:08X}) - the seeder will "
                   f"emit it as a fragment to that function's end")
 
+    print()
+    print(f"=== FRAGMENTS ({len(fragment)}) - real mid-function targets, "
+          f"NOT auto-added ===")
+    if not fragment:
+        print("  (none)")
+    for va, reason, head, owner in fragment:
+        ins = f"{head[0]} {head[1]}".strip() if head else "?"
+        print(f"  0x{va:08X}  {ins[:46]:<46}  {reason}")
+    if fragment:
+        print("  Seeding these duplicates the owner's tail. Sometimes correct,")
+        print("  sometimes catastrophic - a batch of 13 took 1452 -> 56 kernel")
+        print("  calls. Add ONE at a time with --add-fragment 0xADDR and measure.")
+
     if a.all:
         print()
         print(f"=== UNLIKELY ({len(unlikely)}) - not offered for seeding ===")
@@ -281,6 +309,30 @@ def main(argv=None):
         print(f"=== UNDECODABLE ({len(undec)}) ===")
         for va, reason, _h, _o in undec:
             print(f"  0x{va:08X}  {reason}")
+
+    if a.add_fragment:
+        d = json.load(open(SEED_LIST))
+        have = set(d["addresses"])
+        want = {int(x, 16) for x in a.add_fragment}
+        known_frag = {va for va, _r, _h, _o in fragment}
+        for va in sorted(want):
+            if va not in known_frag:
+                print(f"  0x{va:08X} is not in this report's FRAGMENT list - "
+                      f"refusing, check the address")
+                return 1
+        new = sorted(want - have)
+        if not new:
+            print("already present in seed_list.json")
+            return 0
+        d["addresses"] = sorted(have | set(new))
+        d["count"] = len(d["addresses"])
+        with open(SEED_LIST, "w", encoding="utf-8") as fh:
+            json.dump(d, fh, indent=1)
+            fh.write(chr(10))
+        print(f"seed_list.json: {len(have)} -> {len(d['addresses'])}")
+        for va in new:
+            print(f"  + 0x{va:08X}  (fragment - MEASURE before adding another)")
+        return 0
 
     if not a.add:
         print()

@@ -61,17 +61,38 @@ def test_boundary_test_overrides_a_plausible_prologue():
 
 
 def test_boundary_test_rescues_an_odd_looking_opener():
-    """`fnstsw ax` is a junk opener, but ON a boundary it is a real fragment.
+    """`fnstsw ax` is a junk opener, but ON a boundary it is a real target.
 
     Observed at 0x002A6D7C, +0x590 into sub_002A67EC. The boundary test must
     win over the mnemonic blacklist, or genuine mid-function call targets get
-    thrown away.
+    thrown away entirely.
+
+    It classifies as FRAGMENT, not LIKELY. This test asserted LIKELY until
+    2026-08-05, when acting on that verdict for a batch of 13 took the boot
+    from 1452 kernel calls to 56. "Is this a real instruction?" and "is
+    seeding it safe?" are different questions: a fragment duplicates its
+    owner's tail and inherits a half-built frame, which is sometimes exactly
+    right and sometimes catastrophic, and nothing in the disassembly says
+    which. FRAGMENT means real-but-add-one-at-a-time.
     """
     owner = (0x002A67EC, 0x002A6DDD, "sub_002A67EC", "recomp_0018.c")
     bounds = {0x002A67EC, 0x002A6D7C}
     verdict, reason = g.classify(0x002A6D7C, [("fnstsw", "ax")], owner, bounds)
-    assert verdict == "LIKELY", (verdict, reason)
-    assert "fragment" in reason, reason
+    assert verdict == "FRAGMENT", (verdict, reason)
+    assert "one at a time" in reason, reason
+
+
+def test_fragments_are_not_offered_for_bulk_add():
+    """The regression guard: a boundary hit must never come back as LIKELY.
+
+    --add only consumes LIKELY, so this is what keeps a batch of fragments
+    from being seeded in one go again.
+    """
+    owner = (0x00014540, 0x0001459F, "sub_00014540", "recomp_0000.c")
+    bounds = {0x00014540, 0x00014548}
+    verdict, _ = g.classify(0x00014548, [("mov", "eax, dword ptr [edx]")],
+                            owner, bounds)
+    assert verdict != "LIKELY", "fragments must not be auto-added"
 
 
 def test_owner_entry_is_not_missing():
