@@ -1,0 +1,103 @@
+{
+ "entries": [
+  {
+   "id": 1,
+   "claim": "The bad loop count is caused by a use-after-free: the memory was released and handed to another object.",
+   "verdict": "refuted",
+   "evidence": "The writers are sub_001F7930 iterating a list and updating each element via MEM32(esi + 8) - a field, not an object base. Nothing was freed. investigate.py's classifier asserted this and was wrong.",
+   "tags": [
+    "use-after-free",
+    "count",
+    "sub_001F7930",
+    "classifier"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 2,
+   "claim": "Skipping the dispatch loop is free, because every call in it targets 0 and fails, so the loop achieves nothing.",
+   "verdict": "refuted",
+   "evidence": "Measured 1452 -> 56 kernel calls against an unchanged seed list. 'Every call fails' is not 'the loop has no effect' - it still advances an index and the failing calls run through the safe stub, which touches esp and eax.",
+   "tags": [
+    "count-clamp",
+    "guard",
+    "loop",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 3,
+   "claim": "The 16-byte allocation is failing and returning null.",
+   "verdict": "refuted",
+   "evidence": "The allocation site is a clean operator-new plus constructor and it succeeds; 0x030FEFE8 is a legitimately allocated buffer.",
+   "tags": [
+    "allocator",
+    "null",
+    "allocation"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 4,
+   "claim": "esp escaping the 8 MB stack means the stack is corrupted.",
+   "verdict": "refuted",
+   "evidence": "0x03DAB1C8 is the worker thread's own stack, allocated from guest heap by PsCreateSystemThreadEx. triage_crash's heuristic does not model the second thread.",
+   "tags": [
+    "stack",
+    "esp",
+    "thread",
+    "false-positive"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 5,
+   "claim": "Engine global 0x5BC508 is never initialised.",
+   "verdict": "refuted",
+   "evidence": "Written once by sub_00239E50+0x15C, before the loop that reads it.",
+   "tags": [
+    "globals",
+    "0x5BC508",
+    "init"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 6,
+   "claim": "The boot is deterministic, so a single run is a sound measurement.",
+   "verdict": "inconclusive",
+   "evidence": "The three gated counters repeat exactly, but total dispatch volume swings 8x between runs (622M vs 74.9M). Stable where the gate looks; not stable in general.",
+   "tags": [
+    "determinism",
+    "measurement"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 7,
+   "claim": "kernel_calls is an adequate progress signal.",
+   "verdict": "refuted",
+   "evidence": "It read exactly 1452 across 566 seeded functions, 31 lifter repairs and a fixed freeze. It saturates where the boot stops. Replaced as the primary gate by `reached` (distinct dispatch targets), first measurement 692.",
+   "tags": [
+    "metric",
+    "gate",
+    "kernel_calls",
+    "reached"
+   ],
+   "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 8,
+   "claim": "A missing function is what blocks the boot.",
+   "verdict": "refuted",
+   "evidence": "566 functions that vtables provably call were seeded and measured safe; kernel_calls did not move. Worth re-testing against `reached`, which did not exist at the time.",
+   "tags": [
+    "seeding",
+    "missing-functions",
+    "wall"
+   ],
+   "when": "2026-08-06 12:32"
+  }
+ ]
+}

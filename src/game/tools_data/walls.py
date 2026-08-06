@@ -600,6 +600,24 @@ def main(argv=None):
                     print(f"  no gain ({before} -> {after}) - reverting")
                     rec["note"] = f"{rec['tried'][-1]} gave no gain"
                     restore_gen(snap)
+                    # Record the refutation where a later run will look. Without
+                    # this the same pattern gets retried on the same wall next
+                    # session, which is precisely how a day gets spent twice.
+                    try:
+                        import ledger
+                        db = ledger.load()
+                        ledger.seed_from_today(db)
+                        ledger.add(
+                            db,
+                            f"{rec['tried'][-1]} gets the boot past {key}",
+                            "refuted",
+                            f"applied at {wall['site']}: {applied}. "
+                            f"reached/kernel_calls did not rise "
+                            f"({before} -> {after}), reverted.",
+                            [rec["tried"][-1], wall["kind"], wall["site"] or "?"])
+                        ledger.save(db)
+                    except Exception as exc:
+                        print(f"  (could not write the ledger: {exc})")
                 save_kb(kb)
                 write_report(kb, journey, start)
         except BaseException:
