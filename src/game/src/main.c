@@ -167,6 +167,15 @@ static void dump_native_stack(const uintptr_t *sp)
     }
     if (!found)
         fprintf(stderr, "    (no frames into this image found)\n");
+
+    /* Same reason the watchdog path calls this: the per-target reject counts
+     * are registered with atexit(), and neither a crash nor a watchdog kill
+     * ever reaches exit handlers. On 2026-08-06 a 12-million-call spin was
+     * invisible on the crash path for exactly this reason, having just been
+     * diagnosed on the hang path by the same dump. A diagnostic that only
+     * prints on the one path that does not happen is not a diagnostic. */
+    recomp_icall_reject_dump();
+    fflush(stderr);
 }
 
 /* ── recomp_where: probe-callable backtrace ─────────────────── */
@@ -707,6 +716,22 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
         int idx = (g_icall_trace_idx - ICALL_TRACE_SIZE + i) & (ICALL_TRACE_SIZE - 1);
         fprintf(stderr, "  [%2d] 0x%08X\n", i, g_icall_trace[idx]);
     }
+    fflush(stderr);
+
+    /* The per-target reject counts are registered with atexit(), but the hard
+     * deadline below TerminateProcess()es us, so exit handlers never run and
+     * that summary has never once been printed on the path that actually
+     * happens. Print it here instead.
+     *
+     * It belongs on THIS thread, not the deadline thread: the dump uses
+     * fprintf, and the deadline thread deliberately avoids stdio because the
+     * spinning thread can be holding the lock (see watchdog_deadline_proc).
+     * The ring-buffer dump immediately above proves fprintf works from here.
+     *
+     * Worth more than the ring buffer for this failure: the ring shows the
+     * last 16 targets, which on a spin are all the same address, while the
+     * counts say which target dominates across the whole run. */
+    recomp_icall_reject_dump();
     fflush(stderr);
 
     /* Capturing the hung thread's RIP names the spinning function outright,

@@ -783,6 +783,7 @@ extern void sub_00171CA3(void);
 extern void sub_001726DD(void);
 extern void sub_00174E00(void);
 extern void sub_00174E04(void);
+extern void sub_00176A78(void);
 extern void sub_00176BBD(void);
 extern void sub_00177A30(void);
 extern void sub_00177DA9(void);
@@ -1880,6 +1881,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001726DDu) return sub_001726DD;
     if (xbox_va == 0x00174E00u) return sub_00174E00;
     if (xbox_va == 0x00174E04u) return sub_00174E04;
+    if (xbox_va == 0x00176A78u) return sub_00176A78;
     if (xbox_va == 0x00176BBDu) return sub_00176BBD;
     if (xbox_va == 0x00177A30u) return sub_00177A30;
     if (xbox_va == 0x00177DA9u) return sub_00177DA9;
@@ -2900,8 +2902,26 @@ void sub_00ICALL_SAFE_NOOP(void)
  * ponytail: fixed 32 slots, linear scan. If a run ever overflows it the
  * summary says so - swap for a hash map only if that actually happens.
  */
-#define REJECT_SLOTS 32
-static struct { uint32_t va; uint64_t count; } g_reject[REJECT_SLOTS];
+/* 32 filled up before the target that actually hangs the boot (0x030FEFE8)
+ * was ever seen, so its first sighting - the one line that says what led to
+ * it - was silently dropped. The table only holds a va and a count, so this
+ * is cheap; make it big enough that the interesting target is never the one
+ * that gets evicted. */
+#define REJECT_SLOTS 512
+/* file/line are the CALL SITE, not the target. __FILE__ and __LINE__ inside
+ * the RECOMP_ICALL_SAFE macro expand where the macro is used, so all 18,556
+ * generated call sites report themselves for free - nothing had to be
+ * regenerated or edited to get this.
+ *
+ * The target address alone took this as far as it goes: 0x030FEFE8 is a heap
+ * address, so it names the corrupted pointer but not the code reading it.
+ * gen/recomp_NNNN.c:LINE maps straight back to a guest function. */
+static struct {
+    uint32_t va;
+    uint64_t count;
+    const char *file;
+    int line;
+} g_reject[REJECT_SLOTS];
 static unsigned g_reject_used;
 static uint64_t g_reject_total, g_reject_dropped;
 
@@ -2913,15 +2933,16 @@ void recomp_icall_reject_dump(void)
                     "filter, %u distinct target(s):\n",
             (unsigned long long)g_reject_total, g_reject_used);
     for (unsigned i = 0; i < g_reject_used; i++)
-        fprintf(stderr, "    0x%08X  x%llu\n",
-                g_reject[i].va, (unsigned long long)g_reject[i].count);
+        fprintf(stderr, "    0x%08X  x%-12llu from %s:%d\n",
+                g_reject[i].va, (unsigned long long)g_reject[i].count,
+                g_reject[i].file ? g_reject[i].file : "?", g_reject[i].line);
     if (g_reject_dropped)
         fprintf(stderr, "    (%llu more from >%d distinct targets - table full)\n",
                 (unsigned long long)g_reject_dropped, REJECT_SLOTS);
     fflush(stderr);
 }
 
-void recomp_icall_reject_log(uint32_t va)
+void recomp_icall_reject_log(uint32_t va, const char *file, int line)
 {
     static int registered;
     if (!registered) {          /* dump the summary however we exit */
@@ -2932,6 +2953,10 @@ void recomp_icall_reject_log(uint32_t va)
     for (unsigned i = 0; i < g_reject_used; i++) {
         if (g_reject[i].va == va) {
             g_reject[i].count++;
+            /* Keep the FIRST site seen for this target. A spin re-enters the
+             * same site, so first and last agree; if they ever disagree the
+             * first one is the one that introduced the bad pointer. */
+            if (!g_reject[i].file) { g_reject[i].file = file; g_reject[i].line = line; }
             return;
         }
     }
@@ -2943,9 +2968,32 @@ void recomp_icall_reject_log(uint32_t va)
         fprintf(stderr, "[ICALL-REJECT] new target 0x%08X (rejected #%llu)\n",
                 va, (unsigned long long)g_reject_total);
         fflush(stderr);
-    } else {
-        g_reject_dropped++;
+        return;
     }
+
+    /* Space-Saving: evict the lowest-count entry and inherit its count.
+     *
+     * Plain first-N insertion cannot find what we need here. The table filled
+     * with 512 one-shot targets - mostly a metaclass NAME table being walked
+     * four bytes at a time - long before 0x030FEFE8, the address the boot
+     * actually spins on tens of millions of times, was ever seen. Raising the
+     * cap just admits more one-shot garbage; the heavy hitter is always the
+     * one evicted.
+     *
+     * Inheriting min+1 rather than starting at 1 is what makes this work: a
+     * target hit millions of times climbs above the noise within a few
+     * evictions and can never be displaced again, so the dominant spinner is
+     * guaranteed to survive to the dump. Counts for low-frequency entries
+     * become upper bounds, which is the right trade - they are not what any
+     * of this is for. */
+    unsigned lo = 0;
+    for (unsigned i = 1; i < g_reject_used; i++)
+        if (g_reject[i].count < g_reject[lo].count) lo = i;
+    g_reject[lo].va = va;
+    g_reject[lo].count++;
+    g_reject[lo].file = file;
+    g_reject[lo].line = line;
+    g_reject_dropped++;
 }
 
 /* ── Unresolved-stub hit tracking ────────────────────────────── */

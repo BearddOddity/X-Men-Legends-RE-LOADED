@@ -96,6 +96,20 @@ solved bugs come back (#15).
   through one — it corrupted `\n` four separate times. Use `add_probe.py`, or
   write a `.py` file and run it.
 - **`tar` on Windows reads `C:` as a remote host** — pass `--force-local`.
+- **Never run `cmd /c` from the Bash tool.** MSYS path translation rewrites the
+  `/c` flag into `C:/`, so `cmd /c build_compile.bat` becomes
+  `cmd C:/ build_compile.bat` — an interactive shell that prints a banner, runs
+  nothing, and exits 0. It looks like a successful build. Use the PowerShell
+  tool (`& .\build_compile.bat`), or `cmd //c`, or Python's
+  `subprocess.run(["cmd","/c",...])`, which is unaffected. Python tooling was
+  never at risk; only hand-run shell commands. This burned a full
+  build-and-measure cycle on 2026-08-06 and produced a phantom 1452 → 62
+  "regression" that had never been measured.
+- **A stale run log is more dangerous than a missing one**, because it still
+  returns confident numbers. `signals.read()` now compares `stderr.txt` against
+  `seed_list.json` and `recomp_seed.c` and marks the result `STALE`;
+  `bisect_core.run_once()` treats stale as unmeasurable rather than trusting
+  it. Never read counters out of `stderr.txt` by hand without checking mtimes.
 - **Never batch-add seeds.** "This address is a real instruction" and "seeding
   this address is safe" are different questions. A mid-function target seeds
   as a FRAGMENT that duplicates its owner's tail and inherits a half-built

@@ -67,3 +67,14 @@ stdout.txt
 stderr.txt
 xbox_kernel.log
 build_full.log
+
+# Tool run artifacts - regenerable, per-run, and noisy in history.
+# The tools that produce these are committed; their output is not.
+bisect_journal.jsonl
+seed_list.bisect-backup.json
+overnight_console.log
+overnight_report.md
+rebuild_check.log
+recon_report.md
+recon_findings.json
+manual_edits.json.bak-*

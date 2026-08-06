@@ -190,7 +190,7 @@ void sub_00ICALL_SAFE_STUB(void);
  * Keeps a histogram and prints each distinct target once. Implemented in
  * recomp_manual.c; dumped by recomp_icall_reject_dump() at exit.
  */
-void recomp_icall_reject_log(uint32_t va);
+void recomp_icall_reject_log(uint32_t va, const char *file, int line);
 void recomp_icall_reject_dump(void);
 
 /**
@@ -555,7 +555,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
         recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     if (_va >= 0x00400000 && _va < 0xFE000000) { \
-        recomp_icall_reject_log(_va); \
+        recomp_icall_reject_log(_va, __FILE__, __LINE__); \
         g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     recomp_func_t _fn = recomp_lookup_manual(_va); \
