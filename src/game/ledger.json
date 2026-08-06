@@ -98,6 +98,70 @@
     "wall"
    ],
    "when": "2026-08-06 12:32"
+  },
+  {
+   "id": 9,
+   "claim": "iteration-cap gets the boot past spin@sub_001F7930->0x00000000",
+   "verdict": "refuted",
+   "evidence": "applied at sub_001F7930: capped loop back-edge to loc_001F7964 at recomp_0014.c:38840. reached/kernel_calls did not rise (2144 -> 2144), reverted.",
+   "tags": [
+    "iteration-cap",
+    "spin",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 13:17"
+  },
+  {
+   "id": 10,
+   "claim": "iteration-cap gets the boot past spin@sub_001F7930->0x00000000",
+   "verdict": "refuted",
+   "evidence": "applied at sub_001F7930: capped loop back-edge to loc_001F7964 at recomp_0014.c:38840. reached/kernel_calls did not rise (2144 -> 2144), reverted.",
+   "tags": [
+    "iteration-cap",
+    "spin",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 13:22"
+  },
+  {
+   "id": 11,
+   "claim": "The loop's count field is an end-pointer of a begin/end range over an array of function pointers",
+   "verdict": "refuted",
+   "evidence": "Measured the memory the pointers bracket: MEM32(0x00F81180)=0x00F84600 (back-pointer to the object), +4=0x00F812B0, +8=0x00F81188 (self-pointer). Heap pointers, not code addresses. Not a function-pointer array.",
+   "tags": [
+    "loop",
+    "count",
+    "range",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 13:29"
+  },
+  {
+   "id": 12,
+   "claim": "registry+0x2C is maintained as a linked-list head by sub_0019FBC7 but read as an {array,count} descriptor by the loop in sub_001F7930",
+   "verdict": "inconclusive",
+   "evidence": "Object at 0x00F84600 = {0x00F812B0, 0x00F81180, 0, 0}; the memory it points to contains a self-pointer (0x00F81188 -> itself) and a back-pointer to the object - the classic empty-list sentinel shape. sub_0019FBC7 does list splicing (MEM32(ecx)=esi; MEM32(edx)=ecx; MEM32(esi+4)=ecx) and is the writer of that pointer. BOTH functions are faithfully lifted per faithful.py, so neither side is a translation bug. Open fork: whether sub_0019FBC7 legitimately owns that field, or has a wrong pointer.",
+   "tags": [
+    "registry",
+    "list",
+    "layout",
+    "sub_0019FBC7",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 13:29"
+  },
+  {
+   "id": 13,
+   "claim": "registry+0x28 and +0x2C are one embedded list head, so the loop reads half of a two-word structure",
+   "verdict": "refuted",
+   "evidence": "Dumped registry+0x24..+0x30 at loop entry: +0x24=0, +0x28=0, +0x2C=0x00F84600, +0x30=0x00F81288. +0x28 is zero, so it is not the other half of a list head. Note +0x30 holds the registry's OWN base address - a self-reference not yet explained.",
+   "tags": [
+    "registry",
+    "layout",
+    "list-head",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 13:32"
   }
  ]
 }
