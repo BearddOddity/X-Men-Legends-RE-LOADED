@@ -50,6 +50,32 @@ kept in the file with its refutation attached so nobody re-derives it.
 Every pattern carries the wall KINDS it is proven or offered for. A hang remedy
 on a spin is not a long shot, it is a different bug's fix.
 
+This is a PC PORT, not an emulator (project rule #11)
+-----------------------------------------------------
+Every bypass this tool writes is SCAFFOLDING, and the distinction matters because
+the two kinds of finding have opposite value:
+
+    A bypass (clamp a count, skip a loop, terminate a walk) is an emulator's
+    move - paper over behaviour the hardware would have made work. It buys a
+    measurement and nothing else. It is debt from the moment it lands, it is
+    marked as such in the generated code, and it must be removed. Shipping one
+    means shipping a game that limps.
+
+    A missing initialisation, an unlifted function, a dropped branch edge or a
+    miscompiled flag test is a PORT defect. Fixing it makes the native binary
+    genuinely correct - the CRT __active_heap being unset is the example: four
+    readers, no writer, one line to supply the value the console's own startup
+    would have supplied.
+
+So the sweeps matter more than the patterns. A pattern gets the boot moving so
+the next real defect becomes visible; it is never the answer. If a wall can only
+ever be passed by a bypass, that wall is not solved, and walls.json says
+"bypassed" rather than "fixed" for exactly that reason.
+
+No NV2A behaviour, no pushbuffer interpretation, no cycle accuracy, and nothing
+interpreted or JIT-ed. If a fix starts to look like emulating the console, it is
+the wrong fix.
+
 Honesty rules, because nobody is watching
 -----------------------------------------
 - A bypass is CONTAINMENT, not a fix, and every one it writes says so in the
@@ -259,10 +285,19 @@ def find_owner_span(name):
 
 
 NOTE = (
-    "    /* CONTAINMENT applied automatically by walls.py - NOT a fix.\n"
-    "     * The boot stopped here; this lets it continue so the next wall can be\n"
-    "     * found. The underlying defect is NOT understood. Do not treat this as\n"
-    "     * explained, and remove it once the real cause is known.\n"
+    "    /* SCAFFOLDING applied automatically by walls.py - NOT a fix, and NOT\n"
+    "     * shippable.\n"
+    "     *\n"
+    "     * This is a PC port, not an emulator (project rule #11). Clamping a\n"
+    "     * value or skipping a loop is an emulator's move: it papers over\n"
+    "     * behaviour the console would have made work. It buys ONE measurement -\n"
+    "     * it lets the boot continue so the next real defect becomes visible.\n"
+    "     *\n"
+    "     * The underlying defect is NOT understood. A correct port fixes the\n"
+    "     * cause - a missing initialisation, an unlifted function, a dropped\n"
+    "     * branch edge - so the native binary is genuinely right. Delete this\n"
+    "     * once that is done.\n"
+    "     *\n"
     "     * Pattern: {pat}\n"
     "     */\n")
 
@@ -621,8 +656,13 @@ def write_report(kb, journey, start):
         out.append("**The game ran without hitting a wall this tool can see.**")
     out += [f"- {len(beaten)} wall(s) got past.",
             f"- {len(stuck)} wall(s) we could not pass yet.", "",
-            "Every bypass is a workaround, not a repair. They are marked in the "
-            "code and listed below so they can be undone.", "", "---", ""]
+            "Every bypass is SCAFFOLDING, not a repair - this is a PC port, "
+            "not an emulator. A clamp or a skip papers over behaviour the "
+            "console made work; it buys one measurement and must be deleted. "
+            "The static findings below are the ones worth acting on: a missing "
+            "initialisation or an unlifted function is a real port defect, and "
+            "fixing it makes the native build genuinely correct.",
+            "", "---", ""]
 
     if journey:
         out += ["## What happened, in order", ""]
