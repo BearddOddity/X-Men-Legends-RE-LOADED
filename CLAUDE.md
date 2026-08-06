@@ -95,8 +95,15 @@ solved bugs come back (#15).
   through one — it corrupted `\n` four separate times. Use `add_probe.py`, or
   write a `.py` file and run it.
 - **`tar` on Windows reads `C:` as a remote host** — pass `--force-local`.
-- **The fake TIB at VA 0 is mapped**, so null dereferences return plausible
-  garbage instead of faulting. Bugs surface far from their cause.
+- **The TIB moved off VA 0 on 2026-08-05** — it now lives at `0x00770000` with
+  `g_fs_base` pointing at it, and low memory is left ZERO. It used to be
+  mapped at 0, so null dereferences returned plausible garbage instead of
+  reading null, and bugs surfaced far from their cause — that overlap made
+  `MEM32(4)` answer as a handler count and sent one investigation 7.6M
+  iterations sideways. Cost 4 kernel calls (1456→1452); five absolute
+  low-memory reads remain in `gen/` (`MEM32(0xC)` ×2, `0x54`, `0x1C`, `0x14`)
+  and are the suspected reason. **Low memory reading zero is now the
+  invariant** — if a null deref stops faulting, something re-mapped it.
 - **`esp` is simulated and drifts.** Lifted code that reads relative to `esp`
   across a call is exposed; prefer a saved frame pointer where one exists.
 - **An unresolved stub is never harmless.** The call site pushes a fake
