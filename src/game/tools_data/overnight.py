@@ -297,7 +297,12 @@ def main(argv=None):
 
     h = build_harness(a.plan, a.batch)
     every = h.items()
-    stages = [a.plan] + ([a.then] if a.then else [])
+    # --then is action="append", so a.then is already a list. Wrapping it in
+    # another list made the second stage the literal ['staleflags-all'].
+    stages = [a.plan] + list(a.then)
+    if len(stages) > 4:
+        sys.exit(f"{len(stages)} stages requested; 4 is the limit "
+                 f"(--plan plus up to three --then)")
     print(f"gate      : {signals.header()}")
     print(f"budget    : {a.hours}h")
     for s in stages:

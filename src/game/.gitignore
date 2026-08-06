@@ -82,3 +82,7 @@ investigation_report.md
 investigate_run.log
 seeds_run.log
 iv*.log
+walls_report.md
+walls.json
+away_run.log
+.walls-snapshot/
