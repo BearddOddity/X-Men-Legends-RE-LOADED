@@ -68,6 +68,18 @@ if (-not (Test-Path (Join-Path $GameDir "build\xmen_legends_recomp.exe"))) {
 
 $stderrPath = Join-Path $GameDir "stderr.txt"
 
+# RECOMP_HANG_RIP makes the watchdog suspend the main thread and dump its RIP.
+# That is a debugging aid, and it changes what this script measures: the run
+# ends as a fault (or on the hard deadline) instead of a hang, so the crash
+# site and the ending both move. Inherited environment is invisible, so say so
+# rather than silently baselining a diagnostic build.
+if ($env:RECOMP_HANG_RIP) {
+    Write-Host "WARNING: RECOMP_HANG_RIP is set in this environment." -ForegroundColor Yellow
+    Write-Host "  The watchdog will suspend the main thread and terminate on a" -ForegroundColor Yellow
+    Write-Host "  hard deadline, so these numbers are NOT comparable to the" -ForegroundColor Yellow
+    Write-Host "  baseline. Clear it before gating or recording." -ForegroundColor Yellow
+}
+
 function Invoke-OneRun {
     # A hang (infinite loop, no crash) is a real failure mode this game has
     # hit - don't let the test itself hang forever waiting for it. Launch
@@ -116,8 +128,17 @@ function Invoke-OneRun {
         "(crash, no RVA logged)"
     } else { "(none)" }
 
+    # A watchdog hang and a timeout hang are BOTH hangs, and only the second
+    # was being detected. The in-process watchdog kills the game after 8 s, so
+    # the process exits well inside our 30 s window and the run looked like a
+    # normal termination - which meant a spinning build could be baselined as
+    # known-good. Treat the watchdog's own verdict as authoritative.
+    $watchdogHang = [bool]($lines | Select-String -Pattern '\[WATCHDOG\] No progress' -Quiet)
+
     [pscustomobject]@{
-        Hung         = $hung
+        Hung         = ($hung -or $watchdogHang)
+        TimedOut     = $hung
+        WatchdogHang = $watchdogHang
         ExitCode     = $exitCode
         KernelCalls  = $kernelCallCount
         FailedIcalls = ($lines | Select-String -Pattern 'Failed to resolve VA').Count
@@ -149,6 +170,23 @@ foreach ($name in @("KernelCalls", "FailedIcalls", "HeapAllocs", "SafeStub", "Cr
     if ($distinct.Count -gt 1) {
         $varying += ("{0} ({1})" -f $name, ($distinct -join ", "))
     }
+}
+
+# A HUNG run is time-boxed by the watchdog, so every counter is "however far it
+# got in 8 seconds" and will differ run to run by construction. That is not the
+# nondeterminism this check exists to catch - real nondeterminism is a build
+# whose BEHAVIOUR varies - and reporting it as such trains people to ignore the
+# warning. Observed: safe_stub 8646/8910/9146 across three runs of one spin,
+# which decodes to ~600M identical stub calls, not three different executions.
+# The hang itself still fails below; this only stops the double-report.
+$anyHungForVariance = [bool]($results | Where-Object { $_.Hung })
+if ($anyHungForVariance -and $varying.Count -gt 0) {
+    Write-Host ""
+    Write-Host "NOTE: the run HANGS, so counters are time-boxed by the watchdog" -ForegroundColor Cyan
+    Write-Host "      and differ by how far each run got. Not treated as" -ForegroundColor Cyan
+    Write-Host "      nondeterminism; the hang is reported on its own below." -ForegroundColor Cyan
+    $varying | ForEach-Object { Write-Host "        time-boxed: $_" -ForegroundColor Cyan }
+    $varying = @()
 }
 
 # Worst case per signal, so the gate judges the least favourable run rather
@@ -207,7 +245,12 @@ if ($varying.Count -gt 0) {
 }
 
 if ($anyHung) {
-    Write-Host "`nFAIL: process hung (exceeded ${TimeoutSeconds}s with no exit) and was killed - a real regression, not a crash." -ForegroundColor Red
+    $why = if ($results | Where-Object { $_.WatchdogHang }) {
+        "the in-process watchdog fired (spin detected, process self-terminated)"
+    } else {
+        "exceeded ${TimeoutSeconds}s with no exit and was killed"
+    }
+    Write-Host "`nFAIL: process hung - $why. A hang is not a known-good state." -ForegroundColor Red
     $failed = $true
 }
 

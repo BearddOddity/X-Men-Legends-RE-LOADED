@@ -268,7 +268,15 @@ def triage_hang(path):
 
     # The ring buffer is the last 16 targets before the watchdog fired, so a
     # repeated or nonsensical run of them names the loop.
-    tail = text[text.rfind("[WATCHDOG]"):]
+    # Anchor on the last "No progress after" line, NOT the last "[WATCHDOG]"
+    # line. The watchdog prints several [WATCHDOG] lines after the ring dump
+    # (the RIP capture, or the hint when it is disabled), so anchoring on the
+    # last one truncated the tail to that single line and silently dropped the
+    # ICALL ring and the whole stack from this report.
+    anchor = text.rfind("No progress after")
+    if anchor < 0:
+        anchor = text.rfind("[WATCHDOG]")
+    tail = text[anchor:]
     targets = re.findall(r"\[\s*\d+\]\s+0x([0-9A-Fa-f]{8})", tail)
     if targets:
         print("\nlast ICALL targets before the hang (most recent last):")
@@ -284,20 +292,52 @@ def triage_hang(path):
                 note = "  <- garbage (often instruction bytes read as a pointer)"
             print(f"    0x{va:08X}{note}")
 
-    # Any native RVAs in the tail resolve to real function names.
-    rvas = re.findall(r"RVA 0x([0-9A-Fa-f]+)", tail)
+    # The hung thread's own RIP, when the capture was enabled. This is the
+    # single most useful line in a hang report - it names the spinning
+    # function outright - so symbolise it before the stack.
+    #
+    # Accept `RVA=0x` as well as `RVA 0x`: the watchdog prints the former and
+    # the crash path prints the latter, and matching only one silently dropped
+    # every watchdog stack from this report.
+    syms = load_map()
+    m = re.search(r"\[WATCHDOG\] RIP=0x([0-9A-Fa-f]+) \(RVA=0x([0-9A-Fa-f]+)\)", tail)
+    if m:
+        rva = int(m.group(2), 16)
+        s = symbolise(syms, rva)
+        print("\nHUNG AT       : ", end="")
+        if s and not s.get("uncertain"):
+            print(f"{s['name']}+0x{s['offset']:X}  (RVA 0x{rva:X})")
+            lo, hi = find_source(s["name"]) if s else (None, None)
+            if lo:
+                print(f"source        : lines {lo}..{hi}")
+        else:
+            print(f"RVA 0x{rva:X} - outside this image (a system DLL). "
+                  "The recompiled frame is in the stack below.")
+
+    rvas = re.findall(r"RVA[= ]0x([0-9A-Fa-f]+)", tail)
     if rvas:
-        syms = load_map()
         print("\nnative call stack at the hang (innermost first):")
+        seen = set()
         for r in rvas:
             rva = int(r, 16)
+            if rva in seen:
+                continue
+            seen.add(rva)
             s = symbolise(syms, rva)
             print(f"    RVA 0x{rva:08X}  "
                   + (f"{s['name']}+0x{s['offset']:X}" if s else "(unresolved)"))
 
     print("\nA hang has no faulting address, so there is nothing to guard.")
-    print("Find the loop: probe the suspected function's entry and exit and")
-    print("check whether it returns at all.")
+    if m:
+        print("The RIP above names the loop - read that function and find what")
+        print("its exit condition depends on.")
+    else:
+        print("Capture the hung thread's RIP, which names the loop outright:")
+        print("    set RECOMP_HANG_RIP=1     (cmd)   or")
+        print("    $env:RECOMP_HANG_RIP=1    (PowerShell)")
+        print("then re-run and triage again. No rebuild needed. Expect a")
+        print("secondary access violation after the dump - the diagnostics")
+        print("print first, so it is harmless.")
     return 0
 
 

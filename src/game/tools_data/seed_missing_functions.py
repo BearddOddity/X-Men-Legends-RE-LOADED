@@ -443,6 +443,24 @@ def main(argv):
         # and a regeneration could not reproduce the tree it replaced.
         rec = os.path.join(GAME_DIR, args.record)
         addrs = sorted(int(n[4:], 16) for n, _ in bodies)
+        # Recording ONLY what was produced silently deletes anything this run
+        # skipped, and the record is the same file --from-list reads. That is
+        # how 195 addresses vanished once: they were skipped, dropped from the
+        # list, and the loss was invisible until a diff turned it up.
+        #
+        # So when the request came FROM a list, the list is intent and survives
+        # a skip. Whoever added an address gets to keep it until they remove it
+        # deliberately - which also stops find_icall_gaps.py re-offering the
+        # same skipped address on every sweep.
+        if args.from_list:
+            requested = sorted(int(v, 16) for v in args.va)
+            lost = sorted(set(requested) - set(addrs))
+            addrs = sorted(set(addrs) | set(requested))
+            if lost:
+                print(f"  keeping {len(lost)} skipped address(es) in {args.record} "
+                      f"(intent survives a skip): "
+                      + ", ".join("0x%08X" % v for v in lost[:8])
+                      + (" ..." if len(lost) > 8 else ""))
         with open(rec, "w", encoding="utf-8", newline="") as f:
             json.dump({"count": len(addrs), "addresses": addrs}, f, indent=1)
         print("recorded %d address(es) -> %s" % (len(addrs), args.record))

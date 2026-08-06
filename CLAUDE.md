@@ -63,7 +63,9 @@ solved bugs come back (#15).
 
 | tool | use |
 |---|---|
-| `triage_crash.py` | crash → function, source line, register analysis. `--grep` finds the faulting expression, `--icall` resolves failure backtraces to callers |
+| `phase.py` | run a whole pipeline phase in the right ORDER — `status`, `reseed`, `rebuild`, `verify`. Add `--dry-run` to see the steps. The order is the part that keeps going wrong; this encodes it |
+| `find_icall_gaps.py` | which failed indirect calls are MISSING FUNCTIONS? Classifies every unresolved target and offers only the confident ones (`--add`). **Seeding a real one has been the highest-yield fix on this project, three times over** |
+| `triage_crash.py` | crash → function, source line, register analysis. `--grep` finds the faulting expression, `--icall` resolves failure backtraces to callers. On a HANG it symbolises the watchdog RIP and stack |
 | `add_probe.py` | emit a debug probe with correct escaping |
 | `strip_probes.py` | remove probes; refuses any removal that would unbalance braces |
 | `add_guard.py` | emit the standard pointer-plausibility guard |
@@ -173,6 +175,10 @@ py -3 tools_data/add_probe.py ...           # prove it (#5)
 py -3 tools_data/add_probe.py --where ...   # ...and who called it
 py -3 tools_data/triage_crash.py --where    # resolve those backtraces
 py -3 tools_data/strip_probes.py --apply    # clean up
+py -3 tools_data/find_icall_gaps.py         # missing functions? highest yield
+RECOMP_HANG_RIP=1 ./run.bat                 # ON A HANG: names the spinning
+py -3 tools_data/triage_crash.py            #   function. Bounded by a hard
+                                            #   deadline, so it always exits.
 ./smoke_test.ps1                            # REGRESSION GATE - run before
                                             # recording anything. Gates all
                                             # four signals plus determinism;

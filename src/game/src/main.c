@@ -660,6 +660,39 @@ extern volatile uint64_t g_icall_count;
 
 static HANDLE g_watchdog_main_thread = NULL;
 
+/* Kill the process after `ms`, no matter what else is stuck.
+ *
+ * The RIP capture below suspends the main thread, and if that thread is inside
+ * fprintf - which it usually is, since the SAFE_STUB and ICALL logs sit on the
+ * hot path of exactly the spins worth capturing - anything the watchdog prints
+ * afterwards can block on the stdio lock forever. That turned an 8-second
+ * diagnostic run into an indefinite hang twice. This guarantees an exit and
+ * keeps whatever was flushed before the deadline. */
+static unsigned __stdcall watchdog_deadline_proc(void *arg)
+{
+    static const char msg[] =
+        "\n[WATCHDOG] hard deadline reached - terminating "
+        "(any RIP capture above may be incomplete)\n";
+    DWORD wrote;
+    Sleep((DWORD)(uintptr_t)arg);
+    /* WriteFile, NOT fprintf. This thread exists because the stdio lock is
+     * suspect, so using the CRT here would block on the very lock it is meant
+     * to rescue us from - which is exactly what happened on the first attempt:
+     * the deadline never fired and the run had to be killed externally.
+     * WriteFile goes straight to the handle and cannot be held up by the CRT. */
+    WriteFile(GetStdHandle(STD_ERROR_HANDLE), msg, (DWORD)(sizeof msg - 1),
+              &wrote, NULL);
+    TerminateProcess(GetCurrentProcess(), (UINT)-3);
+    return 0;
+}
+
+static void watchdog_arm_hard_deadline(unsigned ms)
+{
+    uintptr_t h = _beginthreadex(NULL, 0, watchdog_deadline_proc,
+                                 (void *)(uintptr_t)ms, 0, NULL);
+    if (h) CloseHandle((HANDLE)h);
+}
+
 static unsigned __stdcall watchdog_thread_proc(void *arg)
 {
     (void)arg;
@@ -676,41 +709,107 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
     }
     fflush(stderr);
 
-    /* SuspendThread + GetThreadContext causes a secondary crash here
-     * (confirmed twice now - possibly a race, since SuspendThread's
-     * effect can be delayed until the target returns to user mode, so
-     * the main thread may keep running briefly with a torn context).
-     * Disabled by default; the ICALL trace above needs none of this.
-     * Re-enable only to hunt a specific quiet hang, and expect a
-     * secondary access violation right after the RIP/stack dump prints -
-     * that's fine, the diagnostics print first. */
-#if 0
-    SuspendThread(g_watchdog_main_thread);
-
-    CONTEXT ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.ContextFlags = CONTEXT_FULL;
-    if (GetThreadContext(g_watchdog_main_thread, &ctx)) {
-        uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
-        fprintf(stderr, "[WATCHDOG] RIP=0x%llX (RVA=0x%llX)\n",
-            (unsigned long long)ctx.Rip, (unsigned long long)(ctx.Rip - base));
-        fprintf(stderr, "[WATCHDOG] Stack scan (values in-range for this module, RSP=0x%llX):\n",
-            (unsigned long long)ctx.Rsp);
-        uintptr_t *sp = (uintptr_t *)ctx.Rsp;
-        int printed = 0;
-        for (int i = 0; i < 4096 && printed < 60; i++) {
-            uintptr_t v = sp[i];
-            if (v >= base && v < base + 0x02000000) {
-                fprintf(stderr, "  [%4d] RVA=0x%llX\n", i, (unsigned long long)(v - base));
-                printed++;
-            }
-        }
+    /* Capturing the hung thread's RIP names the spinning function outright,
+     * and on a QUIET loop - one that makes no kernel calls and no indirect
+     * dispatches - it is the only instrument that works at all. It found the
+     * unbounded tree walk in sub_001186A0 that a probe could never have seen.
+     *
+     * It is not free: SuspendThread + GetThreadContext causes a secondary
+     * crash afterwards (confirmed repeatedly - SuspendThread's effect can be
+     * delayed until the target re-enters user mode, so the main thread may run
+     * on briefly with a torn context). The diagnostics print BEFORE that, so
+     * the dump is always usable, but the run ends as a fault rather than a
+     * hang and the smoke signals change shape.
+     *
+     * So it is opt-in at RUNTIME rather than compile time. It used to be
+     * `#if 0`, which meant every use cost an edit, a rebuild and a revert -
+     * three times in one session. Now:
+     *
+     *     set RECOMP_HANG_RIP=1        (cmd)
+     *     $env:RECOMP_HANG_RIP=1       (PowerShell)
+     *
+     * triage_crash.py symbolises the result and prints this hint when the
+     * variable was not set. */
+    if (!getenv("RECOMP_HANG_RIP")) {
+        fprintf(stderr, "[WATCHDOG] set RECOMP_HANG_RIP=1 to capture the hung "
+                        "thread's RIP (names the spinning function)\n");
         fflush(stderr);
     } else {
-        fprintf(stderr, "[WATCHDOG] GetThreadContext failed: %lu\n", GetLastError());
-        fflush(stderr);
-    }
-#endif
+        /* HARD DEADLINE FIRST. Everything below is best-effort diagnostics on
+         * a process that is already wedged, and it has hung outright more than
+         * once - suspending a thread that holds the stdio lock is inherently
+         * racy and no amount of ordering makes it safe in every case. So arm a
+         * killer that fires regardless, and let the capture be allowed to fail.
+         * Whatever printed before the deadline is still in the log, which is
+         * the entire value; an unbounded diagnostic that wedges the run is
+         * worth less than a partial one that always terminates. */
+        watchdog_arm_hard_deadline(3000);
+
+        /* SNAPSHOT, RESUME, then print - in that order, and never print while
+         * the target is suspended.
+         *
+         * The main thread in a spin is usually inside fprintf itself (the
+         * SAFE_STUB and ICALL logs sit right on the hot path), so it holds the
+         * stdio lock. Suspending it and then calling fprintf here deadlocks on
+         * that lock, and the process hangs forever with no output at all -
+         * measured, and worse than the "secondary access violation" the old
+         * comment warned about, which was very likely this same hazard wearing
+         * a different hat.
+         *
+         * Copying the CONTEXT out first costs nothing: it is a value, still
+         * valid after the thread runs on, and the RIP it holds is the sample we
+         * came for. Also read the stack into a local buffer before resuming,
+         * since walking it afterwards would race the thread that owns it. */
+        CONTEXT ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.ContextFlags = CONTEXT_FULL;
+
+        uintptr_t frames[4096];
+        size_t nframes = 0;
+        BOOL got;
+
+        SuspendThread(g_watchdog_main_thread);
+        got = GetThreadContext(g_watchdog_main_thread, &ctx);
+        if (got) {
+            /* A torn or wild RSP can point anywhere, so guard the copy with
+             * SEH rather than a validity predicate: IsBadReadPtr was tried
+             * here and the watchdog still died mid-print, because it reports
+             * on page presence and cannot promise the next slot is readable.
+             * __try keeps whatever was copied before the first fault. */
+            uintptr_t *sp = (uintptr_t *)ctx.Rsp;
+            __try {
+                for (; nframes < 4096; nframes++)
+                    frames[nframes] = sp[nframes];
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+                /* nframes holds however many slots were readable. */
+            }
+        }
+        ResumeThread(g_watchdog_main_thread);
+
+        if (got) {
+            uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+            fprintf(stderr, "[WATCHDOG] RIP=0x%llX (RVA=0x%llX)\n",
+                (unsigned long long)ctx.Rip,
+                (unsigned long long)(ctx.Rip - base));
+            fprintf(stderr, "[WATCHDOG] Stack scan (values in-range for this "
+                            "module, RSP=0x%llX):\n",
+                (unsigned long long)ctx.Rsp);
+            int printed = 0;
+            for (size_t i = 0; i < nframes && printed < 60; i++) {
+                uintptr_t v = frames[i];
+                if (v >= base && v < base + 0x02000000) {
+                    fprintf(stderr, "  [%4zu] RVA=0x%llX\n", i,
+                            (unsigned long long)(v - base));
+                    printed++;
+                }
+            }
+            fflush(stderr);
+        } else {
+            fprintf(stderr, "[WATCHDOG] GetThreadContext failed: %lu\n",
+                    GetLastError());
+            fflush(stderr);
+        }
+    }   /* RECOMP_HANG_RIP */
 
     /* Diagnostics captured - terminate rather than resume, since resuming
      * just continues the same infinite loop and we already have what we
