@@ -420,8 +420,16 @@ def write_report(kb, journey, start):
         out.append(f"**The game went from {first['before']} steps to "
                    f"{last['after']} steps.**" if moved > 0 else
                    f"**No progress.** Still {first['before']} steps.")
+    elif stuck:
+        # Found a wall but had no pattern for it. That is a real, useful result -
+        # the tool declined to guess - and must not read as "nothing happened".
+        out.append(f"**Found a wall and stopped.** No known fix fits it, so "
+                   f"nothing was changed and nothing was broken.")
+        out.append("")
+        out.append("This is the tool working correctly. It only applies fixes "
+                   "already proven on this game, and refuses to invent one.")
     else:
-        out.append("**Nothing ran.**")
+        out.append("**The game ran without hitting a wall this tool can see.**")
     out += [f"- {len(beaten)} wall(s) got past.",
             f"- {len(stuck)} wall(s) we could not pass yet.", "",
             "Every bypass is a workaround, not a repair. They are marked in the "
@@ -529,7 +537,14 @@ def main(argv=None):
                 sym = Symbols()
                 text = run_once()
                 sig = signals.parse(text)
-                before = sig.get("kernel_calls", 0)
+                # `reached` (distinct dispatch targets) is the progress measure,
+                # not kernel_calls. kernel_calls saturates where the boot stops
+                # and read exactly 1452 through every experiment of 2026-08-06,
+                # so a wall-walker gated on it could never tell a bypass that
+                # helped a little from one that did nothing at all - which is
+                # the entire job. Sum both so a gain in either counts.
+                before = sig.get("reached", 0) + sig.get("kernel_calls", 0)
+                before_r = sig.get("reached", 0)
                 if not journey and "errors" not in kb:
                     kb["errors"] = harvest_errors(text, sym)
                     save_kb(kb)
@@ -583,8 +598,10 @@ def main(argv=None):
                 after = 0
                 for _ in range(max(1, a.runs)):
                     s2 = signals.parse(run_once())
-                    after = (min(after, s2.get("kernel_calls", 0))
-                             if after else s2.get("kernel_calls", 0))
+                    v = s2.get("reached", 0) + s2.get("kernel_calls", 0)
+                    # Worst case across runs: a bypass must help on EVERY run to
+                    # count, so it can lose to noise but never win by it.
+                    after = min(after, v) if after else v
 
                 progressed = after > before
                 journey.append({"key": key, "before": before, "after": after,
@@ -629,6 +646,9 @@ def main(argv=None):
         finally:
             save_kb(kb)
             write_report(kb, journey, start)
+            # The snapshot is only a rollback buffer; leaving 30 stale copies of
+            # gen/ behind invites someone restoring from a run days old.
+            shutil.rmtree(snap, ignore_errors=True)
 
     print(f"\nreport: {os.path.basename(REPORT)}   knowledge: {os.path.basename(KB)}")
     return 0
