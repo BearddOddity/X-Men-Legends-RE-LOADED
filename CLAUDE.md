@@ -65,6 +65,7 @@ solved bugs come back (#15).
 |---|---|
 | `phase.py` | run a whole pipeline phase in the right ORDER — `status`, `reseed`, `rebuild`, `verify`. Add `--dry-run` to see the steps. The order is the part that keeps going wrong; this encodes it |
 | `probe_struct.py` | dump MANY fields of one object in a single probe — `--base esi --offsets 0xA8:limit,0xC8:size`. Answering "what is in this object" used to cost one build-and-run per field |
+| `bisect_seeds.py` | a batch of seeds regressed the boot — **which one?** Binary-searches the batch, keeping the good ones instead of abandoning all of them. Backs up `seed_list.json` and restores on every exit path. `--from-gaps` takes the FRAGMENT list straight from `find_icall_gaps.py` |
 | `find_icall_gaps.py` | which failed indirect calls are MISSING FUNCTIONS? Classifies every unresolved target and offers only the confident ones (`--add`). **Seeding a real one has been the highest-yield fix on this project, three times over** |
 | `triage_crash.py` | crash → function, source line, register analysis. `--grep` finds the faulting expression, `--icall` resolves failure backtraces to callers. On a HANG it symbolises the watchdog RIP and stack |
 | `add_probe.py` | emit a debug probe with correct escaping |
@@ -95,6 +96,15 @@ solved bugs come back (#15).
   through one — it corrupted `\n` four separate times. Use `add_probe.py`, or
   write a `.py` file and run it.
 - **`tar` on Windows reads `C:` as a remote host** — pass `--force-local`.
+- **Never batch-add seeds.** "This address is a real instruction" and "seeding
+  this address is safe" are different questions. A mid-function target seeds
+  as a FRAGMENT that duplicates its owner's tail and inherits a half-built
+  frame — sometimes the right fix, sometimes fatal, and the disassembly cannot
+  tell you which. Adding 13 at once took 1452 → 56 kernel calls.
+  `find_icall_gaps.py --add` now refuses fragments; use `bisect_seeds.py` to
+  try a batch safely, or `--add-fragment` one at a time and measure between.
+  **Copy `seed_list.json` before any seed change** — that copy is the only
+  reason the 25× regression cost one cycle to undo instead of a session.
 - **The TIB moved off VA 0 on 2026-08-05** — it now lives at `0x00770000` with
   `g_fs_base` pointing at it, and low memory is left ZERO. It used to be
   mapped at 0, so null dereferences returned plausible garbage instead of
