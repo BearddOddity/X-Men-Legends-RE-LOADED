@@ -363,9 +363,35 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         #define XBOX_VA(va) ((void *)((uintptr_t)(va) + g_memory_offset))
         #define MEM32_INIT(va, val) (*(uint32_t *)XBOX_VA(va) = (uint32_t)(val))
 
-        /* Fake TIB at address 0x0 */
-        MEM32_INIT(0x00, 0xFFFFFFFF);       /* SEH: end of chain */
-        MEM32_INIT(0x08, XBOX_STACK_BASE);  /* Stack limit (low address) */
+        /*
+         * The TIB lives at XBOX_TIB_VA, NOT at guest 0.
+         *
+         * It used to sit at 0, because the lifter dropped fs: prefixes and
+         * fs:[n] became MEM32(n). That is no longer true - fs: is lifted to
+         * MEM32(g_fs_base + n) at 2,743 sites - and keeping the TIB at 0 was
+         * actively harmful, because it also answers every NULL-DERIVED READ.
+         *
+         * Measured cost of that overlap: the engine's out-of-memory handler
+         * sub_001E8F30 does `eax = MEM32(0x5BC53C); edi = MEM32(eax + 4)` to
+         * get a handler count. With that registry pointer still NULL, the
+         * count came from MEM32(4) - the TIB's TLS-array slot, 0x00750000 -
+         * so the loop ran 7.6 MILLION times over garbage, made ~600 million
+         * failing indirect calls, and returned "nothing freed". That single
+         * overlap was the entire 8-second spin.
+         *
+         * With low memory left as zeros, MEM32(4) reads 0, the count is -1,
+         * the loop is skipped, and the handler returns cleanly. A null
+         * dereference then behaves like a null dereference instead of quietly
+         * yielding whatever the TIB happens to hold.
+         *
+         * g_fs_base is RECOMP_TLS, so this sets it for the calling thread.
+         * That is the main thread and currently the only one; per-thread TIBs
+         * become one allocation per thread here when real threads land.
+         */
+        #define XBOX_TIB_VA 0x00770000   /* free: 0x760000 used, stack at 0x780000 */
+
+        MEM32_INIT(XBOX_TIB_VA + 0x00, 0xFFFFFFFF);      /* SEH: end of chain */
+        MEM32_INIT(XBOX_TIB_VA + 0x08, XBOX_STACK_BASE); /* stack limit (low) */
 
         /*
          * fs:[0x04] - TLS slot array, NOT the NT_TIB StackBase.
@@ -394,14 +420,16 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         #define FAKE_TLS_SLOTS      16
         #define FAKE_TLS_BLOCK_SZ   0x100
 
-        MEM32_INIT(0x04, FAKE_TLS_ARRAY_VA);
+        MEM32_INIT(XBOX_TIB_VA + 0x04, FAKE_TLS_ARRAY_VA);
         for (unsigned _i = 0; _i < FAKE_TLS_SLOTS; _i++) {
             MEM32_INIT(FAKE_TLS_ARRAY_VA + _i * 4,
                        FAKE_TLS_BLOCK_VA + _i * FAKE_TLS_BLOCK_SZ);
         }
         memset(XBOX_VA(FAKE_TLS_BLOCK_VA), 0,
                FAKE_TLS_SLOTS * FAKE_TLS_BLOCK_SZ);
-        MEM32_INIT(0x18, 0x00000000);       /* Self pointer (TIB at VA 0) */
+        /* Self pointer - now a real address rather than the 0 it had to be
+         * when the TIB lived at guest 0. */
+        MEM32_INIT(XBOX_TIB_VA + 0x18, XBOX_TIB_VA);
 
         /*
          * fs:[0x20] - On Xbox KPCR, this is the Prcb pointer.
@@ -409,7 +437,7 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
          * accesses a D3D cache structure. We set it to 0 so the read
          * at offset 0x250 returns 0, causing the cache init to be skipped.
          */
-        MEM32_INIT(0x20, 0x00000000);
+        MEM32_INIT(XBOX_TIB_VA + 0x20, 0x00000000);
 
         /*
          * fs:[0x28] - Thread local storage / RW engine context.
@@ -420,14 +448,21 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         #define FAKE_TLS_VA     0x00760000  /* Fake TLS structure (in BSS) */
         #define FAKE_RWDATA_VA  0x00700000  /* RW engine data area (in BSS) */
 
-        MEM32_INIT(0x28, FAKE_TLS_VA);
+        MEM32_INIT(XBOX_TIB_VA + 0x28, FAKE_TLS_VA);
         /* TLS[0x28] = pointer to RW data area */
         MEM32_INIT(FAKE_TLS_VA + 0x28, FAKE_RWDATA_VA);
 
-        fprintf(stderr, "  TIB: fake TIB at VA 0x0, fs[4] TLS array at 0x%08X "
-                        "(%u slots), fs[0x28] ctx at 0x%08X, RW data at 0x%08X\n",
+        /* Point fs: at it. Until this line g_fs_base was 0, which made
+         * MEM32(g_fs_base + n) exactly the MEM32(n) the old layout relied on. */
+        g_fs_base = XBOX_TIB_VA;
+
+        fprintf(stderr, "  TIB: at VA 0x%08X (fs: base), fs[4] TLS array at "
+                        "0x%08X (%u slots), fs[0x28] ctx at 0x%08X, RW data at "
+                        "0x%08X; low memory left ZERO so null reads read null\n",
+                (unsigned)XBOX_TIB_VA,
                 FAKE_TLS_ARRAY_VA, (unsigned)FAKE_TLS_SLOTS,
                 FAKE_TLS_VA, FAKE_RWDATA_VA);
+        #undef XBOX_TIB_VA
 
         #undef FAKE_TLS_ARRAY_VA
         #undef FAKE_TLS_BLOCK_VA
