@@ -1021,18 +1021,41 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     g_esp = XBOX_STACK_TOP;
 
     /*
-     * TODO: Pre-initialize CRT globals if needed.
+     * CRT __active_heap - the heap-mode selector, at 0x006F12E0 in this title.
      *
-     * Many Xbox games use the MSVC CRT. The CRT's __heap_init sets up a
-     * heap descriptor at a game-specific address. You may need to
-     * pre-initialize __active_heap to avoid small-block heap issues:
+     * The template left this as a TODO and it was never done. Four sites in the
+     * generated code read it and NOTHING writes it, so it sits at 0 for the
+     * whole run:
      *
-     *   uint32_t *active_heap = (uint32_t *)((uint8_t *)g_xbox_mem_offset + ACTIVE_HEAP_VA);
-     *   *active_heap = 1;  // 1 = system heap (HeapAlloc), avoids SBH init
+     *   sub_003437A0  if (MEM32(0x6F12E0) == 1) skip the 16-byte rounding
+     *   sub_00343780  if (MEM32(0x6F12E0) != 3) ...
+     *   sub_00343AFD  if (MEM32(0x6F12E0) != 3) ...
+     *   sub_00345B00  if (MEM32(0x6F12E0) != 3) ...
      *
-     * Find ACTIVE_HEAP_VA by searching the disassembly for __heap_init
-     * or by looking for the CRT's __active_heap global in the data section.
+     * Those constants are the MSVC CRT's __active_heap enum. Zero means "no
+     * heap selected", which on real hardware cannot happen because __heap_init
+     * runs first and picks one. Here __heap_init's effect never landed, so every
+     * allocation takes the uninitialised small-block-heap branch, whose lookaside
+     * tables were never built.
+     *
+     * That is a candidate explanation for the measured duplicate returns: 7
+     * allocations, 4 distinct, 0x00F81288 handed out four times while a live
+     * global still pointed at it.
+     *
+     * 1 selects the system heap, so allocation goes through the plain
+     * HeapAlloc-style path and skips small-block-heap setup entirely.
+     *
+     * Written BEFORE the entry point, since the CRT reads it during startup.
      */
+    {
+        const uint32_t ACTIVE_HEAP_VA = 0x006F12E0;
+        uint32_t *active_heap =
+            (uint32_t *)((uint8_t *)g_xbox_mem_offset + ACTIVE_HEAP_VA);
+        fprintf(stderr, "[CRT] __active_heap at 0x%08X was %u, setting to 1 "
+                        "(system heap)\n", ACTIVE_HEAP_VA, *active_heap);
+        *active_heap = 1;
+        fflush(stderr);
+    }
 
     printf("\n=== Initialization complete ===\n");
     printf("Entry point: 0x%08X\n", YOUR_GAME_ENTRY_POINT);

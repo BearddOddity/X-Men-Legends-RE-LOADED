@@ -228,6 +228,19 @@
     "measurement"
    ],
    "when": "2026-08-06 14:19"
+  },
+  {
+   "id": 19,
+   "claim": "Setting the CRT __active_heap flag (0x6F12E0) to 1 gets the boot past the wall",
+   "verdict": "refuted",
+   "evidence": "The flag really was 0 - four readers in generated code, zero writers - so this was a genuine missing initialisation and the fix is kept. But the boot is unchanged: 692/1452/152/11 on 3 of 3 runs. The heap mode was not what blocks the boot.",
+   "tags": [
+    "crt",
+    "heap",
+    "active-heap",
+    "wall"
+   ],
+   "when": "2026-08-06 14:33"
   }
  ]
 }
