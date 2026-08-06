@@ -176,6 +176,7 @@ static void dump_native_stack(const uintptr_t *sp)
      * prints on the one path that does not happen is not a diagnostic. */
     recomp_icall_reject_dump();
     recomp_coverage_dump();
+    recomp_alloc_dump();
     fflush(stderr);
 }
 
@@ -799,6 +800,7 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
      * counts say which target dominates across the whole run. */
     recomp_icall_reject_dump();
     recomp_coverage_dump();
+    recomp_alloc_dump();
     fflush(stderr);
 
     /* Capturing the hung thread's RIP names the spinning function outright,

@@ -70,6 +70,118 @@ void recomp_coverage_dump(void)
     fflush(stderr);
 }
 
+/* -- Allocation duplicate detector ---------------------------- */
+
+/*
+ * Records every address the engine allocator returns and shouts the first time
+ * one comes back twice.
+ *
+ * Reason: on 2026-08-06 a probe caught operator new returning 0x00F81288 while
+ * 0x5BC508 - set moments earlier from an identical return - still pointed there,
+ * inside a single run of the registry init. That is either the same block handed
+ * out twice or a free nobody expected. Both are heap bugs, and both would
+ * corrupt far more than the one field being chased.
+ *
+ * Inference from a single probe is not enough for a claim that large, so this
+ * measures it directly: a linear table of returned addresses, and a loud report
+ * with a count on the first repeat. Small and quiet unless something is wrong.
+ */
+#define ALLOC_SLOTS 4096
+static uint32_t g_alloc[ALLOC_SLOTS];
+static unsigned g_alloc_used;
+static uint64_t g_alloc_total, g_alloc_dupes;
+
+void recomp_alloc_log(uint32_t addr)
+{
+    if (!addr) {
+        return;
+    }
+    g_alloc_total++;
+    for (unsigned i = 0; i < g_alloc_used; i++) {
+        if (g_alloc[i] == addr) {
+            g_alloc_dupes++;
+            if (g_alloc_dupes <= 8) {
+                fprintf(stderr, "[ALLOC-DUP] 0x%08X returned again "
+                                "(allocation #%llu, dupe #%llu)\n",
+                        addr, (unsigned long long)g_alloc_total,
+                        (unsigned long long)g_alloc_dupes);
+                fflush(stderr);
+            }
+            return;
+        }
+    }
+    if (g_alloc_used < ALLOC_SLOTS) {
+        g_alloc[g_alloc_used++] = addr;
+    }
+}
+
+/*
+ * EXPERIMENT (2026-08-06): give a caller fresh memory when the game's heap
+ * hands back an address it has already handed out.
+ *
+ * Measured: 7 allocations through sub_003437F3, 4 distinct, 3 duplicates, with
+ * 0x00F81288 returned four times. The registry global 0x5BC508 still points at
+ * 0x00F81288 while later allocations return it again, so either the block is
+ * handed out twice or it was freed under a live pointer. Both mean two owners of
+ * one block, and that is enough to explain the registry's fields holding heap
+ * pointers, the free-list links inside it, and the 16-million "count".
+ *
+ * This does NOT repair the game's heap. It substitutes a fresh block from the
+ * runtime bump allocator so the boot can be measured without the overlap. If the
+ * boot advances, the overlap was the wall. If not, it was not.
+ *
+ * Known limitation, stated rather than hidden: a substituted block has none of
+ * the game heap's own block header, so a later free() of it may misbehave. That
+ * is acceptable for a measurement and unacceptable as a shipped fix - which is
+ * exactly why this is gated behind an environment variable and off by default.
+ */
+static int g_fixup_on = -1;
+static uint64_t g_fixup_count;
+
+uint32_t recomp_alloc_fixup(uint32_t addr, uint32_t size)
+{
+    if (g_fixup_on < 0) {
+        const char *e = getenv("RECOMP_ALLOC_FIXUP");
+        g_fixup_on = (e && *e && *e != '0') ? 1 : 0;
+        if (g_fixup_on) {
+            fprintf(stderr, "[ALLOC-FIXUP] enabled - repeat addresses will be "
+                            "replaced with fresh blocks\n");
+            fflush(stderr);
+        }
+    }
+    if (!g_fixup_on || !addr) {
+        return addr;
+    }
+    for (unsigned i = 0; i < g_alloc_used; i++) {
+        if (g_alloc[i] != addr) {
+            continue;
+        }
+        uint32_t fresh = xbox_HeapAlloc(size < 4096 ? 4096 : size, 16);
+        if (!fresh) {
+            return addr;                  /* out of memory: leave it alone */
+        }
+        g_fixup_count++;
+        fprintf(stderr, "[ALLOC-FIXUP] 0x%08X was already live -> 0x%08X "
+                        "(#%llu)\n", addr, fresh,
+                (unsigned long long)g_fixup_count);
+        fflush(stderr);
+        /* Deliberately NOT recorded here. recomp_alloc_log() runs immediately
+         * after and owns the table; adding it in both places would make the
+         * substituted address look like a duplicate of itself on the very next
+         * call. Order at the call site is fixup THEN log, for the same reason. */
+        return fresh;
+    }
+    return addr;
+}
+
+void recomp_alloc_dump(void)
+{
+    fprintf(stderr, "[ALLOC] %llu allocation(s), %u distinct, %llu duplicate(s)\n",
+            (unsigned long long)g_alloc_total, g_alloc_used,
+            (unsigned long long)g_alloc_dupes);
+    fflush(stderr);
+}
+
 /* ── CPUID ─────────────────────────────────────────────────── */
 
 /*

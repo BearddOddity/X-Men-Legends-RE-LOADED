@@ -162,6 +162,72 @@
     "sub_001F7930"
    ],
    "when": "2026-08-06 13:32"
+  },
+  {
+   "id": 14,
+   "claim": "sub_0019FBC7 is game code maintaining a linked list, and registry+0x2C is either its list head or its victim",
+   "verdict": "refuted",
+   "evidence": "Call stack proves sub_0019FBC7 is the HEAP ALLOCATOR's internal list manager: sub_0019FBC7 <- sub_001A0B0C <- sub_003437C7 <- sub_003437F3 (operator new) <- sub_00216251 <- sub_00236500 <- sub_00239E50. It is free-list bookkeeping, not game logic.",
+   "tags": [
+    "allocator",
+    "sub_0019FBC7",
+    "list"
+   ],
+   "when": "2026-08-06 13:41"
+  },
+  {
+   "id": 15,
+   "claim": "The heap allocator writes its own free-list links INSIDE the registry's live memory block",
+   "verdict": "inconclusive",
+   "evidence": "Probe at the splice site fired with eax=0x00F81358, node=0x00F81360, registry base (MEM32(0x5BC508))=0x00F81288, offset=0xD0. So a node was spliced at registry+0xD8 while the registry pointer was already set. Either the registry block was freed and returned to the free list, or the allocator's bookkeeping is writing out of bounds. Not yet distinguished - do not act on this until it is.",
+   "tags": [
+    "allocator",
+    "heap-corruption",
+    "registry",
+    "sub_003437F3"
+   ],
+   "when": "2026-08-06 13:41"
+  },
+  {
+   "id": 16,
+   "claim": "The engine allocator (sub_003437F3) returns the SAME address for multiple distinct allocations",
+   "verdict": "confirmed",
+   "evidence": "Direct measurement with a duplicate detector on every return: 7 allocations, 4 distinct, 3 duplicates. 0x00F81288 was returned on allocations #3, #4 and #6 as well as its first. So several live objects occupy one block and overwrite each other. This is the root cause of the registry's fields holding heap pointers, the free-list links found inside it, and the bogus 16-million count - all of them are other objects' data in the same memory.",
+   "tags": [
+    "allocator",
+    "confirmed",
+    "root-cause",
+    "sub_003437F3",
+    "heap"
+   ],
+   "when": "2026-08-06 14:04"
+  },
+  {
+   "id": 17,
+   "claim": "Probes and logging calls inserted into generated code are behaviourally free",
+   "verdict": "refuted",
+   "evidence": "Adding recomp_alloc_log/recomp_alloc_fixup calls at the allocator's return in sub_003437F3 made the boot die at 33 kernel calls in 2 of 3 runs. Removing them: 5 of 5 runs at 692/1452/152/11, exactly stable. Causation established by removal. The allocator return is not a safe place to call out to C - likely stdio locking or timing, since stdio locks have deadlocked this boot before.",
+   "tags": [
+    "instrumentation",
+    "probe",
+    "allocator",
+    "flaky",
+    "method"
+   ],
+   "when": "2026-08-06 14:19"
+  },
+  {
+   "id": 18,
+   "claim": "The 7-allocations/3-duplicates measurement describes the clean boot",
+   "verdict": "inconclusive",
+   "evidence": "That measurement was taken WITH the allocator instrumentation in place, and the instrumentation is now proven to perturb the boot (2 of 3 runs died early). The duplicate returns are a direct observation so they are probably real, but the count and ordering were recorded on a disturbed system and must be re-measured without perturbing the allocator before anything is built on them.",
+   "tags": [
+    "allocator",
+    "duplicates",
+    "method",
+    "measurement"
+   ],
+   "when": "2026-08-06 14:19"
   }
  ]
 }

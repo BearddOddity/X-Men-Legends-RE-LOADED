@@ -229,6 +229,11 @@ extern uint32_t g_reached_count;
 
 void recomp_coverage_dump(void);
 
+/* Allocation duplicate detector - see recomp_manual.c. */
+void recomp_alloc_log(uint32_t addr);
+void recomp_alloc_dump(void);
+uint32_t recomp_alloc_fixup(uint32_t addr, uint32_t size);
+
 static inline void recomp_mark_reached(uint32_t va)
 {
     if (va < RECOMP_COVER_LO || va >= RECOMP_COVER_HI) {

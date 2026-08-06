@@ -105,6 +105,21 @@ solved bugs come back (#15).
   never at risk; only hand-run shell commands. This burned a full
   build-and-measure cycle on 2026-08-06 and produced a phantom 1452 → 62
   "regression" that had never been measured.
+- **Probes are NOT behaviourally free, and the allocator return is the worst
+  place for one.** Calling `recomp_alloc_log`/`recomp_alloc_fixup` at
+  `sub_003437F3`'s return made the boot die at 33 kernel calls in 2 of 3 runs;
+  removing the two calls gave 5 of 5 runs at exactly 692/1452/152/11. Causation
+  established by removal, mechanism unproven - most likely stdio locking or
+  timing, since stdio locks have deadlocked this boot twice before. Consequence
+  that matters more than the cause: **any measurement taken with heavy
+  instrumentation may describe a disturbed system.** Re-measure clean before
+  building on it, and prefer a counter dumped at exit over a call that prints
+  inside a hot or lock-sensitive path.
+- **`$env:VAR` set in the PowerShell tool does not reach the game.** `run.bat`
+  launches the exe directly, and the variable was absent every time
+  (`enabled=0` on all runs), so an env-gated experiment silently never ran and
+  looked like a result. Verify a gate actually fired - print a line when it
+  arms - before trusting anything downstream of it.
 - **A stale run log is more dangerous than a missing one**, because it still
   returns confident numbers. `signals.read()` now compares `stderr.txt` against
   `seed_list.json` and `recomp_seed.c` and marks the result `STALE`;
