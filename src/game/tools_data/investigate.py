@@ -234,13 +234,22 @@ def stage_what(ctx, when):
         detail = [f"{len(writes)} write(s), {len(owners)} distinct writer(s)."]
         verdict = "unclear"
         if len(vtables) >= 2:
-            verdict = "memory reused by different objects (use-after-free shape)"
+            verdict = "several code/data values stored here (NEEDS CHECKING)"
             detail.append(
                 f"{len(vtables)} different code/data values were stored here at "
-                "different times. In C++ that word is usually a vtable pointer, "
-                "so this one address held more than one kind of object during "
-                "the run - which means it was released and handed out again "
-                "while something still pointed at it.")
+                "different times. IF this address is an object's base, that word "
+                "is its vtable pointer and two values would mean the memory was "
+                "reused by a different kind of object. But that only holds at "
+                "offset 0 of a real object - at any other field, storing two "
+                "different function or table pointers over a run is completely "
+                "normal.")
+            detail.append(
+                "Do not act on this without checking the writers' code. On "
+                "2026-08-06 this exact verdict was a false positive: the writers "
+                "turned out to be a manager legitimately iterating a list and "
+                "updating each element, via MEM32(esi + 8) - a field, not a "
+                "base. Confirm what the storing instruction's base register "
+                "actually points at before believing any reuse story.")
         elif len(owners) >= 3:
             verdict = "shared memory, many owners"
             detail.append("Several unrelated functions write here, so this is "
@@ -261,12 +270,15 @@ def stage_how(ctx, what):
     notes = []
     for f in what:
         v = f["verdict"]
-        if v.startswith("memory reused"):
+        if v.startswith("several code/data values"):
             notes.append(
-                f"0x{f['addr']:08X}: find who releases this memory, and either "
-                "stop the release or stop the stale pointer being trusted. "
-                "Guarding the reader hides it; fixing the owner does not. Trace "
-                "the releasing call next - the writers listed above include it.")
+                f"0x{f['addr']:08X}: FIRST check whether this address is an "
+                "object's base or one of its fields. Open each writer listed "
+                "above and look at the store: `MEM32(reg)` at an object base is "
+                "a vtable write and suggests reuse; `MEM32(reg + 0x8)` is an "
+                "ordinary field and suggests nothing at all. Only if it is a "
+                "base should you go looking for a release. Getting this backwards "
+                "produced a confident wrong diagnosis once already.")
         elif v.startswith("holds a pointer"):
             notes.append(
                 f"0x{f['addr']:08X}: the writer stores a pointer where the "
