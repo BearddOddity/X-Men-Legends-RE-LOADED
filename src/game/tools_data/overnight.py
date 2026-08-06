@@ -76,11 +76,48 @@ MM_LO, MM_HI = 0x001F0000, 0x00210000
 # Verified against the original XBE bytes, not inferred from the lift.
 CONFIRMED = ["loc_001F0AA9", "loc_001FE7DB", "loc_002041DC"]
 
-PLANS = ("confirmed", "staleflags-memory", "staleflags-all")
+PLANS = ("confirmed", "staleflags-memory", "staleflags-all",
+         "missing-functions", "missing-functions-memory")
+
+# Plans that seed absent functions rather than repair generated code.
+SEED_PLANS = ("missing-functions", "missing-functions-memory")
+
+
+def missing_function_addrs(memory_only=False):
+    """Functions a vtable provably calls that the recompiler never emitted.
+
+    recon.py finds these by scanning .rdata for words pointing into .text and
+    checking which have no generated body. Both halves matter: the binary
+    proves the function exists AND proves something calls it. That is a far
+    stronger candidate than a disassembly guess - an earlier sweep of decoded
+    fragments kept 1 address out of its whole list.
+    """
+    import json
+    import subprocess
+    findings = os.path.join(GAME, "recon_findings.json")
+    if not os.path.exists(findings):
+        subprocess.run([sys.executable or "py", os.path.join("tools_data", "recon.py")],
+                       cwd=GAME, capture_output=True)
+    r = json.load(open(findings, encoding="utf-8"))
+    seeded = set(json.load(open(os.path.join(GAME, "seed_list.json"),
+                                encoding="utf-8"))["addresses"])
+    addrs = sorted({h["addr"] for h in r["holes"]} - seeded)
+    if memory_only:
+        addrs = [a for a in addrs if MM_LO <= a < MM_HI]
+    return addrs
+
+
+def build_harness(plan, batch=50):
+    if plan in SEED_PLANS:
+        return bc.BatchSeedHarness(
+            addrs=missing_function_addrs(plan.endswith("-memory")), batch=batch)
+    return bc.StaleFlagHarness()
 
 
 def plan_candidates(name, every):
     """Which sites this plan grinds, in the order it tries them."""
+    if name in SEED_PLANS:
+        return every                      # already batched by the harness
     if name == "confirmed":
         return [c for c in CONFIRMED if c in every]
     if name == "staleflags-all":
@@ -101,9 +138,53 @@ def plan_candidates(name, every):
     raise SystemExit(f"unknown plan {name}")
 
 
+def plain_summary(night):
+    """A short, plain-English verdict for the top of the report.
+
+    The person reading this has dyslexia, so the first thing on the page is
+    four short lines saying what happened - not a table of hex addresses. The
+    technical detail stays further down for whoever wants it.
+    """
+    kept = sum(len(s["kept"]) for s in night["stages"])
+    dropped = sum(len(s["dropped"]) for s in night["stages"])
+    tried = kept + dropped
+    base, best = night.get("baseline") or {}, night.get("best") or {}
+    bk, nk = base.get("kernel_calls", 0), best.get("kernel_calls", 0)
+    hung_before, hung_now = base.get("hung"), best.get("hung")
+
+    if nk > bk:
+        verdict = f"**The game got further.** It ran {nk - bk} more steps than before."
+    elif nk < bk:
+        verdict = f"**The game got worse**, so I put everything back."
+    else:
+        verdict = "**No change.** The game stops in the same place as before."
+
+    freeze = ""
+    if hung_before and not hung_now:
+        freeze = "The game no longer freezes. It stops cleanly now."
+    elif hung_now:
+        freeze = "The game still freezes at the end."
+
+    return [
+        "## In short", "",
+        verdict, "",
+        f"- I tried {tried} things.",
+        f"- {kept} worked and were kept.",
+        f"- {dropped} caused problems and were thrown away.",
+        f"- It took {int((time.time() - night['start']) / 60)} minutes.",
+    ] + ([f"- {freeze}"] if freeze else []) + [
+        "",
+        "Nothing is broken. The game builds and runs.",
+        "Details are below if you want them.",
+        "",
+        "---",
+        "",
+    ]
+
+
 def write_report(night):
     """Rewritten after every experiment, so a 4am reboot still leaves a report."""
-    out = [
+    out = plain_summary(night) + [
         "# Overnight run",
         "",
         f"- started: {time.strftime('%Y-%m-%d %H:%M', time.localtime(night['start']))}",
@@ -199,9 +280,13 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="overnight", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--plan", default="confirmed", choices=PLANS)
-    ap.add_argument("--then", dest="then", choices=PLANS,
-                    help="second stage, run only if the first ends cleanly")
+    ap.add_argument("--then", dest="then", choices=PLANS, action="append",
+                    default=[], metavar="PLAN",
+                    help="another stage; repeat up to 3 times for 4 stages "
+                         "total. Each runs only if the previous ended cleanly")
     ap.add_argument("--hours", type=float, default=8.0)
+    ap.add_argument("--batch", type=int, default=50,
+                    help="functions per build for the missing-functions plans")
     ap.add_argument("--runs", type=int, default=1,
                     help="runs per experiment; worst case wins. 1 is right "
                          "while the boot measures deterministically")
@@ -210,7 +295,7 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
 
-    h = bc.StaleFlagHarness()
+    h = build_harness(a.plan, a.batch)
     every = h.items()
     stages = [a.plan] + ([a.then] if a.then else [])
     print(f"gate      : {signals.header()}")
@@ -219,7 +304,7 @@ def main(argv=None):
         cs = plan_candidates(s, every)
         print(f"stage     : {s} ({len(cs)} candidates)")
         for c in cs[:12]:
-            print(f"    {c}")
+            print(f"    {h.label(c)}")
         if len(cs) > 12:
             print(f"    ... and {len(cs) - 12} more")
     if a.dry_run:
@@ -233,6 +318,7 @@ def main(argv=None):
     # Whatever we waited on may have regenerated gen/, so the candidate list
     # from before the wait can be stale. Re-derive it against the tree we
     # actually got.
+    h = build_harness(a.plan, a.batch)
     every = h.items()
     print(f"re-scanned after the wait: {len(every)} candidate site(s)")
 

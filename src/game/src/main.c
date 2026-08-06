@@ -390,6 +390,7 @@ typedef struct {
     uint32_t  size;
     int       armed;
     unsigned  near_miss;          /* writes elsewhere on the page, stepped over */
+    unsigned  reports;            /* trace-mode reports emitted for this watch */
     uint32_t  skip;               /* matching writes to let past before reporting */
     uint32_t  seen;               /* matching writes so far */
     char      label[32];
@@ -403,6 +404,29 @@ static volatile int g_watch_any = 0;   /* fast path: skip the loop entirely */
  * follows re-protects this watch's page. See the write-watch branch below. */
 static watch_t     *g_watch_pending = NULL;
 
+/*
+ * Trace mode: RECOMP_WATCH_TRACE=<n> reports every write to the watched bytes,
+ * up to n, and never disarms.
+ *
+ * Without it a watch answers "who wrote here FIRST", and that turned out to be
+ * the wrong question every single time on 2026-08-06. Guest 0x3C is written 9
+ * times before the boot dies; the first was a harmless zero-fill and the value
+ * that actually hangs the game was written later. Same story at 0x00F812B4 -
+ * 15 writes from 8 different functions, and the watch was spent on write #1.
+ * `skip` let me step past them one at a time, but only by re-running and
+ * guessing a number, and it never printed WHAT was written.
+ *
+ * The value is not available when the fault fires - the write has not happened
+ * yet. So the fault records what it is about to see, steps over, and the
+ * single-step that follows reads the landed value and logs it. That yields a
+ * full write history: offset, value, and writer, in order, in one run.
+ */
+static uint32_t     g_watch_trace_cap = 0;
+static uint32_t     g_pend_va = 0;        /* xbox VA the pending write targets */
+static uintptr_t    g_pend_rip = 0;       /* RIP of the instruction doing it */
+static uintptr_t    g_pend_host = 0;      /* host address, to read the value */
+static int          g_pend_is_trace = 0;
+
 /* Parse RECOMP_WATCH and mark the requested pages read-only.
  * Called after the memory layout is populated - arming earlier would trip on
  * the runtime's own initialisation instead of the code under suspicion. */
@@ -411,6 +435,15 @@ static void watch_init(void)
     const char *spec = getenv("RECOMP_WATCH");
     if (!spec || !*spec) {
         return;
+    }
+
+    /* Trace mode reports every write to the watched bytes, with the value, and
+     * never disarms. See g_watch_trace_cap. */
+    const char *tr = getenv("RECOMP_WATCH_TRACE");
+    if (tr && *tr) {
+        g_watch_trace_cap = (uint32_t)strtoul(tr, NULL, 0);
+        fprintf(stderr, "[WATCH] trace mode: up to %u write(s) per watch, "
+                        "never disarming\n", g_watch_trace_cap);
     }
 
     char buf[512];
@@ -502,6 +535,20 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         watch_t *w = g_watch_pending;
         g_watch_pending = NULL;
         ep->ContextRecord->EFlags &= ~0x100u;
+
+        /* The write has landed, so now the value can be read. This is the only
+         * point where it exists - at fault time the store had not executed. */
+        if (g_pend_is_trace) {
+            g_pend_is_trace = 0;
+            uint32_t val = *(volatile uint32_t *)g_pend_host;
+            fprintf(stderr,
+                    "[WATCH:%s] #%u  VA 0x%08X (+0x%X) = 0x%08X  from RVA=0x%llX\n",
+                    w->label, w->reports, g_pend_va, g_pend_va - w->va, val,
+                    (unsigned long long)(g_pend_rip
+                        - (uintptr_t)GetModuleHandleA(NULL)));
+            fflush(stderr);
+        }
+
         if (w->armed)
             VirtualProtect((void *)w->page_lo, w->page_hi - w->page_lo,
                            PAGE_READONLY, &old);
@@ -539,6 +586,24 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
                  */
                 if (hit_va < w->va || hit_va >= w->va + w->size) {
                     w->near_miss++;
+                    VirtualProtect((void *)w->page_lo,
+                                   w->page_hi - w->page_lo,
+                                   PAGE_READWRITE, &old);
+                    g_watch_pending = w;
+                    ep->ContextRecord->EFlags |= 0x100u;   /* TF */
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+
+                /* Trace mode: log this write and stay armed, so the whole
+                 * write history comes out of one run instead of one write per
+                 * run with a hand-guessed skip count. */
+                if (g_watch_trace_cap && w->reports < g_watch_trace_cap) {
+                    w->reports++;
+                    w->seen++;
+                    g_pend_va = hit_va;
+                    g_pend_rip = ep->ContextRecord->Rip;
+                    g_pend_host = fault_addr;
+                    g_pend_is_trace = 1;
                     VirtualProtect((void *)w->page_lo,
                                    w->page_hi - w->page_lo,
                                    PAGE_READWRITE, &old);

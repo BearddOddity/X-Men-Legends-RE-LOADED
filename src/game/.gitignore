@@ -78,3 +78,7 @@ rebuild_check.log
 recon_report.md
 recon_findings.json
 manual_edits.json.bak-*
+investigation_report.md
+investigate_run.log
+seeds_run.log
+iv*.log

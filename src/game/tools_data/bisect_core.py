@@ -208,7 +208,41 @@ class SeedHarness(Harness):
         return build()
 
 
-HARNESSES = {"seeds": SeedHarness, "staleflags": StaleFlagHarness}
+class BatchSeedHarness(SeedHarness):
+    """Seeds, but a candidate is a GROUP of addresses rather than one.
+
+    A seed step costs a full re-seed plus a build, roughly ten minutes, so
+    one-at-a-time caps an overnight run at about two dozen functions. There are
+    1,289 functions that vtables provably call and the recompiler never
+    emitted; at one per build that is three weeks of nights.
+
+    Batching trades resolution for reach. A batch that behaves keeps ~50
+    functions in one step. A batch that misbehaves is dropped whole - so a
+    single bad function loses its 49 innocent neighbours - which is the right
+    trade only because the pool is huge and the alternative covers almost none
+    of it. Re-run a dropped batch through `bisect_core.py seeds` afterwards to
+    recover the good ones; that is what bisection is for.
+    """
+    name = "seedbatch"
+
+    def __init__(self, addrs=(), batch=50):
+        SeedHarness.__init__(self, addrs=addrs)
+        self._batches = [tuple(self._items[i:i + batch])
+                         for i in range(0, len(self._items), batch)]
+
+    def items(self):
+        return list(self._batches)
+
+    def label(self, b):
+        return f"{len(b)}fns@0x{b[0]:06X}"
+
+    def apply(self, subset):
+        flat = [a for b in subset for a in b]
+        return SeedHarness.apply(self, flat)
+
+
+HARNESSES = {"seeds": SeedHarness, "staleflags": StaleFlagHarness,
+             "seedbatch": BatchSeedHarness}
 
 
 # --------------------------------------------------------------------------
