@@ -29,32 +29,40 @@ The signature is (kind, site function, target) rather than a raw address, so it
 survives rebuilds - addresses shift every build and a knowledge base keyed on
 them would be worthless by morning.
 
-Bypass patterns
----------------
-ONLY patterns already proven on this codebase, never invented ones:
+Bypass patterns: two tiers, separated by evidence
+-------------------------------------------------
+    proven      a measurement on THIS codebase showed the boot advance with it.
+                Tried first, always - a known-good fix never loses its turn to
+                a guess.
+    candidate   an invented guess. Applied ONLY inside the measured experiment
+                loop, and reverted unless the numbers move.
 
-    chain-terminate   a walk of the form `node = call(node->fn)` continuing on
-                      `node->off != 0`, where an invalid node is zeroed and then
-                      dereferenced anyway. Proven 2026-08-06: took the boot from
-                      a permanent 716,328,071-iteration freeze to a diagnosable
-                      crash.
-    count-clamp       a bounded loop whose iteration count is read from memory
-                      and holds a pointer rather than a small number. Clamping
-                      to zero skips a loop whose call table is empty.
+Inventing candidates is the point, not a compromise: the run forms a hypothesis,
+measures it twice, and promotes or refutes it. A candidate that earns a gain
+becomes proven, recorded with its numbers. One that fails is written to the
+ledger as refuted and never retried on that wall.
 
-Every application is measured, and reverted if the gate says it did not help.
-A pattern that helps nowhere gets recorded as such and stops being tried.
+What must never happen is a candidate applied AS THOUGH proven. count-clamp is
+the cautionary case: clamp a loop count that holds a pointer, since every call in
+the loop fails anyway. Airtight-sounding, and it cost 1452 kernel calls. It is
+kept in the file with its refutation attached so nobody re-derives it.
+
+Every pattern carries the wall KINDS it is proven or offered for. A hang remedy
+on a spin is not a long shot, it is a different bug's fix.
 
 Honesty rules, because nobody is watching
 -----------------------------------------
 - A bypass is CONTAINMENT, not a fix, and every one it writes says so in the
   generated code along with what is still unexplained.
-- "Did not get worse" is never reported as progress. Only kernel_calls actually
-  RISING counts as passing a wall.
-- The measurement is taken twice before a wall is declared beaten, because a
-  one-run gain that does not reproduce is noise.
-- Nothing is invented. If no known pattern matches, it records the wall with
-  full evidence and moves on rather than guessing at a novel fix.
+- "Did not get worse" is never progress. Only `reached` or kernel_calls actually
+  RISING counts as passing a wall - and `reached` is the sensitive one, since
+  kernel_calls saturates wherever the boot stops.
+- Measured twice, worst case kept, so a bypass can lose to noise but never win
+  by it.
+- Every wall visible in a run is worked, not just the first. Exhausting one costs
+  a wall, not the run.
+- A wall with nothing left to try is marked exhausted with its evidence, and the
+  run moves on rather than ending.
 
 Usage (from src/game/):
     py -3 tools_data/walls.py --hours 4
@@ -161,6 +169,52 @@ def rvas_after(text, pattern):
 
 
 # ------------------------------------------------------------------ detection
+def identify_walls(text, sym):
+    """EVERY wall visible in one run, most blocking first.
+
+    A run log usually shows more than one: a dominant spin AND the crash that
+    follows it. Returning only the first meant the tool stalled completely the
+    moment it ran out of patterns for the top wall, with a fully-diagnosed crash
+    sitting untouched in the same log. Now it works down the list, so exhausting
+    one wall costs a wall, not the run.
+    """
+    out = []
+    for w in (_wall_spin(text, sym), _wall_hang(text, sym),
+              _wall_crash(text, sym)):
+        if w:
+            out.append(w)
+    return out
+
+
+def _wall_spin(text, sym):
+    sig = signals.parse(text)
+    probes = re.findall(r"Spin-loop probe: failure #(\d+), VA 0x([0-9A-Fa-f]+)", text)
+    if not probes or int(probes[-1][0]) < 100000:
+        return None
+    n, target = probes[-1]
+    return {"kind": "spin",
+            "site": game_fn(sym, rvas_after(text, r"Spin-loop probe: failure #" + n)),
+            "target": int(target, 16), "count": int(n), "signals": sig}
+
+
+def _wall_hang(text, sym):
+    sig = signals.parse(text)
+    if not sig.get("hung"):
+        return None
+    return {"kind": "hang", "site": game_fn(sym, rvas_after(text, r"hung thread")),
+            "target": None, "signals": sig}
+
+
+def _wall_crash(text, sym):
+    sig = signals.parse(text)
+    if "Raw stack scan" not in text:
+        return None
+    m = re.search(r"(?:read|write) at Xbox VA 0x([0-9A-Fa-f]+)", text)
+    return {"kind": "crash",
+            "site": game_fn(sym, rvas_after(text, r"Call stack, innermost first")),
+            "target": int(m.group(1), 16) if m else None, "signals": sig}
+
+
 def identify_wall(text, sym):
     """Classify how the run ended. Returns None if it ended cleanly."""
     sig = signals.parse(text)
@@ -647,10 +701,30 @@ def main(argv=None):
                 if not journey and "errors" not in kb:
                     kb["errors"] = harvest_errors(text, sym)
                     save_kb(kb)
-                wall = identify_wall(text, sym)
-                if not wall:
+                walls_seen = identify_walls(text, sym)
+                if not walls_seen:
                     print(f"no wall detected at {before} steps - stopping")
                     break
+
+                # Take the first wall that still has something untried. Without
+                # this the run stalls on the top wall while a fully-diagnosed
+                # crash sits unexamined in the same log.
+                wall = None
+                for w in walls_seen:
+                    k = wall_key(w)
+                    r = kb["walls"].get(k, {})
+                    if r.get("exhausted"):
+                        continue
+                    wall = w
+                    break
+                if wall is None:
+                    print(f"all {len(walls_seen)} visible wall(s) exhausted "
+                          f"at {before} steps - stopping")
+                    for w in walls_seen:
+                        print(f"    {wall_key(w)}")
+                    break
+                if len(walls_seen) > 1:
+                    print(f"  ({len(walls_seen)} wall(s) visible this run)")
 
                 key = wall_key(wall)
                 rec = kb["walls"].setdefault(key, {"tried": [], "seen": 0})
@@ -662,14 +736,16 @@ def main(argv=None):
 
                 if not wall["site"]:
                     rec["note"] = "could not name the site from the log"
+                    rec["exhausted"] = True
                     save_kb(kb)
-                    break
+                    continue
 
                 span = find_owner_span(wall["site"])
                 if not span:
                     rec["note"] = f"{wall['site']} is not in gen/ - cannot patch"
+                    rec["exhausted"] = True
                     save_kb(kb)
-                    break
+                    continue
 
                 applied = None
                 promoted = set(kb.get("promoted", []))
@@ -697,16 +773,20 @@ def main(argv=None):
                 if not applied:
                     rec["note"] = ("no known pattern matches this shape; "
                                    "needs a human to look")
-                    print("  no known pattern fits - recorded and stopping")
+                    rec["exhausted"] = True
+                    print("  no pattern left for this wall - "
+                          "recorded, moving to the next")
                     save_kb(kb)
-                    break
+                    continue
 
                 if not build():
                     print("  build failed - reverting")
                     restore_gen(snap)
                     rec["note"] = f"{rec['tried'][-1]} did not compile"
+                    if len(rec["tried"]) >= len(PATTERNS):
+                        rec["exhausted"] = True
                     save_kb(kb)
-                    break
+                    continue
 
                 after = 0
                 for _ in range(max(1, a.runs)):
@@ -757,6 +837,8 @@ def main(argv=None):
                 else:
                     print(f"  no gain ({before} -> {after}) - reverting")
                     rec["note"] = f"{rec['tried'][-1]} gave no gain"
+                    if len(rec["tried"]) >= len(PATTERNS):
+                        rec["exhausted"] = True
                     restore_gen(snap)
                     # Record the refutation where a later run will look. Without
                     # this the same pattern gets retried on the same wall next
