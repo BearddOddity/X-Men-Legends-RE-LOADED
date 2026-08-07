@@ -65,6 +65,7 @@ sys.path.insert(0, HERE)
 
 import signals                                              # noqa: E402
 import bisect_core as bc                                    # noqa: E402
+import ledger                                               # noqa: E402
 from recomp_lock import build_lock, wait_until_quiet        # noqa: E402
 
 REPORT = os.path.join(GAME, "overnight_report.md")
@@ -276,6 +277,47 @@ def run_stage(h, plan, cands, tok, deadline, keep, night, runs=1):
     return keep
 
 
+def _record_night(night, stages):
+    """One ledger entry per night, not one per candidate.
+
+    bisect_journal.jsonl already has per-candidate detail (rule #9: don't
+    build a second record of the same thing). The ledger is for higher-level
+    claims a later run should check before repeating - "does this candidate
+    SET move anything" is that kind of claim; "does this one function help"
+    is not, and there can be dozens of those per night.
+    """
+    try:
+        moved = []
+        for k, (b, n) in (night.get("delta") or {}).items():
+            if b == n:
+                continue
+            good = (signals.GATED[k] == "up") == (n > b)
+            if good:
+                moved.append(f"{k} {b} -> {n}")
+        plan_desc = "+".join(stages)
+        kept = sum(len(s["kept"]) for s in night["stages"])
+        dropped = sum(len(s["dropped"]) for s in night["stages"])
+        claim = f"overnight plan '{plan_desc}' finds something worth keeping"
+        with ledger.locked():
+            db = ledger.load()
+            ledger.seed_from_today(db)
+            if moved:
+                ledger.add(db, claim, "confirmed",
+                          f"{kept} kept / {dropped} dropped over "
+                          f"{len(night['stages'])} stage(s). Net movement: "
+                          f"{'; '.join(moved)}.", ["overnight", plan_desc])
+            else:
+                ledger.add(db, claim, "inconclusive",
+                          f"{kept} kept / {dropped} dropped over "
+                          f"{len(night['stages'])} stage(s), gate unchanged "
+                          f"({signals.fmt(night['best'])}). Kept candidates "
+                          f"were neutral, not gains - see bisect_journal.jsonl "
+                          f"for which ones.", ["overnight", plan_desc])
+            ledger.save(db)
+    except Exception as exc:
+        print(f"  (could not write the ledger: {exc})")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="overnight", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -381,6 +423,7 @@ def main(argv=None):
 
             night["delta"] = {k: (night["baseline"].get(k, 0), night["best"].get(k, 0))
                               for k in signals.GATED}
+            _record_night(night, stages)
         except BaseException as exc:
             night["error"] = "".join(
                 traceback.format_exception_only(type(exc), exc)).strip()

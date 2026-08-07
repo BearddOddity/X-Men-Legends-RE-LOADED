@@ -88,3 +88,13 @@ away_run.log
 .walls-snapshot/
 ledger_report.md
 faithful_sweep.log
+walls_run.log
+# Console capture from anything launched by the MCP server's afk_start -
+# named <script>_launch.log, so one per unattended tool.
+*_launch.log
+# State file naming the last afk_start()-launched process. Machine-local by
+# definition: it holds a PID.
+.afk-launch.json
+# Advisory lock around ledger.json's load-modify-save. Transient; a stale one
+# is reclaimed after 30s.
+.ledger.lock

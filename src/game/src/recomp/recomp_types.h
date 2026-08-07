@@ -171,6 +171,21 @@ extern volatile uint32_t g_icall_trace_idx;
 /** Total count of indirect calls executed. */
 extern volatile uint64_t g_icall_count;
 
+/** Size of the allocator-return ring (must be power of 2; storage in
+ *  xbox_memory_layout.c spells this as a literal, keep the two in step). */
+#define ALLOC_TRACE_SIZE 1024
+
+/** Ring buffer of addresses returned by the engine allocator.
+ *
+ *  Written with two plain stores and NO call - see the long note at the
+ *  storage definition. The point is to re-measure ledger #16's duplicate
+ *  returns without the C call that #17 proved kills the boot. */
+extern volatile uint32_t g_alloc_trace[ALLOC_TRACE_SIZE];
+
+/** Current write index into the allocator ring. Also the total allocation
+ *  count, since it only ever increments. */
+extern volatile uint32_t g_alloc_trace_idx;
+
 /**
  * Called when an indirect call target cannot be resolved.
  * Implement this in your game-specific code to log diagnostics.

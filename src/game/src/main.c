@@ -107,6 +107,82 @@ static int in_module(uintptr_t a)
     return a >= g_mod_base && a < g_mod_end;
 }
 
+/* Must match ALLOC_TRACE_SIZE in recomp_types.h and the literal storage size
+ * in xbox_memory_layout.c. Redeclared here because this file does not include
+ * recomp_types.h - same reason ICALL_TRACE_SIZE is repeated further down. */
+#define ALLOC_TRACE_SIZE 1024
+extern volatile uint32_t g_alloc_trace[ALLOC_TRACE_SIZE];
+extern volatile uint32_t g_alloc_trace_idx;
+
+/* Allocator returns, in order, separating FAILURES from genuine duplicates.
+ *
+ * This is the re-measurement ledger #18 asked for. #16 saw the engine
+ * allocator hand the SAME address to several distinct allocations, but
+ * recorded it through instrumentation that #17 then proved perturbs the boot.
+ * The ring this reads is filled by two plain stores at the allocator's return
+ * - no call, so nothing for #17's failure mode to catch on.
+ *
+ * NULL IS NOT A DUPLICATE, and conflating the two is a mistake this function
+ * made on its first run: it reported "63 duplicate return(s)" and concluded
+ * two live objects shared a block, when in fact all 64 samples were
+ * 0x00000000 - the allocator FAILING over and over, which is a completely
+ * different defect. A repeated real address means two owners of one block; a
+ * repeated zero means the pool could not serve the request at all. They are
+ * counted and reported separately here for that reason.
+ *
+ * Called from BOTH the crash handler and the watchdog. The first version of
+ * this lived only in the watchdog and printed nothing at all, because this
+ * boot ends in a crash, not a hang - the dump sat on a path that never runs.
+ * Allocation is long finished by the time either fires, so stdio is safe here
+ * for the same reason the ICALL ring dump is. */
+static void dump_alloc_trace(void)
+{
+    uint32_t n = g_alloc_trace_idx;
+    int wrapped = n > ALLOC_TRACE_SIZE;
+    uint32_t shown = wrapped ? ALLOC_TRACE_SIZE : n;
+    uint32_t base = wrapped ? (g_alloc_trace_idx - ALLOC_TRACE_SIZE) : 0;
+    int dups = 0, nulls = 0;
+    fprintf(stderr, "[ALLOC] Allocator returned %u pointer(s)%s:\n", n,
+            wrapped ? " (ring WRAPPED - showing the most recent window)" : "");
+    for (uint32_t i = 0; i < shown; i++) {
+        uint32_t idx = (base + i) & (ALLOC_TRACE_SIZE - 1);
+        uint32_t va = g_alloc_trace[idx];
+        if (va == 0) {
+            /* Failure, not a duplicate. Collapse runs of them: printing 900
+             * identical NULL lines buries everything else in the log. */
+            nulls++;
+            if (nulls == 1 || i + 1 == shown ||
+                g_alloc_trace[(base + i + 1) & (ALLOC_TRACE_SIZE - 1)] != 0) {
+                fprintf(stderr, "  [%4u] 0x00000000  <-- ALLOCATION FAILED\n",
+                        (unsigned)(base + i));
+            } else if (nulls == 2) {
+                fprintf(stderr, "  ...    (run of failures continues)\n");
+            }
+            continue;
+        }
+        int first = -1;
+        for (uint32_t j = 0; j < i; j++) {
+            uint32_t jdx = (base + j) & (ALLOC_TRACE_SIZE - 1);
+            if (g_alloc_trace[jdx] && g_alloc_trace[jdx] == va) { first = (int)j; break; }
+        }
+        if (first >= 0) dups++;
+        fprintf(stderr, "  [%4u] 0x%08X", (unsigned)(base + i), va);
+        if (first >= 0)
+            fprintf(stderr, "  <-- SAME ADDRESS as [%u]", (unsigned)(base + first));
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "[ALLOC] of %u shown: %d failed (returned NULL), "
+                    "%d repeated a live address.\n", shown, nulls, dups);
+    if (nulls)
+        fprintf(stderr, "[ALLOC]   Failures dominate - the pool cannot serve "
+                        "requests. That is a DIFFERENT defect from #16's "
+                        "shared-block story.\n");
+    if (dups)
+        fprintf(stderr, "[ALLOC]   Repeated live addresses present - two owners "
+                        "of one block, ledger #16 stands.\n");
+    fflush(stderr);
+}
+
 /* Print RIP, and its RVA only when the RVA actually means something. When the
  * fault is inside a system DLL - a bad pointer handed to memcpy, say - name
  * that DLL instead, because an RVA against our base would be garbage. */
@@ -675,6 +751,7 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         fprintf(stderr, ", fault addr=0x%llX (%s)\n",
             (unsigned long long)fault_addr,
             ep->ExceptionRecord->ExceptionInformation[0] ? "write" : "read");
+        dump_alloc_trace();
         fprintf(stderr, "  Xbox regs: eax=0x%08X ecx=0x%08X edx=0x%08X esp=0x%08X\n",
             g_eax, g_ecx, g_edx, g_esp);
         fprintf(stderr, "  Xbox regs: ebx=0x%08X esi=0x%08X edi=0x%08X\n",
@@ -729,7 +806,6 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
  */
 #define WATCHDOG_TIMEOUT_MS 8000
 #define ICALL_TRACE_SIZE 16
-
 extern volatile uint32_t g_icall_trace[ICALL_TRACE_SIZE];
 extern volatile uint32_t g_icall_trace_idx;
 extern volatile uint64_t g_icall_count;
@@ -783,6 +859,9 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
         int idx = (g_icall_trace_idx - ICALL_TRACE_SIZE + i) & (ICALL_TRACE_SIZE - 1);
         fprintf(stderr, "  [%2d] 0x%08X\n", i, g_icall_trace[idx]);
     }
+    fflush(stderr);
+
+    dump_alloc_trace();
     fflush(stderr);
 
     /* The per-target reject counts are registered with atexit(), but the hard

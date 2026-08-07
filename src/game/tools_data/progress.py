@@ -117,15 +117,34 @@ def load():
     return json.load(open(DB, encoding="utf-8"))
 
 
-def show(rows):
+def show(rows, tail=None):
+    """Print the history table. `tail` shows only the last N rows.
+
+    The full history is the point for a human scrolling back through the
+    project's story, but it is also 150K+ characters after a few months of
+    entries - too large for a tool that returns its whole output in one
+    shot (an MCP call once failed outright on this). `tail` keeps the same
+    trailing summary (best/now/etc, computed over ALL rows, not just the
+    shown slice) while printing only the recent entries.
+    """
     if not rows:
         print("no entries yet - run: progress.py record -m \"...\"")
         return
+    shown = rows[-tail:] if tail else rows
+    if tail and len(rows) > len(shown):
+        print(f"({len(rows) - len(shown)} earlier entr"
+              f"{'y' if len(rows) - len(shown) == 1 else 'ies'} omitted - "
+              f"pass --tail 0 or no --tail for the full history)\n")
     print(f"{'date':<11} {'kern':>5} {'delta':>6} {'icall':>6} {'TOTAL':>9}  "
           f"{'commit':<8} what")
     print("-" * 106)
-    prev = None
-    for r in rows:
+    # delta is against the immediately preceding row IN THE FULL HISTORY, not
+    # the previous shown row - a --tail 1 view should not print a delta as if
+    # nothing came before it. Index by position, not list.index() - rows are
+    # plain dicts and two entries can compare equal by value.
+    start = len(rows) - len(shown)
+    prev = rows[start - 1]["kernel_calls"] if start > 0 else None
+    for r in shown:
         k = r["kernel_calls"]
         delta = "" if prev is None else f"{k - prev:+d}"
         # Early entries predate these metrics; show "-" rather than
@@ -226,6 +245,9 @@ def stalled(rows):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--tail", type=int, default=None,
+                    help="show only the last N entries (full trailing summary "
+                         "still computed over all history)")
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("stalled", help="Rule #14 check: are we going in circles?")
     rec = sub.add_parser("record", help="append the last run to the history")
@@ -240,7 +262,7 @@ def main(argv):
     if args.cmd == "stalled":
         return stalled(rows)
     if args.cmd != "record":
-        show(rows)
+        show(rows, tail=args.tail)
         return 0
 
     dirty = probes_present()
@@ -262,7 +284,7 @@ def main(argv):
         json.dump(rows, f, indent=2)
     print(f"recorded: {row['kernel_calls']} kernel calls, "
           f"{row['failed_icalls']} failed indirect calls\n")
-    show(rows)
+    show(rows, tail=args.tail or 10)
     return 0
 
 

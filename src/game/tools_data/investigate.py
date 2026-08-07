@@ -57,6 +57,7 @@ GAME = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import signals                                              # noqa: E402
+import ledger                                               # noqa: E402
 from recomp_lock import build_lock, wait_until_quiet        # noqa: E402
 
 REPORT = os.path.join(GAME, "investigation_report.md")
@@ -210,6 +211,25 @@ def classify(v):
     return "large/garbage"
 
 
+def _ledger_warnings(addr, owners):
+    """Prior REFUTED claims touching this address or one of its writers, so a
+    stale diagnosis does not get re-presented as new.
+
+    Uses ledger.similar()'s identifier matching (added 2026-08-06 for exactly
+    this case) rather than a second implementation of the same idea - the
+    function name is the stable identity across investigations, the raw
+    address is not, and plain word-overlap alone missed this real case at
+    0.27 against the 0.34 threshold before that fix.
+    """
+    try:
+        db = ledger.load()
+    except Exception:
+        return []
+    names = set(owners) | {f"0x{addr:08X}"}
+    hits = ledger.similar(db, "", identifiers_=names)
+    return [e for _, e in hits if e.get("verdict") == "refuted"]
+
+
 def stage_what(ctx, when):
     """Turn the write history into a defect statement, or say it is unclear."""
     findings = []
@@ -259,6 +279,16 @@ def stage_what(ctx, when):
             detail.append(f"Last write stored 0x{last['value']:08X}, a heap "
                           "address. If the reader treats this as a count or a "
                           "flag, it will behave wildly.")
+
+        prior = _ledger_warnings(addr, owners)
+        if prior:
+            verdict = f"{verdict} [SEE LEDGER - {len(prior)} prior refutation(s)]"
+            detail.append(
+                "LEDGER: this address already has a REFUTED claim on record. "
+                "Read it before trusting the verdict above - " +
+                "; ".join(f"#{e['id']} \"{e['claim']}\" ({e['evidence'][:100]})"
+                         for e in prior[:3]))
+
         findings.append({"addr": addr, "verdict": verdict,
                          "detail": " ".join(detail), "owners": sorted(owners),
                          "kinds": kinds})

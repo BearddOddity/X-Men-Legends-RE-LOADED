@@ -76,6 +76,38 @@ volatile uint32_t g_icall_trace[16] = {0};
 volatile uint32_t g_icall_trace_idx = 0;
 volatile uint64_t g_icall_count = 0;
 
+/* Allocator return ring buffer.
+ *
+ * Ledger #16 measured the engine allocator returning the SAME address for
+ * several distinct allocations, which is the root cause of the registry
+ * holding other objects' data. But #18 marked that measurement untrusted:
+ * it was taken with instrumentation that #17 then PROVED perturbs the boot -
+ * recomp_alloc_log/recomp_alloc_fixup calls at the allocator's return killed
+ * the boot in 2 of 3 runs, causation established by removal.
+ *
+ * So the duplicate returns have to be re-measured WITHOUT calling out to C
+ * from the allocator. This ring is how: two plain memory writes at the return
+ * site, no call, no stdio, no lock. That is the same thing RECOMP_ICALL
+ * already does (recomp_types.h) roughly 12 million times per boot from the
+ * hottest path in the program without disturbing anything - which is the
+ * evidence that the technique itself is safe, as opposed to the C call that
+ * was not.
+ *
+ * Read at the crash handler and the watchdog, long after allocation is done.
+ *
+ * Sized 1024, NOT the 64 this started at. The first version assumed the boot
+ * performed "single-digit allocations", taking ledger #16's count of 7 at
+ * face value. Measured on an undisturbed boot it is 697 - so the 64-entry
+ * ring wrapped, threw away every early allocation, and showed only the
+ * failing tail. #18 warned that #16's numbers were recorded on a perturbed
+ * system; this is how badly.
+ *
+ * Literal 1024 here, matching how g_icall_trace spells its own size in this
+ * file; recomp_types.h carries the ALLOC_TRACE_SIZE define and the two must
+ * stay in step. */
+volatile uint32_t g_alloc_trace[1024] = {0};
+volatile uint32_t g_alloc_trace_idx = 0;
+
 BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
 {
     DWORD old_protect;

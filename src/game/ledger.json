@@ -241,6 +241,62 @@
     "wall"
    ],
    "when": "2026-08-06 14:33"
+  },
+  {
+   "id": 20,
+   "claim": "iteration-cap gets the boot past spin@sub_001F7930->0x00000000",
+   "verdict": "refuted",
+   "evidence": "applied at sub_001F7930: capped loop back-edge to loc_001F7964 at recomp_0014.c:38840. reached/kernel_calls did not rise (2144 -> 2144), reverted.",
+   "tags": [
+    "iteration-cap",
+    "spin",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 14:43"
+  },
+  {
+   "id": 21,
+   "claim": "iteration-cap gets the boot past spin@sub_001F7930->0x00000000",
+   "verdict": "refuted",
+   "evidence": "applied at sub_001F7930: capped loop back-edge to loc_001F7964 at recomp_0014.c:38840. reached/kernel_calls did not rise (2144 -> 2144), reverted.",
+   "tags": [
+    "iteration-cap",
+    "spin",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-06 20:08"
+  },
+  {
+   "id": 22,
+   "claim": "Ledger #16's allocator numbers reproduce exactly on an UNDISTURBED boot, resolving #18's doubt",
+   "verdict": "confirmed",
+   "evidence": "Re-measured with a memory-only ring (two plain stores at sub_003437F3's return, no C call, so #17's failure mode cannot apply). Signals stayed 1452/152/11 deterministic across runs, identical to baseline - the instrumentation does not perturb. Result: 7 successful allocations, 4 distinct, 3 duplicates, all three being 0x00F81288 on the 3rd, 4th and 6th allocation. That is #16's measurement to the digit. #18 can be closed: the numbers were real, not an artefact.</evidence>\n<parameter name=\"tags\">allocator,sub_003437F3,duplicate,measurement,ring-buffer",
+   "tags": [],
+   "when": "2026-08-07 01:02"
+  },
+  {
+   "id": 23,
+   "claim": "The engine allocator fails 690 of 697 times: after the 7th allocation every subsequent request returns NULL, and this is the dominant blocker",
+   "verdict": "confirmed",
+   "evidence": "Full ring dump on an undisturbed boot (1452/152/11 deterministic): allocations 0-6 succeed (0x00F81730, 0x00F81288 x4, 0x00F81B28, 0x00F835C8), then allocations 7 through 696 ALL return 0x00000000 - 690 consecutive failures with no recovery. Ledger #16 never saw this because its instrumentation only counted successful returns. The last successful allocation, 0x00F835C8, is the pool head that progress.json records as having a 1.25MB limit with ZERO consumed - so the pool has capacity and refuses anyway, matching the explicit refusal already traced to sub_001EC9C0 returning 0xFFFFFFFF via sub_001F09D0 vtable+0x6C. NOTE the earlier duplicate-detector reported these NULLs as \"63 duplicate returns\" and concluded objects shared a block; repeated NULL is failure, not sharing, and the two are now counted separately.</evidence>\n<parameter name=\"tags\">allocator,sub_003437F3,allocation-failure,pool,sub_001F09D0",
+   "tags": [],
+   "when": "2026-08-07 01:02"
+  },
+  {
+   "id": 24,
+   "claim": "sub_001F7930 is correct code; the wall is that registry+0x2C holds a list-node pointer where the function expects a {function-table, count} descriptor",
+   "verdict": "confirmed",
+   "evidence": "Ghidra decompilation of 0x001F7930 (created as wall_sub_001F7930, 281 bytes) reads: iVar1 = *(int *)(*(int *)(_DAT_005bc508 + 0x2c) + 4); then calls (**(code **)(*(int *)*puVar7 + iVar6 * 4))() while iVar6 < iVar1. So obj=MEM32(registry+0x2C), table=MEM32(obj), count=MEM32(obj+4), call table[i]. Ordinary descriptor iteration, and Ghidra's C matches the lifted C exactly, which is why faithful.py clears it. The same function's FIRST loop uses the same idea with array at +8 and count at +0xC on this+0x28, so descriptors of this shape are real in this engine. Measured count is 0x00F81180, a heap address, so 0 < count passes and the loop runs ~16.2M times. The defect is the DATA at registry+0x2C, not the code reading it.</evidence>\n<parameter name=\"tags\">sub_001F7930,ghidra,decompilation,registry,descriptor",
+   "tags": [],
+   "when": "2026-08-07 01:07"
+  },
+  {
+   "id": 25,
+   "claim": "The first write to registry+0x2C comes from a system DLL (a CRT memset/memcpy), not from lifted game code",
+   "verdict": "inconclusive",
+   "evidence": "run --watch 0x00F812B4:4:reg2C fired once: armed with current value 0x00000000, then \"write to xbox VA 0x00F812B4 from RIP=0x7FFDFE5BE579 (RVA=0x67367E579)\". That RVA is nonsense because the writer is outside our image, which is exactly how a system-DLL writer presents - matching investigation_report.md, which attributed several writes at 0x00F81288 to a CRT memset/memcpy. A bulk CRT write over the registry's fields is what constructing ANOTHER object at that base looks like, which fits #22 (0x00F81288 handed out 4 times). LIMITS, do not overstate: the watch disarms after one hit, so this is only the FIRST write, taken when the field still read 0 - it is not proven to be the write that installs the bad pointer, and the guest-side caller was not resolved. Next step to close it: recomp_where at the suspected constructor plus triage_crash.py --where, which is how the lock callers were named previously.</evidence>\n<parameter name=\"tags\">registry,0x00F812B4,watch,memset,sub_001F7930",
+   "tags": [],
+   "when": "2026-08-07 01:07"
   }
  ]
 }

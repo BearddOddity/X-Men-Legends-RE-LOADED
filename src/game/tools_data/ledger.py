@@ -38,6 +38,7 @@ Usage (from src/game/):
     py -3 tools_data/ledger.py report
 """
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -47,8 +48,46 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.path.dirname(HERE)
 PATH = os.path.join(GAME, "ledger.json")
+LOCKFILE = os.path.join(GAME, ".ledger.lock")
 
 VERDICTS = ("refuted", "confirmed", "inconclusive", "superseded")
+
+
+@contextlib.contextmanager
+def locked(timeout=30, poll=0.1):
+    """Advisory lock around a load-modify-save cycle.
+
+    load()/save() are a plain read-then-write with no coordination of their
+    own. walls.py can write here many times over an hours-long unattended
+    run, and an interactive caller (the ledger MCP tool, or this module's own
+    CLI) can write at the same moment - without this, the second save()
+    silently overwrites the first writer's entry with no error. That is
+    exactly the failure this file exists to prevent, just aimed at itself.
+
+    Every caller that does load()+add()+save() must wrap the whole sequence
+    in `with locked():` - locking only save() is not enough, since the race
+    is in the gap between load() and save(), not in save() alone.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(LOCKFILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            break
+        except FileExistsError:
+            with contextlib.suppress(OSError):
+                if time.time() - os.path.getmtime(LOCKFILE) > 30:
+                    os.remove(LOCKFILE)      # stale - a crashed holder
+                    continue
+            if time.time() > deadline:
+                raise TimeoutError(
+                    "ledger.json is locked by another writer - try again")
+            time.sleep(poll)
+    try:
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            os.remove(LOCKFILE)
 
 
 def load():
@@ -68,23 +107,48 @@ def words(s):
     return {w for w in re.findall(r"[a-z0-9_]+", s.lower()) if len(w) > 2}
 
 
-def similar(db, claim, threshold=0.34):
+IDENT_RX = re.compile(r"\b(?:sub_[0-9A-Fa-f]{8}|loc_[0-9A-Fa-f]{8}|"
+                      r"0x[0-9A-Fa-f]{6,8})\b")
+
+
+def identifiers(s):
+    """Function names and addresses - exact technical identifiers, not prose."""
+    return set(IDENT_RX.findall(s))
+
+
+def similar(db, claim, threshold=0.34, identifiers_=()):
     """Entries sharing enough vocabulary with `claim` to be worth reading.
 
-    Deliberately crude. The job is to make a human or a tool pause and read,
-    not to decide anything - a false hit costs a glance, a miss costs a repeat
-    of a day already spent.
+    Deliberately crude on prose - the job is to make a human or a tool pause
+    and read, not to decide anything, so a fuzzy word-overlap ratio against
+    `threshold` is enough there. IDENTIFIERS (sub_XXXXXXXX, loc_XXXXXXXX,
+    0xADDR) are handled separately and are NOT crude: a shared function name
+    is exact, not approximate, and the fuzzy path misses real matches when
+    the rephrasing is loose. Measured on the 2026-08-06 use-after-free case:
+    a claim describing the same bug in different words scored 0.27 by
+    word-overlap alone, below this function's own 0.34 threshold - a false
+    "nothing similar on record" for a claim that was, in fact, on record. An
+    identifier match now bypasses that threshold entirely.
+
+    `identifiers_` lets a caller pass known-relevant identifiers (e.g. the
+    writer function names investigate.py already has) instead of relying on
+    them appearing verbatim in `claim`'s free text.
     """
     want = words(claim)
-    if not want:
+    want_ids = identifiers(claim) | set(identifiers_)
+    if not want and not want_ids:
         return []
     out = []
     for e in db["entries"]:
-        have = words(e["claim"] + " " + " ".join(e.get("tags", [])))
-        if not have:
-            continue
-        overlap = len(want & have) / len(want)
-        if overlap >= threshold:
+        haystack = e["claim"] + " " + e.get("evidence", "") + " " + \
+            " ".join(e.get("tags", []))
+        have = words(haystack)
+        have_ids = identifiers(haystack) | set(e.get("tags", []))
+        id_hit = want_ids & have_ids
+        overlap = len(want & have) / len(want) if want else 0.0
+        if id_hit:
+            out.append((round(max(overlap, 0.5), 2), e))
+        elif overlap >= threshold:
             out.append((round(overlap, 2), e))
     out.sort(key=lambda t: -t[0])
     return out
@@ -170,6 +234,11 @@ def main(argv=None):
     a_.add_argument("--supersedes", type=int)
 
     a = ap.parse_args(argv)
+    with locked():
+        return _run(a)
+
+
+def _run(a):
     db = load()
     n = seed_from_today(db)
     if n:

@@ -114,6 +114,8 @@ GEN = os.path.join(GAME, "src", "recomp", "gen")
 sys.path.insert(0, HERE)
 
 import signals                                              # noqa: E402
+import faithful                                              # noqa: E402
+import ledger                                                # noqa: E402
 from recomp_lock import build_lock, wait_until_quiet        # noqa: E402
 
 KB = os.path.join(GAME, "walls.json")
@@ -284,6 +286,78 @@ def find_owner_span(name):
     return None
 
 
+_FAITHFUL_ENV = None      # lazy: (md, xbe_bytes, secs) - built once, reused
+
+
+def faithful_check_once(rec, wall):
+    """Run faithful.py on a wall's OWN function, once per wall, before any
+    bypass is tried on it.
+
+    faithful.py is "the one check on this project that has never given a
+    wrong answer" (its own docstring) - it caught the deferred-flag miscompile
+    behind a 716M-iteration freeze. Before this, it only ran as a last-resort
+    static sweep once every wall was exhausted, so a wall whose real cause was
+    a dropped branch edge or a stale-flag bug got a bypass applied to it
+    first, with the actual defect found only later, if at all - or missed,
+    since the sweep only runs when the boot is fully stuck, not per-wall.
+
+    Cached in `rec["faithful"]` - re-running the full disasm/index setup on
+    every pattern-application iteration for the same wall would be wasted
+    work against an 1M+-line gen/ tree. `_FAITHFUL_ENV` caches the XBE bytes
+    and capstone instance for the run (they never change); `gen`/`ends` are
+    rebuilt on first use only, not memoised past that, since gen/ changes as
+    patterns are applied to OTHER functions and a stale map could resolve a
+    later wall's address to a name that has since moved.
+    """
+    global _FAITHFUL_ENV
+    if "faithful" in rec:
+        return rec["faithful"]
+    name = wall["site"]
+    try:
+        if _FAITHFUL_ENV is None:
+            from capstone import Cs, CS_ARCH_X86, CS_MODE_32
+            md = Cs(CS_ARCH_X86, CS_MODE_32)
+            d, secs = faithful.load_xbe()
+            _FAITHFUL_ENV = (md, d, secs)
+        md, d, secs = _FAITHFUL_ENV
+        gen = faithful.index_gen()
+        if name not in gen:
+            rec["faithful"] = None
+            return None
+        addrs = sorted(int(n[4:], 16) for n in gen)
+        ends = {a: (addrs[i + 1] if i + 1 < len(addrs) else a + 4096)
+               for i, a in enumerate(addrs)}
+        r = faithful.check(name, gen, md, d, secs, ends)
+    except Exception as exc:
+        print(f"  (faithful.py check on {name} failed: {exc})")
+        rec["faithful"] = None
+        return None
+    rec["faithful"] = r
+    if r.get("missing_labels") or r.get("stale_flags"):
+        print(f"  FAITHFUL.PY finding at {name}: "
+              f"{len(r.get('missing_labels', []))} missing label(s), "
+              f"{len(r.get('stale_flags', []))} stale-flag site(s) - "
+              f"a REAL defect, a bypass here treats the symptom, not "
+              f"the cause (project rule #11)")
+        try:
+            with ledger.locked():
+                db = ledger.load()
+                ledger.seed_from_today(db)
+                ledger.add(
+                    db,
+                    f"{name} is faithfully lifted from the original x86",
+                    "refuted",
+                    f"faithful.py found {len(r.get('missing_labels', []))} "
+                    f"missing label(s) and {len(r.get('stale_flags', []))} "
+                    f"stale-flag site(s) at {r.get('file')}:{r.get('line')}. "
+                    f"Found before any bypass was applied to this wall.",
+                    [name, "faithful", "lifter-defect"])
+                ledger.save(db)
+        except Exception as exc:
+            print(f"  (could not write the ledger: {exc})")
+    return r
+
+
 NOTE = (
     "    /* SCAFFOLDING applied automatically by walls.py - NOT a fix, and NOT\n"
     "     * shippable.\n"
@@ -416,6 +490,72 @@ def pattern_iteration_cap(span, wall):
     return None
 
 
+def pattern_heap_range_guard(span, wall):
+    """Zero a pointer loaded from memory before it is used as a deref base.
+
+    Mined from manual_edits.json: 22 of the 139 hand-proven guards on this
+    port are a variant of this exact shape - a register loaded from a `MEM32`
+    read, then used unguarded as `MEM32(<reg> + off)` a line or two later. In
+    every hand-fixed instance the loaded value was sometimes garbage (an
+    uninitialised list head, a freed object's stale slot) and dereferencing it
+    walked off into unmapped memory. The 22 real fixes disagree on what to do
+    once caught - `goto` a specific label, zero a different register, early
+    `return` - because the correct recovery is call-site-specific. This
+    generalises only the part that is NOT call-site-specific: the value is
+    known-bad outside `[0x00880000, 0x04000000)` (the same bound already
+    proven in `pattern_chain_terminate`), so zeroing it in place is always a
+    legal, conservative move if a caller downstream already treats 0 as
+    invalid - which is true throughout this codebase (see chain-terminate's
+    own docstring). If that assumption is wrong for a given site, the
+    build/measure step below is what catches it, not this docstring.
+
+    Candidate, not proven: the SHAPE is proven 22 times, but this specific
+    generalised transform - guard-by-zeroing at every unguarded occurrence -
+    has not itself been measured. That is what walls.py's invent/measure loop
+    is for.
+
+    Project rule #10 (CLAUDE.md) is a direct warning about this same bound:
+    "the heap lower bound 0x00880000 is wrong AND load-bearing - 'fixing' it
+    cost 61->59." That was about correcting the constant to something more
+    principled; this pattern does not touch the constant, only reuses it
+    exactly as already proven. But it means this bound is empirically
+    load-bearing for reasons not fully understood, not a clean architectural
+    fact - a reason for caution, not for touching it.
+
+    Also rule #11: this is a bypass (SCAFFOLDING per NOTE above), not a port
+    fix. If it earns a gain, the real defect - why an invalid pointer reached
+    this deref at all - is still open and belongs in the ledger, not closed.
+    """
+    path, s, e = span
+    lines = open(path, encoding="utf-8", errors="ignore").read().split("\n")
+    load_rx = re.compile(r"^(\s*)(e[a-z][a-z]) = MEM32\([^;]+\);$")
+    deref_rx = re.compile(r"MEM32\((e[a-z][a-z]) \+ ")
+    guard_rx = re.compile(r">=\s*0x00880000u|!= 0\)|== 0\)")
+    for i in range(s, min(e + 1, len(lines) - 1)):
+        m = load_rx.match(lines[i])
+        if not m:
+            continue
+        indent, reg = m.groups()
+        window = lines[i + 1:min(i + 4, e + 1)]
+        target = None
+        for off, wl in enumerate(window):
+            d = deref_rx.search(wl)
+            if d and d.group(1) == reg:
+                target = i + 1 + off
+                break
+            if reg in wl and guard_rx.search(wl):
+                target = None
+                break                       # already guarded some other way
+        if target is None:
+            continue
+        guard = (f"{indent}if (!({reg} >= 0x00880000u && {reg} < 0x04000000u)) "
+                 f"{reg} = 0;")
+        lines.insert(target, NOTE.format(pat="heap-range-guard") + guard)
+        open(path, "w", encoding="utf-8").write("\n".join(lines))
+        return f"guarded {reg} before deref at {os.path.basename(path)}:{target + 1}"
+    return None
+
+
 # count-clamp is DISPROVEN and deliberately not in this list.
 #
 # It looked airtight: the loop's count field held a heap address, every call in
@@ -456,6 +596,11 @@ PATTERNS = [
     # same reasoning was applied by hand as count-clamp. Worth ONE measured
     # attempt rather than an assumption in either direction.
     ("iteration-cap", pattern_iteration_cap, ("hang",), ("spin",)),
+    # Shape mined from 22 hand-proven guards in manual_edits.json (see the
+    # pattern's own docstring); the generalised transform itself is unproven,
+    # so it starts life as a candidate on every wall kind an unguarded stale
+    # pointer plausibly explains.
+    ("heap-range-guard", pattern_heap_range_guard, (), ("spin", "hang", "crash")),
 ]
 
 
@@ -632,6 +777,22 @@ def save_kb(kb):
         fh.write("\n")
 
 
+def _faithful_lines(rec):
+    """Report lines for a wall's cached faithful.py result, or nothing."""
+    r = rec.get("faithful")
+    if not r or not (r.get("missing_labels") or r.get("stale_flags")):
+        return []
+    out = ["- **faithful.py**: "]
+    parts = []
+    if r.get("missing_labels"):
+        parts.append(f"{len(r['missing_labels'])} missing label(s) "
+                     f"(dropped branch edge - real, not a guess)")
+    if r.get("stale_flags"):
+        parts.append(f"{len(r['stale_flags'])} stale-flag site(s)")
+    out[-1] += "; ".join(parts) + f" at {r.get('file')}:{r.get('line')}"
+    return out
+
+
 def write_report(kb, journey, start):
     beaten = [k for k, v in kb["walls"].items() if v.get("bypassed")]
     stuck = [k for k, v in kb["walls"].items() if not v.get("bypassed")]
@@ -671,7 +832,14 @@ def write_report(kb, journey, start):
                     f"- steps before: {step['before']}",
                     f"- steps after: {step['after']}",
                     f"- action: {step['action']}",
-                    f"- result: **{step['result']}**", ""]
+                    f"- result: **{step['result']}**"]
+            if step.get("faithful_defect"):
+                out.append(
+                    "- **faithful.py found a real defect at this wall's own "
+                    "function** - the bypass above got past the SYMPTOM; the "
+                    "actual cause is still open. See the ledger entry tagged "
+                    "`faithful` for this function.")
+            out.append("")
 
     if stuck:
         out += ["## Walls we could not pass", ""]
@@ -680,8 +848,9 @@ def write_report(kb, journey, start):
             out += [f"### {k}", "",
                     f"- seen {v.get('seen', 1)} time(s)",
                     f"- tried: {', '.join(v.get('tried', [])) or 'nothing matched'}",
-                    f"- note: {v.get('note', 'no known pattern fits this shape')}",
-                    ""]
+                    f"- note: {v.get('note', 'no known pattern fits this shape')}"]
+            out += _faithful_lines(v)
+            out.append("")
     # Static findings and the error worklist. report_errors() existed but was
     # never called - an earlier wiring attempt did not match and failed quietly,
     # so the harvested worklist was computed every run and then thrown away.
@@ -844,6 +1013,9 @@ def main(argv=None):
                     save_kb(kb)
                     continue
 
+                faithful_check_once(rec, wall)
+                save_kb(kb)
+
                 applied = None
                 promoted = set(kb.get("promoted", []))
                 tier_used = None
@@ -894,10 +1066,13 @@ def main(argv=None):
                     after = min(after, v) if after else v
 
                 progressed = after > before
+                fr = rec.get("faithful") or {}
                 journey.append({"key": key, "before": before, "after": after,
                                 "action": applied,
                                 "result": "passed it" if progressed
-                                          else "no gain, reverted"})
+                                          else "no gain, reverted",
+                                "faithful_defect": bool(
+                                    fr.get("missing_labels") or fr.get("stale_flags"))})
                 if progressed:
                     rec["bypassed"] = True
                     rec["note"] = f"{applied} took {before} -> {after} steps"
@@ -917,18 +1092,19 @@ def main(argv=None):
                         print(f"  PROMOTED {key_pat} from candidate to proven")
                         try:
                             import ledger
-                            db = ledger.load()
-                            ledger.seed_from_today(db)
-                            ledger.add(
-                                db,
-                                f"{rec['tried'][-1]} gets the boot past a "
-                                f"{wall['kind']} wall",
-                                "confirmed",
-                                f"applied at {wall['site']}: {applied}. "
-                                f"worst-of-{max(1, a.runs)} runs moved "
-                                f"{before} -> {after}.",
-                                [rec["tried"][-1], wall["kind"], "promoted"])
-                            ledger.save(db)
+                            with ledger.locked():
+                                db = ledger.load()
+                                ledger.seed_from_today(db)
+                                ledger.add(
+                                    db,
+                                    f"{rec['tried'][-1]} gets the boot past a "
+                                    f"{wall['kind']} wall",
+                                    "confirmed",
+                                    f"applied at {wall['site']}: {applied}. "
+                                    f"worst-of-{max(1, a.runs)} runs moved "
+                                    f"{before} -> {after}.",
+                                    [rec["tried"][-1], wall["kind"], "promoted"])
+                                ledger.save(db)
                         except Exception as exc:
                             print(f"  (could not write the ledger: {exc})")
                 else:
@@ -942,17 +1118,18 @@ def main(argv=None):
                     # session, which is precisely how a day gets spent twice.
                     try:
                         import ledger
-                        db = ledger.load()
-                        ledger.seed_from_today(db)
-                        ledger.add(
-                            db,
-                            f"{rec['tried'][-1]} gets the boot past {key}",
-                            "refuted",
-                            f"applied at {wall['site']}: {applied}. "
-                            f"reached/kernel_calls did not rise "
-                            f"({before} -> {after}), reverted.",
-                            [rec["tried"][-1], wall["kind"], wall["site"] or "?"])
-                        ledger.save(db)
+                        with ledger.locked():
+                            db = ledger.load()
+                            ledger.seed_from_today(db)
+                            ledger.add(
+                                db,
+                                f"{rec['tried'][-1]} gets the boot past {key}",
+                                "refuted",
+                                f"applied at {wall['site']}: {applied}. "
+                                f"reached/kernel_calls did not rise "
+                                f"({before} -> {after}), reverted.",
+                                [rec["tried"][-1], wall["kind"], wall["site"] or "?"])
+                            ledger.save(db)
                     except Exception as exc:
                         print(f"  (could not write the ledger: {exc})")
                 save_kb(kb)
