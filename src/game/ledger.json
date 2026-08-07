@@ -297,6 +297,42 @@
    "evidence": "run --watch 0x00F812B4:4:reg2C fired once: armed with current value 0x00000000, then \"write to xbox VA 0x00F812B4 from RIP=0x7FFDFE5BE579 (RVA=0x67367E579)\". That RVA is nonsense because the writer is outside our image, which is exactly how a system-DLL writer presents - matching investigation_report.md, which attributed several writes at 0x00F81288 to a CRT memset/memcpy. A bulk CRT write over the registry's fields is what constructing ANOTHER object at that base looks like, which fits #22 (0x00F81288 handed out 4 times). LIMITS, do not overstate: the watch disarms after one hit, so this is only the FIRST write, taken when the field still read 0 - it is not proven to be the write that installs the bad pointer, and the guest-side caller was not resolved. Next step to close it: recomp_where at the suspected constructor plus triage_crash.py --where, which is how the lock callers were named previously.</evidence>\n<parameter name=\"tags\">registry,0x00F812B4,watch,memset,sub_001F7930",
    "tags": [],
    "when": "2026-08-07 01:07"
+  },
+  {
+   "id": 26,
+   "claim": "heap-range-guard gets the boot past spin@sub_001F7930->0x00000000",
+   "verdict": "refuted",
+   "evidence": "applied at sub_001F7930: guarded eax before deref at recomp_0014.c:38757. reached/kernel_calls did not rise (2144 -> 2144), reverted.",
+   "tags": [
+    "heap-range-guard",
+    "spin",
+    "sub_001F7930"
+   ],
+   "when": "2026-08-07 11:11"
+  },
+  {
+   "id": 27,
+   "claim": "The 690 allocation failures come from sub_001FE770 (vtable+0x6C) returning false on a zero size",
+   "verdict": "refuted",
+   "evidence": "Probed edx at sub_001FE770's size test (recomp_0015.c:5209). It fires EXACTLY ONCE per boot, with size=0x00140000 - 1.25MB, which is the pool size progress.json already records. So it takes the non-zero path and succeeds; the zero-size early-out never happens. More importantly the call count kills the wider story: vtable+0x6C is pool SETUP, called once, not the per-allocation path, so it cannot account for 690 failures. Signals unchanged at 1452/152/11 deterministic with the probe in place. NOTE for whoever picks this up: progress.json traced the chain sub_001F6FB0 -> ... -> sub_001F09D0 -> vtable+0x6C for ONE failure, and that trace is not evidence about the other 689. Where the bulk of the NULLs are produced is still unknown - counting them per return site is the honest next step, not following the single traced chain further.</evidence>\n<parameter name=\"tags\">sub_001FE770,sub_001F09D0,allocator,allocation-failure,vtable",
+   "tags": [],
+   "when": "2026-08-07 11:24"
+  },
+  {
+   "id": 28,
+   "claim": "All 690 allocation failures come from sub_001A02B7 (the free-block finder) returning 0, counted not inferred",
+   "verdict": "confirmed",
+   "evidence": "Counted with probes at every failure route inside sub_001A0B0C (lifted RtlAllocateHeap). Totals on one deterministic boot (1452/152/11): 690 NULL returns, matching the allocator ring exactly. Route A (heap-not-growable, MEM8(esi+0x14)&2 at recomp_0011.c:31527) fired 0 times. Route C (kernel call through MEM32(0x3C6CB8) returning negative, :31550) fired 0 times - the allocator NEVER reaches the kernel. Route B fired 690/690: recomp_0011.c:31523 sets STATUS_NO_MEMORY (0xC0000017) and returns NULL. Exactly one branch reaches route B - :31117 `if (eax == 0) goto loc_001A113A` - and eax there is the return of sub_001A02B7, called at :31113. Full chain, every link measured: sub_003437F3 (operator new) -> sub_003437C7 (retry loop) -> sub_003437A0 -> sub_001A0B0C -> sub_001A02B7 -> 0. DEBUGGING_NOTES.md:283 already names sub_001A02B7 as the heap's own block finder. NOTE two hypotheses died here: heap-not-growable and kernel-refusal, both 0 of 690.</evidence>\n<parameter name=\"tags\">sub_001A02B7,sub_001A0B0C,allocator,allocation-failure,RtlAllocateHeap",
+   "tags": [],
+   "when": "2026-08-07 11:34"
+  },
+  {
+   "id": 29,
+   "claim": "Replacing the CRT RtlAllocateHeap with the native heap fixes the allocation failures, the duplicate addresses and the sub_001F7930 spin together",
+   "verdict": "confirmed",
+   "evidence": "sub_001A0B0C overridden in recomp_manual.c to call xbox_HeapAlloc (~55MB) instead of walking the guest free list; generated body stubbed by stub_overridden.py. Deterministic on 2 of 2 runs. kernel_calls 1452 -> 4000, failed_icalls 152 -> 2, heap_allocs 11 -> 13, safe_stub 192 -> 8, distinct kernel fns 15 -> 16. Allocator ring: 7 allocations, 0 failed, 0 duplicate - was 697/690/3. Indirect dispatches 677,120,348 -> 672, so the 600M-dispatch spin at sub_001F7930 is GONE, which confirms it was downstream of the allocator exactly as ledger #24 argued (correct code reading corrupted data). #22 (0x00F81288 returned four times) is settled by construction - a bump allocator cannot repeat an address. NEW WALL, further along: crash in sub_0020F209+0x176B writing 0xF687BE15. That is the engine's own pool carver, and it is the predicted consequence of handing out blocks with no NT block header - anything stepping back from a block to read one now finds unrelated memory. CAVEATS, both real: xbox_HeapAlloc only bumps, so RtlFreeHeap is now a leak (fine for reaching a menu with 55MB, not fine to ship); and only HEAP_ZERO_MEMORY is honoured of the flags.</evidence>\n<parameter name=\"tags\">sub_001A0B0C,allocator,override,recomp_manual,sub_001F7930,port-fix",
+   "tags": [],
+   "when": "2026-08-07 11:40"
   }
  ]
 }

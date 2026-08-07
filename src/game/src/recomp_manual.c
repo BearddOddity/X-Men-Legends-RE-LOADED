@@ -2903,6 +2903,72 @@ void sub_001F8890(void)
     g_esp = entry_esp + 16;  /* ret 12 */
 }
 
+/*
+ * sub_001A0B0C - the CRT's RtlAllocateHeap, replaced by the native heap.
+ *
+ * RtlAllocateHeap(handle, flags, size); ret 12. The generated version fails
+ * 690 of 697 times, and the failure was counted rather than guessed at
+ * (ledger #28). The chain is:
+ *
+ *   sub_003437F3 (operator new) -> sub_003437C7 (retry loop)
+ *     -> sub_003437A0 -> sub_001A0B0C -> sub_001A02B7 -> 0
+ *
+ * sub_001A02B7 is the heap's own free-block finder and it comes back empty
+ * every time, so this function takes its STATUS_NO_MEMORY exit. Two other
+ * failure routes exist in the same function and BOTH fire zero times: the
+ * heap-not-growable test, and the kernel call. That last one matters - the
+ * allocator never asks the OS for memory at all, so simply granting it a
+ * larger pool cannot help. Its own free list is empty and it gives up first.
+ *
+ * WHY REPLACE RATHER THAN REPAIR
+ * This is a PC port, not an emulator (project rule #11). Reproducing an NT
+ * heap's free lists, bucket tables and coalescing exactly enough to satisfy a
+ * finder that is already coming back empty is emulator work, and it buys
+ * nothing a correct allocator does not. The native heap already exists in
+ * xbox_memory_layout.c with ~55 MB against the 1.25 MB pool the game is
+ * choking on, and handing out real distinct blocks is the genuinely correct
+ * behaviour - so this is a port fix, not scaffolding.
+ *
+ * It should also settle a second defect. Ledger #22 confirmed the current
+ * allocator returns the SAME address for four different allocations
+ * (0x00F81288, on allocations 2, 3 and 5), which is what leaves the class
+ * registry holding another object's data and drives the sub_001F7930 spin.
+ * A bump allocator cannot do that.
+ *
+ * KNOWN RISKS, stated because they are real:
+ *  - Memory is never reclaimed. xbox_HeapAlloc only bumps, so RtlFreeHeap
+ *    becomes a leak. Fine for reaching a menu with 55 MB; not fine forever.
+ *  - The game does not only allocate, it WALKS this heap's internal free
+ *    lists (sub_0019FBC7 splices them, and six hand guards in the generated
+ *    sub_001A0B0C exist to survive uninitialised list heads). Blocks from
+ *    here carry no NT block header, so any code that steps back 8 bytes to
+ *    read one will find whatever was there. If that bites, it will show up
+ *    as a NEW crash site rather than as this silent refusal - which is still
+ *    a strictly better place to be.
+ *  - HEAP_ZERO_MEMORY (flag bit 8) is honoured; the other flags are ignored.
+ */
+void sub_001A0B0C(void)
+{
+    uint32_t entry_esp = g_esp;
+    uint32_t flags = MEM32(entry_esp + 8);
+    uint32_t size  = MEM32(entry_esp + 0xC);
+
+    /* The original maps a zero-size request to one byte rather than failing;
+     * keep that, since callers do rely on getting a unique pointer back. */
+    uint32_t want = size ? size : 1;
+
+    /* 16 matches the alignment the generated path applies when the CRT's
+     * __active_heap flag is not 1 (see sub_003437A0). */
+    uint32_t block = xbox_HeapAlloc(want, 16);
+
+    if (block && (flags & 8)) {           /* HEAP_ZERO_MEMORY */
+        memset((void *)XBOX_PTR(block), 0, want);
+    }
+
+    g_eax = block;
+    g_esp = entry_esp + 16;  /* ret 12 */
+}
+
 extern void sub_001F853F(void);
 extern void sub_001F8545(void);
 
