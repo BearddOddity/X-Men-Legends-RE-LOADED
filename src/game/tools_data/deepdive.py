@@ -209,13 +209,22 @@ def field_access(body):
             if base == "esp":
                 continue              # stack slots are frame noise, not layout
             kind = "w" if (base, off) in written else "r"
-            cur = acc.setdefault(base, {}).get(off, "")
+            # Canonical hex key. The lifter emits BOTH `+ 8` and `+ 0x8` for
+            # the same field, so keying on the raw text listed one offset
+            # twice - visibly, as `esi 8wr, 0x12w` with a stray decimal among
+            # the hex. Same field, one row.
+            try:
+                n = int(off, 0)
+            except ValueError:
+                continue
+            key = ("-0x%X" % -n) if n < 0 else ("0x%X" % n)
+            cur = acc.setdefault(base, {}).get(key, "")
             if kind not in cur:
-                acc[base][off] = (cur + kind) or kind
+                acc[base][key] = (cur + kind) or kind
     # Sort offsets numerically so the layout reads like a struct.
     out = {}
     for base, offs in acc.items():
-        out[base] = sorted(offs.items(), key=lambda kv: int(kv[0], 0))
+        out[base] = sorted(offs.items(), key=lambda kv: int(kv[0], 16))
     return out
 
 
