@@ -1135,16 +1135,41 @@ static void bridge_NtQueryVirtualMemory(void)
         return;
     }
 
-    /* Report the enclosing 64 KB allocation granule, which is what a caller
-     * walking regions expects to advance by. */
-    uint32_t region_base = base_address & ~0xFFFFu;
-    uint32_t ram_end     = XBOX_TOTAL_RAM;
-    uint32_t in_ram      = (base_address < ram_end);
+    /*
+     * SUSPECT-2 TEST (ledger #30). Real contiguous extents, but the above-RAM
+     * case is BOUNDED rather than "to the top of the address space". The
+     * reverted version reported 0xFFFFFFFF - base there, which is a hair from
+     * overflow and may wrap in the caller's own arithmetic. Everything else
+     * about the region table is identical to the change that regressed, so if
+     * this run is healthy the overflow was the bug; if it regresses the same
+     * way, the extents themselves are what the caller dislikes.
+     */
+    static const struct { uint32_t base, end; } k_regions[] = {
+        { 0x00000000u,        XBOX_BASE_ADDRESS },
+        { XBOX_BASE_ADDRESS,  XBOX_STACK_BASE },
+        { XBOX_STACK_BASE,    XBOX_STACK_BASE + XBOX_STACK_SIZE },
+        { XBOX_HEAP_BASE,     XBOX_TOTAL_RAM },
+    };
+    uint32_t region_base = 0, region_size = 0;
+    uint32_t in_ram = 0;
+    for (unsigned i = 0; i < sizeof k_regions / sizeof k_regions[0]; i++) {
+        if (base_address >= k_regions[i].base && base_address < k_regions[i].end) {
+            region_base = k_regions[i].base;
+            region_size = k_regions[i].end - k_regions[i].base;
+            in_ram = 1;
+            break;
+        }
+    }
+    if (!region_size) {
+        region_base = base_address & ~0xFFFFu;
+        region_size = 0x10000u;      /* bounded on purpose - this is the test */
+        in_ram = 0;
+    }
 
     BRIDGE_MEM32(info_ptr + 0x00) = region_base;
     BRIDGE_MEM32(info_ptr + 0x04) = region_base;
     BRIDGE_MEM32(info_ptr + 0x08) = in_ram ? 0x04u : 0x01u;   /* RW : NOACCESS */
-    BRIDGE_MEM32(info_ptr + 0x0C) = 0x10000u;                 /* RegionSize */
+    BRIDGE_MEM32(info_ptr + 0x0C) = region_size;
     BRIDGE_MEM32(info_ptr + 0x10) = in_ram ? 0x1000u : 0x10000u; /* COMMIT : FREE */
     BRIDGE_MEM32(info_ptr + 0x14) = in_ram ? 0x04u : 0x01u;
     BRIDGE_MEM32(info_ptr + 0x18) = in_ram ? 0x20000u : 0u;   /* MEM_PRIVATE */
