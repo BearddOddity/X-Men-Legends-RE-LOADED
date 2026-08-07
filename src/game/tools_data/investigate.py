@@ -57,6 +57,7 @@ GAME = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import signals                                              # noqa: E402
+import deepdive                                             # noqa: E402
 import ledger                                               # noqa: E402
 from recomp_lock import build_lock, wait_until_quiet        # noqa: E402
 
@@ -141,6 +142,56 @@ OURS = ("dump_native_stack", "veh_handler", "recomp_where", "print_rip",
 
 def game_frames(names):
     return [n for n in names if not n.startswith(OURS)]
+
+
+def deepdive_frames(where, limit=6):
+    """Run deepdive on the functions the WHERE stage just named.
+
+    WHERE answers "which functions are involved" as a bare list of names, and
+    the very next question is always "what ARE they?" - six lookups each, by
+    hand, against a tree an unattended run may since have rebuilt. Capturing
+    it here means the morning report carries the answer instead of the
+    homework.
+
+    faithful IS run here, unlike walls.py's copy of this idea, because
+    walls.py has already run faithful separately on its wall and this tool has
+    not. A dropped branch edge in a frame on the failing path is the most
+    actionable thing this stage can surface.
+
+    Frames arrive as "sub_001F7930+0x1FC"; the offset is stripped because the
+    function is the stable identity and the offset shifts every build.
+
+    Read-only, takes no build lock, and reads the ledger under ledger's own
+    lock - so it must not be called while holding that lock. investigate.py
+    holds no ledger lock here.
+    """
+    seen, out = set(), []
+    for n in (where.get("spin_frames") or []) + (where.get("frames") or []):
+        name = n.split("+")[0]
+        if not name.startswith("sub_") or name in seen:
+            continue
+        seen.add(name)
+        try:
+            d = deepdive.gather(name, int(name[4:], 16))
+        except Exception as exc:
+            print(f"  (deepdive on {name} failed: {exc})")
+            continue
+        led = d.get("ledger") or []
+        f = d.get("faithful") or {}
+        out.append({
+            "name": name, "file": d.get("file"), "line": d.get("line"),
+            "refuted": [e["id"] for e in led if e.get("verdict") == "refuted"],
+            "confirmed": [e["id"] for e in led if e.get("verdict") == "confirmed"],
+            "open_flags": len(f.get("stale_flags_open",
+                                    f.get("stale_flags", []) or [])),
+            "missing_labels": len(f.get("missing_labels") or []),
+            "fields": d.get("fields"), "globals": d.get("globals"),
+            "loops": len(d.get("loops") or []),
+            "guards": len(d.get("manual_edits") or []),
+        })
+        if len(out) >= limit:
+            break
+    return out
 
 
 # ---------------------------------------------------------------- stages
@@ -364,6 +415,34 @@ def write_report(ctx, res):
             out += [f"{i}. `{n}`" for i, n in enumerate(where["frames"], 1)]
             out.append("")
 
+        if where.get("deepdive"):
+            out += ["### What those functions are", "",
+                    "Captured while the tree still matched the log that named "
+                    "them. Anything already REFUTED is the first thing to "
+                    "read - it is a road someone has already walked.", ""]
+            for d in where["deepdive"]:
+                out.append(f"**`{d['name']}`** - `{d['file']}:{d['line']}`")
+                if d["refuted"] or d["confirmed"]:
+                    out.append(f"- ledger: {len(d['refuted'])} refuted "
+                               f"{d['refuted'] or ''}, {len(d['confirmed'])} "
+                               f"confirmed {d['confirmed'] or ''}")
+                if d["missing_labels"] or d["open_flags"]:
+                    out.append(f"- **faithful.py: {d['missing_labels']} missing "
+                               f"label(s), {d['open_flags']} unrepaired "
+                               f"stale-flag site(s) - a REAL port defect, worth "
+                               f"more than any bypass**")
+                for base, offs in sorted((d.get("fields") or {}).items()):
+                    pretty = ", ".join(f"{o}{k}" for o, k in offs[:12])
+                    out.append(f"- `{base}` touches {pretty}")
+                if d.get("globals"):
+                    out.append("- globals: " + ", ".join(
+                        f"{g}({k})" for g, k in d["globals"][:8]))
+                if d["loops"]:
+                    out.append(f"- {d['loops']} backward branch(es)")
+                if d["guards"]:
+                    out.append(f"- {d['guards']} hand-proven guard(s) already here")
+                out.append("")
+
     for entry in res.get("when") or []:
         out += [f"## When: writes to 0x{entry['addr']:08X}", "",
                 "| # | offset | value | kind | written by |",
@@ -439,6 +518,12 @@ def main(argv=None):
             ctx["log"] = run()
             res["where"] = stage_where(ctx)
             print(f"  ending: {res['where']['ending']}")
+            # Capture what the named functions ARE while the tree still
+            # matches the log that named them.
+            res["where"]["deepdive"] = deepdive_frames(res["where"])
+            if res["where"]["deepdive"]:
+                print(f"  deepdived {len(res['where']['deepdive'])} frame "
+                      f"function(s)")
             if res["where"].get("spin"):
                 print(f"  spin target 0x{res['where']['spin']['target']:08X} "
                       f"x{res['where']['spin']['count']:,}")
