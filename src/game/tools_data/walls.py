@@ -286,6 +286,88 @@ def find_owner_span(name):
     return None
 
 
+def ledger_refuted_for(key):
+    """Pattern names the ledger already records as REFUTED on THIS wall.
+
+    walls.json's per-wall `tried` list only covers what this knowledge base
+    has seen, and it does not survive the knowledge base being reset or a
+    second tool working the same wall. The ledger is the cross-run,
+    cross-session record - and consulting it catches a real waste: on
+    2026-08-06 iteration-cap was applied to spin@sub_001F7930 and refuted
+    FOUR separate times (ledger #9, #10, #20, #21). Each attempt cost a build
+    and two runs, and every one of them re-derived a result already written
+    down. Rule #15 exists for exactly this.
+
+    Matches the claim wording walls.py itself writes when it refutes:
+    "<pattern> gets the boot past <wall key>".
+
+    MUST NOT be called while holding ledger.locked(). The lock is a plain
+    lockfile and is NOT reentrant, so a nested acquire would block against
+    itself until the 30s stale-reclaim fired.
+    """
+    try:
+        with ledger.locked(timeout=10):
+            db = ledger.load()
+    except Exception as exc:
+        print(f"  (could not read the ledger, not skipping anything: {exc})")
+        return set()
+    SEP = " gets the boot past "
+    out = set()
+    for e in db.get("entries", []):
+        if e.get("verdict") != "refuted":
+            continue
+        claim = e.get("claim", "")
+        if SEP in claim and claim.split(SEP, 1)[1].strip() == key:
+            out.add(claim.split(SEP, 1)[0].strip())
+    return out
+
+
+def deepdive_wall(rec, wall):
+    """Attach deepdive's summary of the wall's own function to the record.
+
+    An unattended run leaves a report nobody watched being produced, so the
+    morning question is always "what IS this function?" - which previously
+    meant running six lookups by hand against a tree that may since have been
+    restored. Capturing it at the moment the wall is worked puts the answer in
+    walls.json and the report.
+
+    Cached per wall; deepdive is read-only and takes NO build lock, so calling
+    it from inside walls.py's own lock is safe. faithful is skipped here
+    because faithful_check_once() has already run it and cached the richer
+    result - running it twice would just pay the disassembly cost again.
+    """
+    if "deepdive" in rec:
+        return rec["deepdive"]
+    name = wall.get("site")
+    if not name:
+        rec["deepdive"] = None
+        return None
+    try:
+        import deepdive
+        d = deepdive.gather(name, int(name[4:], 16), do_faithful=False)
+    except Exception as exc:
+        print(f"  (deepdive on {name} failed: {exc})")
+        rec["deepdive"] = None
+        return None
+    # Keep only what a morning reader needs; the full dump belongs to the
+    # interactive tool, and walls.json should not become a second copy of it.
+    rec["deepdive"] = {
+        "file": d.get("file"), "line": d.get("line"),
+        "lines_of_c": d.get("lines_of_c"),
+        "ledger_refuted": [e["id"] for e in (d.get("ledger") or [])
+                           if e.get("verdict") == "refuted"],
+        "ledger_confirmed": [e["id"] for e in (d.get("ledger") or [])
+                             if e.get("verdict") == "confirmed"],
+        "fields": d.get("fields"),
+        "globals": d.get("globals"),
+        "indirect_calls": d.get("indirect_calls"),
+        "loops": len(d.get("loops") or []),
+        "manual_edits": len(d.get("manual_edits") or []),
+        "callers": [c[0] for c in (d.get("callers") or [])][:8],
+    }
+    return rec["deepdive"]
+
+
 _FAITHFUL_ENV = None      # lazy: (md, xbe_bytes, secs) - built once, reused
 
 
@@ -781,6 +863,46 @@ def save_kb(kb):
         fh.write("\n")
 
 
+def _deepdive_lines(rec):
+    """Report lines for a wall's cached deepdive summary, or nothing.
+
+    The point is that the morning reader should not have to re-run six
+    lookups against a tree that has since been restored to its snapshot.
+    """
+    d = rec.get("deepdive")
+    if not d:
+        return []
+    out = ["- **what this function is** (deepdive, captured while the wall "
+           "was worked):"]
+    if d.get("file"):
+        out.append("    - lifted C: `%s:%s` (%s lines)"
+                   % (d["file"], d["line"], d["lines_of_c"]))
+    if d.get("ledger_refuted") or d.get("ledger_confirmed"):
+        out.append("    - ledger: %d refuted, %d confirmed (ids %s / %s)"
+                   % (len(d["ledger_refuted"]), len(d["ledger_confirmed"]),
+                      d["ledger_refuted"] or "-", d["ledger_confirmed"] or "-"))
+    for base, offs in sorted((d.get("fields") or {}).items()):
+        pretty = ", ".join("%s%s" % (o, k) for o, k in offs[:12])
+        out.append("    - `%s` touches %s" % (base, pretty))
+    if d.get("globals"):
+        out.append("    - globals: %s"
+                   % ", ".join("%s(%s)" % (g, k) for g, k in d["globals"][:8]))
+    if d.get("indirect_calls"):
+        out.append("    - %d indirect call site(s): %s"
+                   % (len(d["indirect_calls"]),
+                      "; ".join(e[1][:48] for e in d["indirect_calls"][:4])))
+    if d.get("loops"):
+        out.append("    - %d backward branch(es) - a spin lives in one of these"
+                   % d["loops"])
+    if d.get("manual_edits"):
+        out.append("    - %d hand-proven guard(s) already applied here"
+                   % d["manual_edits"])
+    if d.get("callers"):
+        out.append("    - callers: %s (vtable calls are invisible to this)"
+                   % ", ".join(d["callers"]))
+    return out
+
+
 def _faithful_lines(rec):
     """Report lines for a wall's cached faithful.py result, or nothing."""
     r = rec.get("faithful")
@@ -855,6 +977,7 @@ def write_report(kb, journey, start):
                     f"- tried: {', '.join(v.get('tried', [])) or 'nothing matched'}",
                     f"- note: {v.get('note', 'no known pattern fits this shape')}"]
             out += _faithful_lines(v)
+            out += _deepdive_lines(v)
             out.append("")
     # Static findings and the error worklist. report_errors() existed but was
     # never called - an earlier wiring attempt did not match and failed quietly,
@@ -1019,16 +1142,28 @@ def main(argv=None):
                     continue
 
                 faithful_check_once(rec, wall)
+                deepdive_wall(rec, wall)
                 save_kb(kb)
 
                 applied = None
                 promoted = set(kb.get("promoted", []))
                 tier_used = None
+                # The ledger outranks this run's own `tried` list: it survives
+                # a knowledge-base reset and records what OTHER sessions
+                # proved. Without it iteration-cap was re-applied to
+                # spin@sub_001F7930 four times across runs, each costing a
+                # build and two runs to re-derive a written-down result.
+                refuted = ledger_refuted_for(key)
                 # Proven first, candidates only once the proven ones are spent -
                 # a known-good fix should never lose its turn to a guess.
                 for want in ("proven", "candidate"):
                     for name, fn, _p, _c in PATTERNS:
                         if name in rec["tried"]:
+                            continue
+                        if name in refuted:
+                            if want == "proven":
+                                print(f"  skipping {name} - the ledger already "
+                                      f"records it REFUTED on this wall")
                             continue
                         tier = tiers_for(name, wall["kind"], promoted)
                         if tier != want:
