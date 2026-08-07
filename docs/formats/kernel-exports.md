@@ -23,9 +23,33 @@ Each entry shows: **ordinal**, function prototype, description, and suggested Wi
 |-----|----------|-------------|
 | 184 | `NTSTATUS NtAllocateVirtualMemory(PVOID* BaseAddress, ULONG_PTR ZeroBits, PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect)` | Allocate or reserve virtual memory pages. |
 | 199 | `NTSTATUS NtFreeVirtualMemory(PVOID* BaseAddress, PSIZE_T RegionSize, ULONG FreeType)` | Free virtual memory. |
-| 217 | `NTSTATUS NtQueryVirtualMemory(PVOID BaseAddress, PVOID MemoryInformation, ULONG Length, PULONG ReturnLength)` | Query virtual memory region info. |
+| 217 | `NTSTATUS NtQueryVirtualMemory(PVOID BaseAddress, PVOID MemoryInformation)` | Query virtual memory region info. **TWO args on Xbox** — see the correction below. |
 
 **Win32 replacement**: Direct mapping to `VirtualAlloc`, `VirtualFree`, `VirtualQuery`. The API is nearly identical.
+
+> **Correction, 2026-08-07 — ordinal 217 takes TWO arguments, not four.**
+>
+> This row previously listed the four-parameter Windows NT signature
+> (`..., ULONG Length, PULONG ReturnLength`). That is wrong for the Xbox
+> kernel, and it was wrong in a way that cost real debugging time.
+>
+> `kernel_bridge.c` sized the stdcall cleanup from this signature and popped
+> 16 bytes when the game had pushed 8. The bridge over-popped 8 bytes on every
+> call, and ordinal 217 was 3,966 of 4,000 kernel calls in the boot — so `esp`
+> climbed 8 bytes at a time and walked clean off the top of the 8 MB stack by
+> kernel call #113. Everything after that ran on a corrupt frame, which is why
+> the resulting crash had garbage in every register and looked like a bug
+> somewhere else entirely.
+>
+> Measured, not inferred: kernel calls #108..#113 walk `esp`
+> `0x00F7FFDC -> 0x00F80004` in exact +8 steps. Correcting the entry to 8
+> bytes removed the stack escape and the crash together.
+>
+> **The running program outranks this file** (project rule #5 — probe, don't
+> guess). If another row here looks like a Windows signature rather than an
+> Xbox one, treat it as suspect and confirm against a real call before relying
+> on it for stack cleanup. The `Length`/`ReturnLength` pair on this row is
+> exactly the shape of that mistake.
 
 ### System/Pool Memory
 
