@@ -333,6 +333,30 @@
    "evidence": "sub_001A0B0C overridden in recomp_manual.c to call xbox_HeapAlloc (~55MB) instead of walking the guest free list; generated body stubbed by stub_overridden.py. Deterministic on 2 of 2 runs. kernel_calls 1452 -> 4000, failed_icalls 152 -> 2, heap_allocs 11 -> 13, safe_stub 192 -> 8, distinct kernel fns 15 -> 16. Allocator ring: 7 allocations, 0 failed, 0 duplicate - was 697/690/3. Indirect dispatches 677,120,348 -> 672, so the 600M-dispatch spin at sub_001F7930 is GONE, which confirms it was downstream of the allocator exactly as ledger #24 argued (correct code reading corrupted data). #22 (0x00F81288 returned four times) is settled by construction - a bump allocator cannot repeat an address. NEW WALL, further along: crash in sub_0020F209+0x176B writing 0xF687BE15. That is the engine's own pool carver, and it is the predicted consequence of handing out blocks with no NT block header - anything stepping back from a block to read one now finds unrelated memory. CAVEATS, both real: xbox_HeapAlloc only bumps, so RtlFreeHeap is now a leak (fine for reaching a menu with 55MB, not fine to ship); and only HEAP_ZERO_MEMORY is honoured of the flags.</evidence>\n<parameter name=\"tags\">sub_001A0B0C,allocator,override,recomp_manual,sub_001F7930,port-fix",
    "tags": [],
    "when": "2026-08-07 11:40"
+  },
+  {
+   "id": 30,
+   "claim": "Reporting real contiguous region extents from NtQueryVirtualMemory (instead of a flat 64KB) fixes the memory-walk hang",
+   "verdict": "refuted",
+   "evidence": "Replaced the flat 0x10000 RegionSize with the true extents from xbox_memory_layout.h - four regions (low memory, XBE image, 8MB stack, heap to end of RAM) plus a catch-all above 0x04000000 reporting free to the top of the address space. Reasoning was that a 64MB walk in 64KB steps needs ~1000 iterations and never finished, so real extents should take five. Measured, deterministic 2 of 2: kernel_calls COLLAPSED 4000 -> 58, safe_stub 1 -> 8, failed_icalls 1 -> 2, and the crash came back (access violation at RVA 0xD247F0). heap_allocs rose 13 -> 18, so it is doing something different early, not simply dying sooner. Reverted immediately per rule #14; the flat-64KB version restored 4000/1/13/1 with no crash on 2 of 2, so the regression is entirely attributable to this change. NOT YET DIAGNOSED - candidates worth separating before retrying: (a) the ~49MB heap reported as ONE committed region may make the caller believe a huge contiguous block exists and act on it, (b) the above-RAM catch-all computes size as 0xFFFFFFFF - base which is close to overflow and may wrap in the caller's arithmetic, (c) reporting region_base BELOW the queried address (true extents start low, the granule version did not) may break a walker that assumes BaseAddress <= returned base. Do not simply re-apply this whole change; test (b) alone first, it is the cheapest and the most likely to be an outright bug in my code rather than a semantic mismatch.</evidence>\n<parameter name=\"tags\">NtQueryVirtualMemory,ordinal-217,kernel-bridge,region-size,regression",
+   "tags": [],
+   "when": "2026-08-07 11:54"
+  },
+  {
+   "id": 31,
+   "claim": "The ~1000x repeated memory scan is driven by sub_001F09D0's retry loop, whose exit condition tests the global 0x5BC5D8",
+   "verdict": "confirmed",
+   "evidence": "Named with recomp_where from inside bridge_NtQueryVirtualMemory, then resolved by triage_crash.py --where. A sampled watchdog RIP could not do this - it only ever landed in kernel_thunk_dispatch, because 3,968 of 4,000 calls funnel through our own bridge. Full chain, identical on every captured call: bridge_NtQueryVirtualMemory <- kernel_thunk_dispatch <- sub_0034D457 <- sub_001FFDA1 <- sub_001F09D0 <- sub_001EC9D8 <- sub_0020F209 <- sub_0020EFD0 <- sub_0020F860 <- sub_00211530 <- sub_001EC5E0 <- sub_001EC120 <- sub_0021644B <- sub_00216251 <- sub_00236500 <- sub_00239E50 <- sub_00011E40, under bridge_PsCreateSystemThreadEx. sub_001F09D0 is the SAME function decompiled earlier this session (ledger #27 context): a do/while retry loop whose failure exits all return 0xFFFFFFFF, and whose continue/exit condition compares a value against _DAT_005bc5d8. That global was examined separately earlier today and is BSS with exactly ONE writer in the whole tree - recomp_0017.c:2652, inside sub_00239E50, which stores ZERO - against ~250 read sites. So the loop is very likely testing against a sentinel that never gets its real value. NOT YET PROVEN: that the zero is wrong rather than a legitimate null sentinel. The cheap decisive test is to probe the compared value and _DAT_005bc5d8 at the loop head in sub_001F09D0 and see whether they can ever match.</evidence>\n<parameter name=\"tags\">sub_001F09D0,0x5BC5D8,NtQueryVirtualMemory,retry-loop,hang",
+   "tags": [],
+   "when": "2026-08-07 12:06"
+  },
+  {
+   "id": 32,
+   "claim": "CORRECTION to #31: sub_001F09D0's loop-back at loc_001F0AC7 and the 0x5BC5D8 sentinel are NOT what spins",
+   "verdict": "refuted",
+   "evidence": "Probed loc_001F0AC7 in recomp_0014.c printing eax, MEM32(eax) and MEM32(0x5BC5D8), limit 8. It fired ZERO times on a full run (4000/1/13/1, deterministic), so that branch is never reached and the 0x5BC5D8 comparison cannot be driving the repetition. #31's backtrace is still correct and stands - sub_001F09D0 IS on the chain under the repeated NtQueryVirtualMemory calls - but it is CALLED BY the loop, not the loop itself. The retry cycle sits above it and was already documented on 2026-08-05: sub_0020F0B2 is the retry-loop head, and sub_0020F209's three early exits are all \"memory was reclaimed, go round again\", making the engine allocator a CYCLE rather than a chain. So the shape is: sub_0020EFD0 -> sub_0020F209 -> (growth attempt: sub_001EC9D8 -> sub_001F09D0 -> NtQueryVirtualMemory) -> growth fails -> sub_0020F0B2 -> round again. The open question is why the engine's pool growth cannot be satisfied, one layer above the CRT heap that #29 fixed.</evidence>\n<parameter name=\"tags\">sub_001F09D0,0x5BC5D8,sub_0020F0B2,sub_0020F209,correction,retry-loop",
+   "tags": [],
+   "when": "2026-08-07 13:09"
   }
  ]
 }

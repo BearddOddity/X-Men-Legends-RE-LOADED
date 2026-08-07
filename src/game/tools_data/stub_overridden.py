@@ -33,6 +33,7 @@ Usage (from src/game/):
 """
 import os
 import re
+import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -144,8 +145,27 @@ def main(argv):
             changed = True
             i = j + 1
         if apply and changed:
+            # BACK UP BEFORE DESTROYING. gen/ is gitignored, so a stubbed body
+            # is gone with no undo - git cannot help and the only recovery is a
+            # full regeneration or scavenging an old snapshot tarball. That is
+            # not hypothetical: on 2026-08-07 an override was tried, measured a
+            # 4000 -> 36 kernel-call regression, and reverting it meant
+            # extracting the original 235-line body out of a two-day-old
+            # snapshot by hand.
+            #
+            # One .prestub copy per file, refreshed each run, kept beside the
+            # source and gitignored with the rest of gen/. Restoring is a copy:
+            #   cp recomp_0014.c.prestub recomp_0014.c
+            bak = path + ".prestub"
+            try:
+                shutil.copy2(path, bak)
+            except OSError as exc:
+                sys.exit(f"refusing to stub {fname}: could not write the "
+                         f"pre-stub backup ({exc}). Fix that first - stubbing "
+                         f"without one is unrecoverable.")
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write("\n".join(out) + "\n")
+            print(f"  {fname}: backed up to {os.path.basename(bak)} before stubbing")
 
     if not stubbed:
         print("nothing to stub - no generated copies of the overrides")
