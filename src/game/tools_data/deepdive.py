@@ -189,7 +189,15 @@ def field_access(body):
     set. The registry bug is exactly a trusted-but-wrong read.
     """
     acc = {}
-    w_rx = re.compile(r"MEM(?:8|16|32)\((e[a-z][a-z]) \+ (0x[0-9A-Fa-f]+|-?\d+)\)\s*=")
+    # `=(?!=)` matters: a bare `\s*=` also matches `==`, which turned 8 real
+    # comparisons in gen/ into phantom WRITES. The read/write split is the
+    # whole point of this table - a field wrongly shown as written reads as
+    # "this function owns it" when it only ever compares it.
+    # The compound forms are read-modify-write, so they count as both; none
+    # appear in gen/ today, but classifying them as read-only would be wrong
+    # the moment one does.
+    w_rx = re.compile(r"MEM(?:8|16|32)\((e[a-z][a-z]) \+ (0x[0-9A-Fa-f]+|-?\d+)\)"
+                      r"\s*(?:=(?!=)|[-+|&^*/%]=|<<=|>>=)")
     r_rx = re.compile(r"MEM(?:8|16|32)\((e[a-z][a-z]) \+ (0x[0-9A-Fa-f]+|-?\d+)\)")
     for line in body:
         s = line.strip()
@@ -221,7 +229,9 @@ def globals_referenced(body):
     on?" is answered without a grep.
     """
     out = {}
-    w_rx = re.compile(r"MEM(?:8|16|32)\((0x[0-9A-Fa-f]{5,8})\)\s*=")
+    # Same `==` trap as field_access - see the note there.
+    w_rx = re.compile(r"MEM(?:8|16|32)\((0x[0-9A-Fa-f]{5,8})\)"
+                      r"\s*(?:=(?!=)|[-+|&^*/%]=|<<=|>>=)")
     r_rx = re.compile(r"MEM(?:8|16|32)\((0x[0-9A-Fa-f]{5,8})\)")
     for line in body:
         s = line.strip()

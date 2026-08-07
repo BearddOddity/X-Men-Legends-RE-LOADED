@@ -322,6 +322,34 @@ def ledger_refuted_for(key):
     return out
 
 
+def still_exhausted(rec, key):
+    """True if this wall genuinely has nothing left to try.
+
+    `exhausted` is recorded against the pattern library AS IT WAS at the time,
+    so a wall exhausted before a new pattern existed would be skipped forever.
+    That is not hypothetical: both live walls were marked exhausted before
+    heap-range-guard was mined out of manual_edits.json, so the next run would
+    have walked straight past them to the static sweeps and finished in
+    minutes - an unattended night spent doing almost nothing.
+
+    So re-open a wall whenever the library has grown to include a pattern it
+    has neither already tried nor had refuted against it in the ledger.
+    """
+    if not rec.get("exhausted"):
+        return False
+    had = set(rec.get("exhausted_with") or [])
+    tried = set(rec.get("tried") or [])
+    fresh = {n for n, _f, _p, _c in PATTERNS} - had - tried
+    if fresh:
+        fresh -= ledger_refuted_for(key)
+    if not fresh:
+        return True
+    print(f"  re-opening {key}: {', '.join(sorted(fresh))} did not exist "
+          f"when it was marked exhausted")
+    rec["exhausted"] = False
+    return False
+
+
 def deepdive_wall(rec, wall):
     """Attach deepdive's summary of the wall's own function to the record.
 
@@ -1100,7 +1128,7 @@ def main(argv=None):
                 for w in walls_seen:
                     k = wall_key(w)
                     r = kb["walls"].get(k, {})
-                    if r.get("exhausted"):
+                    if still_exhausted(r, k):
                         continue
                     wall = w
                     break
@@ -1131,6 +1159,8 @@ def main(argv=None):
                 if not wall["site"]:
                     rec["note"] = "could not name the site from the log"
                     rec["exhausted"] = True
+                    rec["exhausted_with"] = sorted(
+                        p[0] for p in PATTERNS)
                     save_kb(kb)
                     continue
 
@@ -1138,6 +1168,8 @@ def main(argv=None):
                 if not span:
                     rec["note"] = f"{wall['site']} is not in gen/ - cannot patch"
                     rec["exhausted"] = True
+                    rec["exhausted_with"] = sorted(
+                        p[0] for p in PATTERNS)
                     save_kb(kb)
                     continue
 
@@ -1183,6 +1215,8 @@ def main(argv=None):
                     rec["note"] = ("no known pattern matches this shape; "
                                    "needs a human to look")
                     rec["exhausted"] = True
+                    rec["exhausted_with"] = sorted(
+                        p[0] for p in PATTERNS)
                     print("  no pattern left for this wall - "
                           "recorded, moving to the next")
                     save_kb(kb)
@@ -1194,6 +1228,8 @@ def main(argv=None):
                     rec["note"] = f"{rec['tried'][-1]} did not compile"
                     if len(rec["tried"]) >= len(PATTERNS):
                         rec["exhausted"] = True
+                        rec["exhausted_with"] = sorted(
+                            p[0] for p in PATTERNS)
                     save_kb(kb)
                     continue
 
@@ -1252,6 +1288,8 @@ def main(argv=None):
                     rec["note"] = f"{rec['tried'][-1]} gave no gain"
                     if len(rec["tried"]) >= len(PATTERNS):
                         rec["exhausted"] = True
+                        rec["exhausted_with"] = sorted(
+                            p[0] for p in PATTERNS)
                     restore_gen(snap)
                     # Record the refutation where a later run will look. Without
                     # this the same pattern gets retried on the same wall next
