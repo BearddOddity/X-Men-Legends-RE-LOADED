@@ -1239,5 +1239,19 @@
     "message": "Replace the CRT RtlAllocateHeap (sub_001A0B0C) with the native heap: 1452 -> 4000 kernel calls, failed icalls 152 -> 2",
     "note": "BIGGEST SINGLE MOVE SO FAR, and it is a PORT FIX not scaffolding. Counted first (ledger #28): all 690 allocation failures came from sub_001A02B7, the heap's own free-block finder, returning 0. Two other failure routes in sub_001A0B0C fired ZERO times - notably the kernel call, so the allocator never asked the OS for memory and a bigger pool could not have helped. Replaced the whole function with xbox_HeapAlloc (~55MB native heap vs the 1.25MB pool it was choking on). Result on 2 of 2 runs, deterministic: kernel_calls 1452 -> 4000, failed_icalls 152 -> 2, heap_allocs 11 -> 13, safe_stub 192 -> 8, distinct kernel fns 15 -> 16. Allocator ring now reads 7 allocations, 0 failed, 0 duplicates - previously 697 / 690 / 3. The 697 was the retry loop spinning on failures. This also settles ledger #22: the duplicate returns (0x00F81288 handed out 4x) are gone, so the registry corruption and the sub_001F7930 spin should both be downstream-fixed. NEW WALL: crash at RVA 0xE4259B writing 0xF688BE15 - further along, and exactly the risk called out in the override comment (blocks carry no NT block header, so anything stepping back 8 bytes to read one finds nothing). Memory is never reclaimed - xbox_HeapAlloc only bumps - so RtlFreeHeap is now a leak. Fine for reaching a menu; not fine forever.",
     "commit": "df8fd7a"
+  },
+  {
+    "kernel_calls": 4000,
+    "failed_icalls": 1,
+    "total_icalls": 23235199,
+    "distinct_ordinals": 16,
+    "ended": "hang",
+    "heap_allocs": 13,
+    "crash_in": null,
+    "fault_va": null,
+    "date": "2026-08-07",
+    "message": "Implement NtQueryVirtualMemory (ordinal 217) and fix its arg count 16 -> 8: crash gone, stack escape gone, failed icalls 2 -> 1",
+    "note": "TWO BUGS IN ONE ORDINAL, and it was 3,966 of 4,000 kernel calls. (1) NO BRIDGE AT ALL - it hit the \"no bridge, returning 0\" fallback, leaving the caller's output buffer untouched so the caller re-read stale data and called again forever. (2) WRONG ARG COUNT - g_slot_arg_bytes said 16 (4 args, the Windows NT signature that docs/formats/kernel-exports.md also documents) but the game pushes 8 (2 args, the real Xbox signature). The bridge pops g_slot_arg_bytes after each call, so it over-popped 8 bytes every time. Measured directly: kernel #108..#113 walk esp 0x00F7FFDC -> 0x00F80004 in exact +8 steps, and after ~4,000 calls esp had climbed clean off the top of the 8MB stack. That is the STACK ESCAPE triage_crash reports, and every register being garbage at the old crash was downstream of it. RESULT, deterministic 2 of 2: crash GONE (was an access violation in sub_0020F209), esp at call #4000 is 0x00F7FDA4 - healthy, inside the stack, where it started. failed_icalls 152 -> 2 -> 1, safe_stub 192 -> 8 -> 1. kernel_calls stays 4000. NOTE THE DOC IS WRONG: docs/formats/kernel-exports.md line 26 lists the 4-parameter NT form for ordinal 217; the Xbox kernel takes (BaseAddress, MemoryInformation) only. Measurement beat the doc (rule #5) and the doc still needs correcting. NEW WALL: a HANG, not a crash - 23.2M dispatches, and the last 16 ICALL targets are all thunk slot 73, so the caller is still walking memory via NtQueryVirtualMemory and not terminating. My bridge reports a fixed 64KB RegionSize for every query, which likely makes a region walk take far more steps than it should; reporting real contiguous extents is the obvious next move.",
+    "commit": "baebb1a"
   }
 ]

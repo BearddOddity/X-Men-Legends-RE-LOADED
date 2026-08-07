@@ -1093,6 +1093,71 @@ static void bridge_NtSetInformationFile(void)
 }
 
 /* ── NtQueryVolumeInformationFile (ordinal 218, 5 args = 20 bytes) */
+/*
+ * NtQueryVirtualMemory (ordinal 217) - describe the region containing an address.
+ *
+ * This was missing entirely and it dominated the boot: 3,966 of 4,000 kernel
+ * calls were this one ordinal hitting the "no bridge, returning 0" fallback.
+ * Because the fallback leaves the caller's output buffer untouched, the caller
+ * read whatever was already there and called again, which is why the count is
+ * so enormous.
+ *
+ * TWO ARGUMENTS, not four. g_slot_arg_bytes said 16 and docs/formats/
+ * kernel-exports.md documents a 4-parameter form, but the running program
+ * disagrees: esp climbed by exactly 8 bytes on every one of those 3,966 calls
+ * (kernel #108..#113 walk 0x00F7FFDC -> 0x00F80004 in +8 steps). The bridge
+ * pops g_slot_arg_bytes after the call, so popping 16 when the caller pushed 8
+ * leaks 8 per call - and after ~4,000 calls esp had walked clean off the top of
+ * the 8 MB stack, which is the "STACK ESCAPE" triage_crash reports. Every
+ * register being garbage at the final crash is downstream of that.
+ *
+ * The documented 4-parameter signature is the Windows NT one; the Xbox kernel
+ * takes only (BaseAddress, MemoryInformation). Measured behaviour wins over the
+ * doc here (project rule #5), and the doc should be corrected separately.
+ *
+ * The struct is the usual 32-bit MEMORY_BASIC_INFORMATION, 28 bytes:
+ *   +0x00 BaseAddress   +0x04 AllocationBase   +0x08 AllocationProtect
+ *   +0x0C RegionSize    +0x10 State            +0x14 Protect   +0x18 Type
+ *
+ * Answered from our own guest layout rather than by calling the host's
+ * VirtualQuery: a guest VA is not a host address, so querying the host would
+ * describe unrelated memory. Anything inside guest RAM is reported as one
+ * committed, readable/writable private region, which is true of how this port
+ * maps it.
+ */
+static void bridge_NtQueryVirtualMemory(void)
+{
+    uint32_t base_address = STACK_ARG(0);
+    uint32_t info_ptr     = STACK_ARG(1);
+
+    if (info_ptr == 0) {
+        g_eax = 0xC000000Du;            /* STATUS_INVALID_PARAMETER */
+        return;
+    }
+
+    /* Report the enclosing 64 KB allocation granule, which is what a caller
+     * walking regions expects to advance by. */
+    uint32_t region_base = base_address & ~0xFFFFu;
+    uint32_t ram_end     = XBOX_TOTAL_RAM;
+    uint32_t in_ram      = (base_address < ram_end);
+
+    BRIDGE_MEM32(info_ptr + 0x00) = region_base;
+    BRIDGE_MEM32(info_ptr + 0x04) = region_base;
+    BRIDGE_MEM32(info_ptr + 0x08) = in_ram ? 0x04u : 0x01u;   /* RW : NOACCESS */
+    BRIDGE_MEM32(info_ptr + 0x0C) = 0x10000u;                 /* RegionSize */
+    BRIDGE_MEM32(info_ptr + 0x10) = in_ram ? 0x1000u : 0x10000u; /* COMMIT : FREE */
+    BRIDGE_MEM32(info_ptr + 0x14) = in_ram ? 0x04u : 0x01u;
+    BRIDGE_MEM32(info_ptr + 0x18) = in_ram ? 0x20000u : 0u;   /* MEM_PRIVATE */
+
+    if (g_kernel_call_count <= 200) {
+        fprintf(stderr, "  [KERNEL] NtQueryVirtualMemory: addr=0x%08X -> base=0x%08X %s\n",
+                base_address, region_base, in_ram ? "COMMIT" : "FREE");
+        fflush(stderr);
+    }
+
+    g_eax = 0;                          /* STATUS_SUCCESS */
+}
+
 static void bridge_NtQueryVolumeInformationFile(void)
 {
     HANDLE   handle    = bridge_read_handle(STACK_ARG(0));
@@ -1498,7 +1563,11 @@ static int stdcall_args_for_ordinal(ULONG ordinal)
     case 210: return  8;  /* NtQueryFullAttributesFile(2) */
     case 211: return 20;  /* NtQueryInformationFile(5) */
     case 215: return 12;  /* NtQuerySymbolicLinkObject(3) */
-    case 217: return 16;  /* NtQueryVirtualMemory(4) */
+    /* NtQueryVirtualMemory takes TWO args on Xbox, not the four the NT
+     * signature in docs/formats/kernel-exports.md lists. Measured: with 16
+     * here, esp climbed exactly 8 bytes on each of 3,966 calls and walked off
+     * the top of the 8 MB stack. See bridge_NtQueryVirtualMemory. */
+    case 217: return 8;   /* NtQueryVirtualMemory(2) */
     case 218: return 20;  /* NtQueryVolumeInformationFile(5) */
     case 219: return 32;  /* NtReadFile(8) */
     case 222: return 12;  /* NtReleaseSemaphore(3) */
@@ -1583,6 +1652,7 @@ static bridge_func_t bridge_for_ordinal(ULONG ordinal)
     case 207: return bridge_NtQueryDirectoryFile;
     case 210: return bridge_NtQueryFullAttributesFile;
     case 211: return bridge_NtQueryInformationFile;
+    case 217: return bridge_NtQueryVirtualMemory;
     case 218: return bridge_NtQueryVolumeInformationFile;
     case 219: return bridge_NtReadFile;
     case 226: return bridge_NtSetInformationFile;
