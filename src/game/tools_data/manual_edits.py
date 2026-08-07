@@ -243,6 +243,21 @@ def _next_generated(lines, i):
     return i
 
 
+# Runtime instrumentation written directly into generated code.
+#
+# These are PLAIN ASSIGNMENTS, so the "a generated statement ends the block"
+# rule below would cut the block off at the end of its comment and then anchor
+# the record on the instrumentation's own first line. That line does not exist
+# in a freshly generated tree, so the edit could never be re-applied - the
+# record would look fine and silently restore nothing. Exactly the failure
+# audit_markers() guards against for marker wording, one level down.
+#
+# Kept as an explicit allowlist rather than a general `g_` prefix: the lifter
+# emits g_esp, g_eax and friends constantly, and swallowing those would run a
+# block on into real generated code.
+INSTRUMENTATION_GLOBALS = ("g_alloc_trace", "g_alloc_trace_idx")
+
+
 def _is_inserted(line):
     """Heuristic: does this line belong to a hand-written block?
 
@@ -252,6 +267,8 @@ def _is_inserted(line):
     """
     s = line.strip()
     if s.startswith(("if (", "goto ", "g_seh_ebp = ", "}", "{")):
+        return True
+    if s.startswith(INSTRUMENTATION_GLOBALS):
         return True
     if re.match(r"^sub_[0-9A-F]+\(\); return;$", s):
         return True

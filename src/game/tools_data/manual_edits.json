@@ -2486,5 +2486,37 @@
   "match": null,
   "anchor": "    edx = eax;",
   "pre": "loc_001186B3: ;"
+ },
+ {
+  "file": "recomp_0025.c",
+  "kind": "insert_before",
+  "function": "sub_003437F3",
+  "block": [
+   "    /* Manual addition (not in original x86): record the returned pointer",
+   "     * (eax) into g_alloc_trace with two plain stores and NO call.",
+   "     *",
+   "     * Ledger #17 proved that CALLING out to C here kills the boot - 2 of 3",
+   "     * runs died at 33 kernel calls, causation established by removal. This is",
+   "     * the same recording RECOMP_ICALL already does ~12M times a boot from a",
+   "     * hotter path without disturbing anything, which is why it is safe when",
+   "     * the call was not. Measured: signals stay 1452/152/11 deterministic,",
+   "     * identical to baseline.",
+   "     *",
+   "     * Dumped from the crash handler and the watchdog in main.c, long after",
+   "     * allocation is over. It is what re-measured #16's duplicate returns on",
+   "     * an undisturbed boot (#18 required that) and found the 690-of-697",
+   "     * allocation failures #16 had missed entirely.",
+   "     *",
+   "     * NOT marked `/PROBE/` on purpose: this is permanent instrumentation, so",
+   "     * strip_probes.py must leave it alone and progress.py must not treat the",
+   "     * tree as dirty because of it. It carries a manual-edit marker instead so",
+   "     * manual_edits.py can restore it after a regeneration - gen/ is",
+   "     * gitignored, so nothing else would. */",
+   "    g_alloc_trace[g_alloc_trace_idx & (ALLOC_TRACE_SIZE - 1)] = eax;",
+   "    g_alloc_trace_idx++;"
+  ],
+  "match": null,
+  "anchor": "    POP32(esp, ecx);",
+  "pre": "     * d = the registry's size, for scale. */"
  }
 ]
