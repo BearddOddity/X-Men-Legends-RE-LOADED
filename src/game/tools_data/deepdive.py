@@ -411,15 +411,17 @@ def report(d):
     elif f.get("error"):
         out.append("faithful : error - %s" % f["error"])
     else:
-        ml, sf = len(f.get("missing_labels", [])), len(f.get("stale_flags", []))
+        ml = len(f.get("missing_labels", []))
+        _open = f.get("stale_flags_open", f.get("stale_flags", []))
+        sf = len(_open)
         if ml or sf:
-            out.append("faithful : %d missing label(s), %d stale-flag site(s) "
+            out.append("faithful : %d missing label(s), %d UNREPAIRED stale-flag site(s) "
                        "- a REAL lifter defect, fix the cause not the symptom"
                        % (ml, sf))
             for at, mn, t in f.get("missing_labels", [])[:6]:
                 out.append("             0x%08X %s -> 0x%08X (no loc_ in the C)"
                            % (at, mn, t))
-            for at, cmp_, clob in f.get("stale_flags", [])[:6]:
+            for at, cmp_, clob in _open[:6]:
                 out.append("             0x%08X %s  then  %s" % (at, cmp_, clob))
         else:
             out.append("faithful : clean on all three checks (NOT a proof of "

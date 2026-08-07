@@ -206,6 +206,38 @@ def _disasm_linear_unused(md, d, secs, start, limit, end=None):
     return out
 
 
+def _already_repaired(body, cmp_ins, clobbered_reg):
+    """Has fix_stale_flags.py already repaired this comparison in the C?
+
+    The lifter preserves the original comparison verbatim in a comment on the
+    line where the flags would have been set:
+
+        (void)0; /* cmp ecx, eax - flags set for next jcc */
+
+    So the repaired shape is that comment with a `_sfNNNN_<reg> = <reg>;`
+    save just above it. Anchoring on the comment text is what keeps this
+    precise - a function can hold several _sf saves for the same register, and
+    a bare "does this function mention _sf_ecx" test would wave through a
+    genuinely broken second site.
+
+    Conservative on purpose: if the comment cannot be found, this returns
+    False and the site is still reported. A false positive costs a look; a
+    false negative loses a real defect, and this checker's whole value is that
+    it does not lie.
+    """
+    want = "/* %s %s - flags set" % (cmp_ins.mnemonic, cmp_ins.op_str)
+    save = re.compile(r"_sf\d+_%s\s*=\s*%s\s*;" % (clobbered_reg, clobbered_reg))
+    for i, line in enumerate(body):
+        if want in line:
+            # The save is emitted immediately above the flag comment; allow a
+            # little slack for interleaved generated statements.
+            for j in range(max(0, i - 4), i):
+                if save.search(body[j]):
+                    return True
+            return False
+    return False
+
+
 def check(name, gen, md, d, secs, ends=None):
     path, s, e, lines = gen[name]
     body = lines[s:e + 1]
@@ -231,7 +263,40 @@ def check(name, gen, md, d, secs, ends=None):
                 missing.append((x.address, x.mnemonic, t))
 
     # 2. flags set, tested register clobbered, then branched on
-    stale = []
+    #
+    # A hit here is a RISK IN THE ORIGINAL, not proof of a defect in the C:
+    # fix_stale_flags.py repairs exactly this shape by saving the register
+    # before the clobber and branching on the saved copy -
+    #
+    #     uint32_t _sf21439_ecx = ecx;
+    #     (void)0; /* cmp ecx, eax - flags set for next jcc */
+    #     ecx = esi;
+    #     if (CMP_EQ(_sf21439_ecx, eax)) goto ...;
+    #
+    # There are ~449 such repairs already in gen/.
+    #
+    # DETECTION IS NOT SUPPRESSED when a repair is present, and that is
+    # deliberate. test_faithful.py's ground-truth case asserts that
+    # sub_001F09D0's site at 0x001F0AB2 is still found - it is the bug this
+    # checker exists to find, and a checker that goes quiet once someone
+    # patches downstream is a checker you cannot use to verify the patch.
+    # Suppressing it was tried and the test caught it immediately.
+    #
+    # Instead the repair status is reported alongside, because the two
+    # questions are different:
+    #
+    #   stale_flags          every site with the risky shape in the ORIGINAL
+    #   stale_flags_open     the subset the generated C does NOT repair
+    #
+    # `stale_flags_open` is what "needs attention" means. walls.py calls this
+    # before applying a bypass and would otherwise write "a REAL defect" to
+    # the ledger for code that is already correct - found the hard way on
+    # sub_001F09D0, which is fully repaired.
+    #
+    # The repair match is anchored on the flag comment the lifter preserves
+    # verbatim ("cmp ecx, eax - flags set for next jcc"), so it cannot be
+    # confused with an unrelated _sf save elsewhere in the same function.
+    stale, stale_open = [], []
     for i, x in enumerate(ins):
         if x.mnemonic not in FLAGSET:
             continue
@@ -244,8 +309,11 @@ def check(name, gen, md, d, secs, ends=None):
             if y.mnemonic in ("mov", "lea", "pop", "xor", "add", "sub", "and", "or"):
                 dst = y.op_str.split(",")[0].strip()
                 if dst in regs:
-                    stale.append((x.address, f"{x.mnemonic} {x.op_str}",
-                                  f"{y.mnemonic} {y.op_str}"))
+                    site = (x.address, f"{x.mnemonic} {x.op_str}",
+                            f"{y.mnemonic} {y.op_str}")
+                    stale.append(site)
+                    if not _already_repaired(body, x, dst):
+                        stale_open.append(site)
                     break
 
     stmts = sum(1 for l in body
@@ -253,7 +321,8 @@ def check(name, gen, md, d, secs, ends=None):
     return {"name": name, "file": os.path.basename(path), "line": s + 1,
             "insns": len(ins), "stmts": stmts,
             "ratio": round(stmts / max(1, len(ins)), 2),
-            "missing_labels": missing, "stale_flags": stale}
+            "missing_labels": missing, "stale_flags": stale,
+            "stale_flags_open": stale_open}
 
 
 def show(r):
@@ -268,12 +337,22 @@ def show(r):
               f"blocks unreachable in C that x86 could reach:")
         for at, mn, t in r["missing_labels"][:12]:
             print(f"    0x{at:08X}  {mn} -> 0x{t:08X}   no loc_{t:08X} in the C")
-    if r["stale_flags"]:
-        print(f"  DEFERRED FLAG RISK ({len(r['stale_flags'])}):")
-        for at, cmp_, clob in r["stale_flags"][:12]:
+    _open = r.get("stale_flags_open", r["stale_flags"])
+    _fixed = len(r["stale_flags"]) - len(_open)
+    if _open:
+        print(f"  DEFERRED FLAG RISK, UNREPAIRED ({len(_open)}) - the C "
+              f"re-tests at the branch, so it reads the clobbered value:")
+        for at, cmp_, clob in _open[:12]:
             print(f"    0x{at:08X}  {cmp_}   then   {clob}")
-    if not r["missing_labels"] and not r["stale_flags"]:
-        print("  no findings from these three checks "
+    if _fixed:
+        print(f"  deferred flag sites already repaired ({_fixed}) - the "
+              f"original has the risky shape, but fix_stale_flags.py saves "
+              f"the register and the C branches on the saved copy. Listed so "
+              f"the repair can be verified, NOT work to do:")
+        for at, cmp_, clob in [s for s in r["stale_flags"] if s not in _open][:6]:
+            print(f"    0x{at:08X}  {cmp_}   then   {clob}   [repaired]")
+    if not r["missing_labels"] and not _open:
+        print("  no OPEN findings from these three checks "
               "(not a claim of correctness)")
 
 
@@ -313,7 +392,8 @@ def main(argv=None):
                 continue
             if r.get("error"):
                 continue
-            score = len(r["missing_labels"]) * 10 + len(r["stale_flags"])
+            score = (len(r["missing_labels"]) * 10
+                     + len(r.get("stale_flags_open", r["stale_flags"])))
             if score:
                 rows.append((score, r))
         rows.sort(key=lambda t: -t[0])

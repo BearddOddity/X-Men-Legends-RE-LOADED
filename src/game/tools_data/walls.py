@@ -333,10 +333,14 @@ def faithful_check_once(rec, wall):
         rec["faithful"] = None
         return None
     rec["faithful"] = r
-    if r.get("missing_labels") or r.get("stale_flags"):
+    _open = r.get("stale_flags_open", r.get("stale_flags", []))
+    # OPEN only. A site fix_stale_flags.py has already repaired is not a
+    # defect, and writing one to the ledger as "a REAL defect" would be a
+    # confident false alarm - sub_001F09D0 is exactly that case.
+    if r.get("missing_labels") or _open:
         print(f"  FAITHFUL.PY finding at {name}: "
               f"{len(r.get('missing_labels', []))} missing label(s), "
-              f"{len(r.get('stale_flags', []))} stale-flag site(s) - "
+              f"{len(_open)} UNREPAIRED stale-flag site(s) - "
               f"a REAL defect, a bypass here treats the symptom, not "
               f"the cause (project rule #11)")
         try:
@@ -348,8 +352,8 @@ def faithful_check_once(rec, wall):
                     f"{name} is faithfully lifted from the original x86",
                     "refuted",
                     f"faithful.py found {len(r.get('missing_labels', []))} "
-                    f"missing label(s) and {len(r.get('stale_flags', []))} "
-                    f"stale-flag site(s) at {r.get('file')}:{r.get('line')}. "
+                    f"missing label(s) and {len(_open)} "
+                    f"unrepaired stale-flag site(s) at {r.get('file')}:{r.get('line')}. "
                     f"Found before any bypass was applied to this wall.",
                     [name, "faithful", "lifter-defect"])
                 ledger.save(db)
@@ -780,15 +784,16 @@ def save_kb(kb):
 def _faithful_lines(rec):
     """Report lines for a wall's cached faithful.py result, or nothing."""
     r = rec.get("faithful")
-    if not r or not (r.get("missing_labels") or r.get("stale_flags")):
+    _open = r.get("stale_flags_open", r.get("stale_flags", [])) if r else []
+    if not r or not (r.get("missing_labels") or _open):
         return []
     out = ["- **faithful.py**: "]
     parts = []
     if r.get("missing_labels"):
         parts.append(f"{len(r['missing_labels'])} missing label(s) "
                      f"(dropped branch edge - real, not a guess)")
-    if r.get("stale_flags"):
-        parts.append(f"{len(r['stale_flags'])} stale-flag site(s)")
+    if _open:
+        parts.append(f"{len(_open)} unrepaired stale-flag site(s)")
     out[-1] += "; ".join(parts) + f" at {r.get('file')}:{r.get('line')}"
     return out
 
