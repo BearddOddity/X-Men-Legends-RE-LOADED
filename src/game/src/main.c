@@ -420,6 +420,42 @@ void recomp_esp_escape(const char *callee, uint32_t esp_before)
     fflush(stderr);
 }
 
+/*
+ * Same report for an INDIRECT call, which recomp_esp_escape cannot cover.
+ *
+ * RECOMP_CHECK_ABI only wraps RECOMP_ABI_CALL. Its first run (ledger #79)
+ * found 23 callee-save violations but ZERO esp reports, even though the crash
+ * has esp = 0x00F8031C - above the top of the stack, which starts at
+ * 0x00F7FFF0 and grows down. So the over-pop is not in a direct call, and the
+ * only remaining suspects were the indirect paths nothing was checking.
+ *
+ * There is no symbol to print here, so this names the target VA instead -
+ * which is the more useful identifier anyway, because the expected culprit is
+ * an ICALL landing on a generic `g_esp += 4` stub whose real epilogue owed
+ * more (ledger #71 found two, owing 12 and 36 bytes).
+ *
+ * Reports every distinct target once rather than once globally: the direct
+ * version's single-shot `static int reported` is right for a fatal-looking
+ * one-off, but here the first offender would hide all the others.
+ */
+void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before)
+{
+    enum { SEEN_MAX = 32 };
+    static uint32_t seen[SEEN_MAX];
+    static unsigned seen_n;
+
+    for (unsigned i = 0; i < seen_n; i++)
+        if (seen[i] == target_va)
+            return;
+    if (seen_n < SEEN_MAX)
+        seen[seen_n++] = target_va;
+
+    fprintf(stderr, "[ESP] icall to sub_%08X left esp outside the stack: "
+                    "%08X -> %08X  (delta %+d)\n",
+            target_va, esp_before, g_esp, (int)(g_esp - esp_before));
+    fflush(stderr);
+}
+
 /* ── VEH crash handler ─────────────────────────────────────── */
 
 /*

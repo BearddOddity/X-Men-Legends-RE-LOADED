@@ -642,6 +642,20 @@ static uint32_t g_heap_next = XBOX_HEAP_BASE;
 
 static int g_heap_alloc_count = 0;
 
+/*
+ * High-water mark of the bump heap: everything below is handed out, everything
+ * from here to XBOX_HEAP_BASE + XBOX_HEAP_SIZE is untouched.
+ *
+ * Exposed for bridge_NtQueryVirtualMemory, which has to answer "is there free
+ * memory?" honestly. It used to report the whole ~49 MB heap span as one
+ * MEM_COMMIT region, so the engine's memory scan concluded that all 64 MB was
+ * committed, walked off the top of RAM and never came back (ledger #33/#34).
+ */
+uint32_t xbox_HeapHighWater(void)
+{
+    return g_heap_next;
+}
+
 uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment)
 {
     uint32_t result;
@@ -677,6 +691,63 @@ uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment)
     fflush(stderr);
 
     return result;
+}
+
+/*
+ * Reserve at an EXACT address, for NtAllocateVirtualMemory with a base hint.
+ *
+ * The engine does not just ask for memory - it scans the address space with
+ * NtQueryVirtualMemory, picks a MEM_FREE region itself, reserves at that
+ * exact base, and then checks that it got back the address it asked for
+ * (sub_001FFDA1, loc_001FFF8E: `if (returned != requested) fail`). A bump
+ * allocator cannot express that request, so bridge_NtAllocateVirtualMemory
+ * used to discard the hint and hand back g_heap_next instead - measured
+ * 0x0108D000 for a request of 0x01090000, off by 0x3000. The engine gave up,
+ * never registered a memory region, and every later allocation was refused by
+ * sub_001FE850's region gate. See ledger #75.
+ *
+ * Honouring the hint is safe by construction: since ledger #35 the bridge
+ * reports everything from xbox_HeapHighWater() up as MEM_FREE, so any base
+ * the engine picks from our own report is at or above the bump pointer.
+ * Skipping forward to it can only ever waste address space, never overlap a
+ * live allocation. A hint BELOW the high-water mark would overlap something
+ * already handed out, so it is refused rather than honoured - that would mean
+ * our MEM_FREE reporting and this allocator disagree, which is a bug worth
+ * seeing rather than papering over.
+ */
+uint32_t xbox_HeapAllocAt(uint32_t base, uint32_t size)
+{
+    if (size < 4096) size = 4096;
+
+    if (base < g_heap_next) {
+        fprintf(stderr, "xbox_HeapAllocAt: 0x%08X is below the high-water mark "
+                        "0x%08X - refusing (would overlap a live allocation)\n",
+                base, g_heap_next);
+        fflush(stderr);
+        return 0;
+    }
+
+    if (base + size > XBOX_HEAP_BASE + XBOX_HEAP_SIZE) {
+        fprintf(stderr, "xbox_HeapAllocAt: 0x%08X + %u runs past the heap end "
+                        "0x%08X\n",
+                base, size, XBOX_HEAP_BASE + XBOX_HEAP_SIZE);
+        fflush(stderr);
+        return 0;
+    }
+
+    g_heap_next = base + size;
+
+    /* Zero-fill: Xbox memory is always zeroed, and the skipped gap has never
+     * been handed out, so nothing here can be discarding live data. */
+    memset((void *)((uintptr_t)base + g_memory_offset), 0, size);
+
+    g_heap_alloc_count++;
+    fprintf(stderr, "  [HEAP] #%d: AT 0x%08X size=%u → 0x%08X..0x%08X (used %u/%u)\n",
+            g_heap_alloc_count, base, size, base, base + size,
+            g_heap_next - XBOX_HEAP_BASE, XBOX_HEAP_SIZE);
+    fflush(stderr);
+
+    return base;
 }
 
 void xbox_HeapFree(uint32_t xbox_va)

@@ -431,8 +431,25 @@ static void bridge_NtAllocateVirtualMemory(void)
         return;
     }
 
-    /* Allocate from Xbox heap (MEM_RESERVE or MEM_RESERVE|MEM_COMMIT) */
-    uint32_t xbox_va = xbox_HeapAlloc(size, 4096);
+    /*
+     * Allocate from Xbox heap (MEM_RESERVE or MEM_RESERVE|MEM_COMMIT).
+     *
+     * When the caller names a base address, HONOUR IT. The engine does not
+     * treat this as a hint: sub_001FFDA1 scans with NtQueryVirtualMemory,
+     * picks a MEM_FREE region itself, reserves at that exact base, and then
+     * checks `if (returned != requested) fail` (loc_001FFF8E). Handing back
+     * the bump pointer instead - 0x0108D000 for a request of 0x01090000 -
+     * made it abandon the reservation, so no memory region was ever
+     * registered and sub_001FE850's region gate refused every subsequent
+     * allocation with -1. That was the whole "the pool refuses 16 bytes"
+     * wall. See ledger #75.
+     *
+     * Safe by construction: since ledger #35 this bridge reports everything
+     * from xbox_HeapHighWater() up as MEM_FREE, so a base the engine chose
+     * from our own report is at or above the bump pointer.
+     */
+    uint32_t xbox_va = base_hint ? xbox_HeapAllocAt(base_hint, size)
+                                 : xbox_HeapAlloc(size, 4096);
     if (!xbox_va) {
         g_eax = 0xC0000017u; /* STATUS_NO_MEMORY */
         return;
@@ -1144,40 +1161,96 @@ static void bridge_NtQueryVirtualMemory(void)
      * this run is healthy the overflow was the bug; if it regresses the same
      * way, the extents themselves are what the caller dislikes.
      */
-    static const struct { uint32_t base, end; } k_regions[] = {
-        { 0x00000000u,        XBOX_BASE_ADDRESS },
-        { XBOX_BASE_ADDRESS,  XBOX_STACK_BASE },
-        { XBOX_STACK_BASE,    XBOX_STACK_BASE + XBOX_STACK_SIZE },
-        { XBOX_HEAP_BASE,     XBOX_TOTAL_RAM },
+    /*
+     * The heap is split at the bump allocator's high-water mark. Below it is
+     * committed; above it, all the way to the top of RAM, is genuinely free
+     * and must be reported as MEM_FREE.
+     *
+     * Reporting the whole heap span as committed is what stranded the boot
+     * (ledger #34). The engine's memory scan steps by exactly the RegionSize
+     * we return, looking for a free run big enough to grow its pool. With all
+     * four in-RAM regions marked committed it rejected the entire 64 MB,
+     * walked off the top of RAM, and spun there forever. It has ~49 MB of
+     * untouched heap sitting right in front of it.
+     */
+    const uint32_t heap_used_end = xbox_HeapHighWater();
+    const struct { uint32_t base, end; int free; } k_regions[] = {
+        { 0x00000000u,        XBOX_BASE_ADDRESS,                  0 },
+        { XBOX_BASE_ADDRESS,  XBOX_STACK_BASE,                    0 },
+        { XBOX_STACK_BASE,    XBOX_STACK_BASE + XBOX_STACK_SIZE,  0 },
+        { XBOX_HEAP_BASE,     heap_used_end,                      0 },
+        { heap_used_end,      XBOX_TOTAL_RAM,                     1 },
     };
     uint32_t region_base = 0, region_size = 0;
-    uint32_t in_ram = 0;
+    uint32_t in_ram = 0, is_free = 0;
     for (unsigned i = 0; i < sizeof k_regions / sizeof k_regions[0]; i++) {
+        if (k_regions[i].end <= k_regions[i].base) continue;  /* empty span */
         if (base_address >= k_regions[i].base && base_address < k_regions[i].end) {
             region_base = k_regions[i].base;
             region_size = k_regions[i].end - k_regions[i].base;
             in_ram = 1;
+            is_free = (uint32_t)k_regions[i].free;
             break;
         }
     }
     if (!region_size) {
-        region_base = base_address & ~0xFFFFu;
-        region_size = 0x10000u;      /* bounded on purpose - this is the test */
-        in_ram = 0;
+        /*
+         * Above the top of RAM there is nothing to describe. The console has
+         * 64 MB; the 4 GB above XBOX_TOTAL_RAM is not free memory, it is not
+         * memory at all, and the real kernel fails the query rather than
+         * describing it.
+         *
+         * Reporting it as a successful 64 KB FREE region is what caused the
+         * hang (ledger #33): the caller advances by exactly the RegionSize we
+         * hand back, so a flat 64 KB granule turned its search into a 65,536
+         * step sweep of the whole address space that wrapped 335 times and
+         * made 21.6 MILLION calls without ever accepting a region. It wants a
+         * contiguous run larger than 64 KB and we never reported one.
+         *
+         * This is NOT ledger #30 being re-applied. That change kept returning
+         * SUCCESS and only altered the extents, and its three untested
+         * candidates (a)(b)(c) all still describe a region. Failing the query
+         * outright is the one option none of them covered, and it is also the
+         * faithful one.
+         */
+        g_eax = 0xC000000Du;            /* STATUS_INVALID_PARAMETER */
+        return;
     }
 
+    /* A free region has no AllocationBase, no protection and no type - that is
+     * what tells a scanner it is available rather than merely readable. */
     BRIDGE_MEM32(info_ptr + 0x00) = region_base;
-    BRIDGE_MEM32(info_ptr + 0x04) = region_base;
-    BRIDGE_MEM32(info_ptr + 0x08) = in_ram ? 0x04u : 0x01u;   /* RW : NOACCESS */
+    BRIDGE_MEM32(info_ptr + 0x04) = is_free ? 0u : region_base;
+    BRIDGE_MEM32(info_ptr + 0x08) = is_free ? 0u : 0x04u;        /* RW */
     BRIDGE_MEM32(info_ptr + 0x0C) = region_size;
-    BRIDGE_MEM32(info_ptr + 0x10) = in_ram ? 0x1000u : 0x10000u; /* COMMIT : FREE */
-    BRIDGE_MEM32(info_ptr + 0x14) = in_ram ? 0x04u : 0x01u;
-    BRIDGE_MEM32(info_ptr + 0x18) = in_ram ? 0x20000u : 0u;   /* MEM_PRIVATE */
+    BRIDGE_MEM32(info_ptr + 0x10) = is_free ? 0x10000u : 0x1000u; /* FREE : COMMIT */
+    BRIDGE_MEM32(info_ptr + 0x14) = is_free ? 0x01u : 0x04u;      /* NOACCESS : RW */
+    BRIDGE_MEM32(info_ptr + 0x18) = is_free ? 0u : 0x20000u;      /* MEM_PRIVATE */
 
     if (g_kernel_call_count <= 200) {
-        fprintf(stderr, "  [KERNEL] NtQueryVirtualMemory: addr=0x%08X -> base=0x%08X %s\n",
-                base_address, region_base, in_ram ? "COMMIT" : "FREE");
+        fprintf(stderr, "  [KERNEL] NtQueryVirtualMemory: addr=0x%08X -> base=0x%08X size=%u %s\n",
+                base_address, region_base, region_size,
+                is_free ? "FREE" : "COMMIT");
         fflush(stderr);
+    }
+
+    /* MEASUREMENT ONLY (2026-08-07): how far does the sweep actually travel?
+     * The log shows a linear 64 KB walk from 0x04000000 (= XBOX_TOTAL_RAM)
+     * upward, one step per call, because we report RegionSize = 0x10000 for
+     * every address above RAM - the caller advances by exactly what we tell
+     * it. Open question this answers: does the walk terminate at 0xFFFFFFFF,
+     * WRAP to 0 and start over (a true infinite loop), or stop early?
+     * Logs every 4096th call only, and deliberately does NOT emit a
+     * "[KERNEL] #" line, so the kernel_calls signal stays comparable. */
+    {
+        static uint32_t qvm_calls = 0, qvm_wraps = 0, qvm_prev = 0;
+        if (qvm_calls && base_address < qvm_prev) qvm_wraps++;
+        qvm_prev = base_address;
+        if ((++qvm_calls & 0xFFFu) == 0) {
+            fprintf(stderr, "  [QVMSWEEP] call=%u addr=0x%08X %s backsteps=%u\n",
+                    qvm_calls, base_address, in_ram ? "COMMIT" : "FREE", qvm_wraps);
+            fflush(stderr);
+        }
     }
 
     g_eax = 0;                          /* STATUS_SUCCESS */

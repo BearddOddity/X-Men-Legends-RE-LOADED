@@ -29,3 +29,17 @@ build/
 bin/
 *.obj
 *.exe
+
+# Claude Code local state (worktrees are multi-GB; settings are machine-specific)
+.claude/worktrees/
+.claude/settings.local.json
+
+# Secondary build trees (build/ is covered above)
+build_abi/
+
+# Run output and logs (regenerated every run)
+*.log
+stderr.txt
+stdout.txt
+abi_stderr.txt
+abi_stdout.txt

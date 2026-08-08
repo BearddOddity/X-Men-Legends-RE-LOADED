@@ -420,3 +420,25 @@ it returns. `recomp_where` is callable from a bridge — `recomp_where("tag", N,
 a, b, c, d)` then `triage_crash.py --where tag` resolves the native stack, which
 is how the lock callers above were identified.
 
+---
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/` — chosen for offline/cross-platform use
+regardless of `gh` auth state. See `docs/agents/issue-tracker.md`.
+
+### Wayfinder maps
+
+Long-range planning (bigger than one session) is charted as a wayfinder map:
+one map file with child ticket files, worked one decision at a time. See
+`.claude/skills/wayfinder/SKILL.md`. First map: `.scratch/boot-to-menu/map.md`.
+
+### Diagnosing walls
+
+`.claude/skills/diagnosing-bugs/SKILL.md` — a red/minimise/hypothesise/
+instrument/fix/regression-test discipline for hard bugs. Complements, doesn't
+replace, `## The 15 rules` above: its ranked-falsifiable-hypothesis step
+(Phase 3) is worth running before reaching for `probe.py` on a new wall.
+

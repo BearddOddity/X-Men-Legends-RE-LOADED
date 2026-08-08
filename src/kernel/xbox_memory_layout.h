@@ -185,6 +185,15 @@ ptrdiff_t xbox_GetMemoryOffset(void);
  * Thread-safe: no (single-threaded recompiled code).
  */
 uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment);
+uint32_t xbox_HeapHighWater(void);
+
+/**
+ * Reserve at an EXACT address (NtAllocateVirtualMemory with a base hint).
+ * Returns `base` on success, or 0 if it is below the high-water mark or the
+ * block would run past the end of the heap. See ledger #75: the engine picks
+ * its own base from a MEM_FREE scan and rejects any other address.
+ */
+uint32_t xbox_HeapAllocAt(uint32_t base, uint32_t size);
 
 /**
  * Free a block from the Xbox heap. Currently a no-op (bump allocator).

@@ -244,13 +244,28 @@ def progress(record: str = "", note: str = "", tail: int = 10, force: bool = Fal
 
 
 @mcp.tool()
-def function(name_or_addr: str) -> dict:
+def function(name_or_addr: str, at_label: str = "", context: int = 0,
+             labels_only: bool = False) -> dict:
     """Return the lifted C for a function, and where it lives.
 
     Accepts `sub_001A3554` or `0x001A3554`. Pair this with ReVa's
     get-decompilation on the same address to diff lifted output against
     Ghidra's ground truth - that comparison is what found the dropped
     fall-through edges.
+
+    WHOLE FUNCTION BY DEFAULT, which is usually right: tracing control flow
+    across labels is what makes a lifted function legible, and that needs all
+    of it. Two narrower modes exist for the big ones - sub_001FFDA1 is ~250
+    lines and sub_00011B35 more, and reading either in full to look at one
+    branch is waste:
+
+      `labels_only` - just the label names and their line numbers, i.e. the
+          function's shape. Good for picking a probe site or seeing whether a
+          label you care about exists at all.
+      `at_label` + `context` - the lines around one label only.
+
+    Both report `truncated: True` so a partial read is never mistaken for the
+    whole function.
     """
     s = name_or_addr.strip()
     if s.lower().startswith("0x"):
@@ -266,9 +281,32 @@ def function(name_or_addr: str) -> dict:
         except ValueError:
             continue
         for j in range(i + 1, len(lines)):
-            if lines[j].rstrip("\n") == "}":
-                return {"found": True, "file": fn, "line": i + 1,
-                        "source": "".join(lines[i:j + 1])}
+            if lines[j].rstrip("\n") != "}":
+                continue
+            body = lines[i:j + 1]
+            base = {"found": True, "file": fn, "line": i + 1,
+                    "total_lines": len(body)}
+
+            if labels_only:
+                labs = [{"label": l.strip()[:-3], "line": i + 1 + n}
+                        for n, l in enumerate(body)
+                        if re.match(r"^loc_[0-9A-Fa-f]+: ;$", l.strip())]
+                return dict(base, truncated=True, labels=labs)
+
+            if at_label:
+                want = at_label.strip().rstrip(":; ")
+                hit = next((n for n, l in enumerate(body)
+                            if l.strip() == "%s: ;" % want), None)
+                if hit is None:
+                    return dict(base, error="label %s not in %s" % (want, s),
+                                hint="call with labels_only=True to list them")
+                c = max(context, 1)
+                a, b = max(0, hit - c), min(len(body), hit + c + 1)
+                return dict(base, truncated=True, label=want,
+                            line_from=i + 1 + a, line_to=i + b,
+                            source="".join(body[a:b]))
+
+            return dict(base, source="".join(body))
     return {"found": False,
             "hint": "not a lifted function - it may be an unresolved stub "
                     "(recomp_stubs_unresolved.c) or never discovered"}
@@ -321,14 +359,59 @@ def probe(file: str, after: str = "", before: str = "", tag: str = "",
         *a, "--tag", tag, *extra, "--limit", limit), force)
 
 
+def _summarise_strip(r):
+    """Collapse strip_probes.py's per-line dump to per-file counts.
+
+    The script echoes every removed line. One interactive session stripped
+    233 probe lines and the tool printed all 233 back - the single largest
+    tool result of that session, and none of it was read: the caller already
+    knows what it inserted and only needs "did it all come out".
+
+    Anything unexpected is still surfaced. Lines that are neither a file
+    header nor a removed-probe bullet are passed through verbatim, so a
+    brace-balance refusal or an error is never swallowed by the summary.
+    """
+    if not isinstance(r, dict) or not r.get("ok"):
+        return r
+    out = r.get("stdout") or ""
+    files, other, total = [], [], None
+    for line in out.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        m = re.match(r"^(\S+\.c): (\d+) probe line\(s\)$", s)
+        if m:
+            files.append({"file": m.group(1), "lines": int(m.group(2))})
+            continue
+        m = re.match(r"^removed (\d+) line\(s\)$", s)
+        if m:
+            total = int(m.group(1))
+            continue
+        if s.startswith("- "):          # the per-line echo - this is the bulk
+            continue
+        other.append(s)
+    res = {"ok": True, "files": files}
+    if total is not None:
+        res["removed"] = total
+    if other:
+        res["notes"] = other           # never hide a refusal or an error
+    return res
+
+
 @mcp.tool()
-def strip_probes(force: bool = False) -> dict:
+def strip_probes(force: bool = False, verbose: bool = False) -> dict:
     """Remove all probes. Refuses any removal that would unbalance braces.
+
+    Returns per-file counts, not the text of every removed line - see
+    _summarise_strip. Pass `verbose=True` for the raw dump if you actually
+    need to see what came out.
 
     Fails fast with `busy: true` if an AFK tool holds the build lock, for the
     same reason `probe()` does.
     """
-    return _guarded("mcp_strip_probes", lambda: _py("strip_probes.py", "--apply"), force)
+    r = _guarded("mcp_strip_probes",
+                 lambda: _py("strip_probes.py", "--apply"), force)
+    return r if verbose else _summarise_strip(r)
 
 
 @mcp.tool()
@@ -536,7 +619,8 @@ def ledger(action: str = "list", claim: str = "", verdict: str = "",
 
 
 @mcp.tool()
-def deepdive(target: str, no_faithful: bool = False) -> dict:
+def deepdive(target: str, no_faithful: bool = False,
+             evidence: bool = False) -> dict:
     """Everything already known about one function, in one call.
 
     Gathers the lifted C's location, faithful.py's verdict, EVERY ledger
@@ -558,16 +642,37 @@ def deepdive(target: str, no_faithful: bool = False) -> dict:
     call the one that has never given a wrong answer.
 
     `no_faithful` skips the capstone-dependent check.
+
+    `evidence` controls the ledger section. OFF by default: each entry comes
+    back as claim + verdict + tags + date, with the evidence replaced by a
+    length and a pointer to `ledger(action="list")`. Evidence blocks on this
+    project run to 500+ words each and deepdive returns EVERY entry naming
+    the function - one call on sub_001EC9C0 returned three of them, ~1500
+    words, when what was needed was three claims and three verdicts. Since
+    the docstring above tells you to call this before any new analysis, it is
+    also the most frequent call there is. Pass `evidence=True` when a claim
+    looks relevant and you want to read it properly.
     """
     args = [target] + (["--no-faithful"] if no_faithful else []) + ["--json"]
     r = _py("deepdive.py", *args)
     if not r["ok"]:
         return {"error": (r["stderr"] or r["stdout"]).strip()}
     try:
-        return json.loads(r["stdout"])
+        d = json.loads(r["stdout"])
     except ValueError:
         return {"error": "deepdive.py did not return JSON",
                 "raw": r["stdout"][:2000]}
+
+    if not evidence and isinstance(d.get("ledger"), list):
+        trimmed = 0
+        for e in d["ledger"]:
+            ev = e.get("evidence")
+            if isinstance(ev, str) and ev:
+                trimmed += len(ev)
+                e["evidence"] = "<%d chars - rerun with evidence=True>" % len(ev)
+        if trimmed:
+            d["evidence_omitted_chars"] = trimmed
+    return d
 
 
 @mcp.tool()

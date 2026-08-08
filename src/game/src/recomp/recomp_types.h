@@ -242,6 +242,31 @@ void recomp_icall_reject_dump(void);
 extern uint8_t  g_reached[RECOMP_COVER_BITS / 8u];
 extern uint32_t g_reached_count;
 
+/*
+ * Distinct DIRECT call sites executed - the blind spot in g_reached_count.
+ *
+ * The comment above calls indirect-only coverage "a good proxy". It stops
+ * being one exactly when a fix removes indirect work. Seeding sub_00011B2B
+ * and sub_001E9558 (ledger #72) cut a vtable-heavy retry spin out of the
+ * allocator; kernel_calls went 82 -> 330 and the backtrace 4 -> 18 frames,
+ * while g_reached_count FELL 55 -> 42, because the boot stopped re-resolving
+ * the same vtable slots and started running straight-line code instead.
+ * Judged on g_reached_count alone that fix reads as a regression.
+ *
+ * So count the other half too. One static flag per textual call site, set on
+ * first execution: a predictable branch and one byte of .bss per site, and it
+ * rises whenever code that was never entered before runs - including code
+ * reached entirely by direct calls, which g_reached cannot see.
+ *
+ * This counts call SITES, not functions. That is deliberate and finer
+ * grained: two call sites into one function are two distinct pieces of
+ * control flow, and marking function entries instead would mean touching all
+ * 30,002 generated bodies rather than one macro.
+ *
+ * Report BOTH numbers and read them together. Neither alone is progress.
+ */
+extern uint32_t g_callsite_count;
+
 void recomp_coverage_dump(void);
 
 /* Allocation duplicate detector - see recomp_manual.c. */
@@ -329,6 +354,13 @@ void recomp_abi_violation(const char *callee,
  */
 void recomp_esp_escape(const char *callee, uint32_t esp_before);
 
+/* Mark this textual call site as executed. See g_callsite_count above. */
+#define RECOMP_MARK_SITE()                                           \
+    do {                                                             \
+        static uint8_t _site_seen;                                   \
+        if (!_site_seen) { _site_seen = 1; g_callsite_count++; }     \
+    } while (0)
+
 #ifdef RECOMP_CHECK_ABI
 /* Deliberately wider than the 8 MB stack: the point is to catch esp running
  * away entirely, not to police a few bytes either side of the guard page. */
@@ -336,6 +368,7 @@ void recomp_esp_escape(const char *callee, uint32_t esp_before);
 #define RECOMP_ESP_HI 0x00F80000u
 #define RECOMP_ABI_CALL(fn)                                          \
     do {                                                             \
+        RECOMP_MARK_SITE();                                          \
         uint32_t _abi_b = g_ebx, _abi_s = g_esi, _abi_d = g_edi;     \
         uint32_t _abi_p = g_esp;                                     \
         fn();                                                        \
@@ -346,7 +379,7 @@ void recomp_esp_escape(const char *callee, uint32_t esp_before);
             recomp_esp_escape(#fn, _abi_p);                          \
     } while (0)
 #else
-#define RECOMP_ABI_CALL(fn) fn()
+#define RECOMP_ABI_CALL(fn) do { RECOMP_MARK_SITE(); fn(); } while (0)
 #endif
 
 
@@ -565,6 +598,38 @@ recomp_func_t recomp_lookup_kernel(uint32_t xbox_va);
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
 #endif
 
+/*
+ * RECOMP_ESP_WATCH - esp range check around an INDIRECT call.
+ *
+ * RECOMP_CHECK_ABI's recomp_esp_escape() only wraps RECOMP_ABI_CALL, i.e.
+ * direct calls. Running it for the first time (ledger #79) produced a useful
+ * negative: 23 callee-save violations but ZERO esp reports, while the crash
+ * itself has esp = 0x00F8031C - above the top of the stack, which starts at
+ * 0x00F7FFF0 and grows down. So the over-pop is NOT in a direct call, and the
+ * remaining suspects are indirect ones, which nothing was checking.
+ *
+ * This closes that gap. Unlike the direct-call version it can name the target
+ * VA rather than a symbol, which is what you want here anyway: the likely
+ * shape is an ICALL landing on a generic `g_esp += 4` stub whose real
+ * epilogue owed more (ledger #71 found two such stubs owing 12 and 36 bytes,
+ * and safe_stub still reads 8 every run).
+ *
+ * Compiles to nothing without RECOMP_CHECK_ABI, so normal builds are
+ * untouched.
+ */
+#ifdef RECOMP_CHECK_ABI
+void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
+#define RECOMP_ESP_WATCH(va, call) do { \
+    uint32_t _esp_b = g_esp; \
+    call; \
+    if ((g_esp < RECOMP_ESP_LO || g_esp > RECOMP_ESP_HI) && \
+        (_esp_b >= RECOMP_ESP_LO && _esp_b <= RECOMP_ESP_HI)) \
+        recomp_esp_escape_va((va), _esp_b); \
+} while (0)
+#else
+#define RECOMP_ESP_WATCH(va, call) do { call; } while (0)
+#endif
+
 /**
  * RECOMP_ICALL - Indirect call through the dispatch table.
  *
@@ -594,7 +659,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); _fn(); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_ESP_WATCH(_va, _fn()); } \
     else { recomp_icall_fail_log(_va); g_esp += 4; eax = 0; } \
 } while(0)
 
@@ -631,7 +696,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); _fn(); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_ESP_WATCH(_va, _fn()); } \
     else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 
@@ -643,10 +708,16 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
  * jmp [reg] instead of call [reg].
  */
 #define RECOMP_ITAIL(xbox_va) do { \
-    recomp_func_t _fn = recomp_lookup_manual((uint32_t)(xbox_va)); \
-    if (!_fn) _fn = recomp_lookup((uint32_t)(xbox_va)); \
-    if (!_fn) _fn = recomp_lookup_kernel((uint32_t)(xbox_va)); \
-    if (_fn) { recomp_mark_reached((uint32_t)(xbox_va)); _fn(); } \
+    uint32_t _tva = (uint32_t)(xbox_va); \
+    recomp_func_t _fn = recomp_lookup_manual(_tva); \
+    if (!_fn) _fn = recomp_lookup(_tva); \
+    if (!_fn) _fn = recomp_lookup_kernel(_tva); \
+    /* A tail call legitimately MOVES esp - the callee runs the epilogue and \
+     * the ret for its caller - so no delta check is possible here. But esp \
+     * must still never leave the stack range, which is all ESP_WATCH tests, \
+     * so the check stays sound and covers the tail-jump chains that #79 \
+     * could not rule out. */ \
+    if (_fn) { recomp_mark_reached(_tva); RECOMP_ESP_WATCH(_tva, _fn()); } \
 } while(0)
 
 /* ================================================================

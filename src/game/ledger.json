@@ -357,6 +357,920 @@
    "evidence": "Probed loc_001F0AC7 in recomp_0014.c printing eax, MEM32(eax) and MEM32(0x5BC5D8), limit 8. It fired ZERO times on a full run (4000/1/13/1, deterministic), so that branch is never reached and the 0x5BC5D8 comparison cannot be driving the repetition. #31's backtrace is still correct and stands - sub_001F09D0 IS on the chain under the repeated NtQueryVirtualMemory calls - but it is CALLED BY the loop, not the loop itself. The retry cycle sits above it and was already documented on 2026-08-05: sub_0020F0B2 is the retry-loop head, and sub_0020F209's three early exits are all \"memory was reclaimed, go round again\", making the engine allocator a CYCLE rather than a chain. So the shape is: sub_0020EFD0 -> sub_0020F209 -> (growth attempt: sub_001EC9D8 -> sub_001F09D0 -> NtQueryVirtualMemory) -> growth fails -> sub_0020F0B2 -> round again. The open question is why the engine's pool growth cannot be satisfied, one layer above the CRT heap that #29 fixed.</evidence>\n<parameter name=\"tags\">sub_001F09D0,0x5BC5D8,sub_0020F0B2,sub_0020F209,correction,retry-loop",
    "tags": [],
    "when": "2026-08-07 13:09"
+  },
+  {
+   "id": 33,
+   "claim": "The pool-growth hang is not a retry cycle: it is ONE unbounded address-space sweep that wraps the full 4GB forever, 21.6 million NtQueryVirtualMemory calls, driven by our own flat 64KB RegionSize",
+   "verdict": "confirmed",
+   "evidence": "Added a pure-logging counter inside bridge_NtQueryVirtualMemory (no [KERNEL] # line, so kernel_calls stays comparable; signals unchanged at 4000/1/13/1 deterministic 2 of 2). Measured: 21,659,648+ NtQueryVirtualMemory calls in one boot and still climbing, with backsteps=335 - the sweep runs off the top of the 32-bit address space and WRAPS to low addresses 335 times. 335 wraps x 65,536 steps/wrap = 21.9M, which matches the call count, so the arithmetic is closed. Consecutive logged addresses differ by exactly 0x10000000 = 4096 x 0x10000, confirming the caller advances by EXACTLY the RegionSize we hand it, one 64KB granule per call. Every single call reports FREE; NtAllocateVirtualMemory is called only TWICE in the whole boot (1MB at base=0, 4KB at 0x00F81000), both early and unrelated - the sweep NEVER results in an allocation attempt. THREE corrections to the record. (1) The \"4000 kernel calls\" headline is a LOGGING CAP, not the real count - kernel_bridge.c:1821 gates the [KERNEL] # line at 4000 and progress/smoke_spread derive kernel_calls by counting those lines, exactly the failure its own comment warns about. The true count is 5000x higher. (2) sub_0020F0B2 is NOT a retry-loop head; it is a free-list node decoder - it reads a block header at [ebp], unpacks a 19-bit size field (plus 12 high bits when bit31 is set), rounds to 4, and compares the node against the embedded list head at edx+0x48. The 2026-08-05 note calling it the loop head is wrong. (3) Ledger #30's premise was wrong by four orders of magnitude: it assumed \"a 64MB walk in 64KB steps needs ~1000 iterations\", but the walk is not bounded by RAM at all - it is the full 4GB, wrapping. So the hang is a single non-terminating search, not the sub_0020EFD0 -> sub_0020F209 -> sub_0020F0B2 retry cycle described in earlier notes. ROOT CAUSE: we tell the caller that all 4GB above the 64MB of RAM is free memory in 64KB pieces. It is looking for a contiguous run bigger than 64KB, we never report one, so it steps 64KB and asks again, forever. NOT YET TESTED: returning an error status above XBOX_TOTAL_RAM (what real hardware does) instead of a successful FREE region. That is distinct from #30's candidates (a)(b)(c), all of which still report success.",
+   "tags": [
+    "NtQueryVirtualMemory",
+    "ordinal-217",
+    "kernel-bridge",
+    "region-size",
+    "hang",
+    "sweep",
+    "measurement",
+    "logging-cap"
+   ],
+   "when": "2026-08-07 13:39"
+  },
+  {
+   "id": 34,
+   "claim": "Ledger #30 was not a regression and should not have been reverted: ending the sweep by ANY means gives the identical 58-call crash, and reached improves 33 -> 36. The infinite sweep was HIDING that crash",
+   "verdict": "confirmed",
+   "evidence": "Made bridge_NtQueryVirtualMemory return STATUS_INVALID_PARAMETER for any address >= XBOX_TOTAL_RAM instead of a successful 64KB FREE region. This is a DIFFERENT change from #30 (which kept returning SUCCESS and only altered extents), yet it reproduces #30's outcome almost exactly: kernel_calls 58 (vs 58), safe_stub 8 (vs 8), failed_icalls 2 (vs 2), same crash RVA 0xD247F0, heap_allocs 16 (vs 18). Two unrelated changes converging on one outcome means the extents/overflow candidates (a)(b)(c) in #30 are all IRRELEVANT - the only thing that matters is whether the sweep terminates. Measured on `reached`, the signal that still has resolution once kernel_calls saturates: distinct dispatch targets 33 -> 36, so the boot goes FURTHER, not less far. #30 was reverted on kernel_calls 4000 -> 58, but #33 established 4000 is a logging cap over 21.6M calls of one useless ordinal, so that comparison was meaningless and the revert was made on a bad signal. Rule #14 needs `reached` as its tiebreak, not kernel_calls. The newly visible crash triages cleanly: read at Xbox VA 0xFFFFFFFE in sub_001E8F30+0x180, called from sub_0020F209+0x1FB7 (the same engine allocator chain), with esi = 0xFFFFFFFE = -2 and eax/ecx/edx all NULL - a plain \"ptr - 2\" computed from a NULL that a failed allocation returned and nobody checked. ROOT CAUSE NOW VISIBLE, and it is neither #30's nor mine: the k_regions table reports ALL FOUR in-RAM regions as MEM_COMMIT, including the ~49MB heap span 0x00F80000..0x04000000 which is almost entirely unused. So we tell the scanner every byte of the 64MB is committed and nothing is free. It rejects all four, walks off the top of RAM, and there we hand it endless 64KB \"free\" granules. NEXT TEST: report the heap tail above the native allocator's high-water mark as one large bounded MEM_FREE region, so the scan finds real free memory on its first pass inside RAM and never leaves it. #30's candidate (a) noticed the heap-as-one-committed-region was suspicious but reasoned about it backwards.",
+   "tags": [
+    "NtQueryVirtualMemory",
+    "ordinal-217",
+    "kernel-bridge",
+    "ledger-30",
+    "correction",
+    "reached",
+    "sub_001E8F30",
+    "revert-rule"
+   ],
+   "when": "2026-08-07 13:41"
+  },
+  {
+   "id": 35,
+   "claim": "Reporting the heap above the bump allocator's high-water mark as one large MEM_FREE region kills the infinite sweep and lets the engine grow its pool for the first time",
+   "verdict": "confirmed",
+   "evidence": "Added xbox_HeapHighWater() (exposes the previously-static g_heap_next in xbox_memory_layout.c) and split the k_regions table in bridge_NtQueryVirtualMemory: XBOX_HEAP_BASE..high_water stays MEM_COMMIT, high_water..XBOX_TOTAL_RAM becomes MEM_FREE with AllocationBase/Protect/Type all zeroed the way a real free region reports. Empty spans are skipped so the table stays valid when the high-water mark sits at either end. Measured, deterministic 2 of 2: kernel_calls 58 -> 65, heap_allocs 16 -> 20, safe_stub 8, failed_icalls 2, reached 36 -> 37 (33 on the old hanging build, so this is the best reached ever recorded). The 21.6M-call sweep is GONE - total NtQueryVirtualMemory calls for the whole boot is now FIVE per pass. The log shows the mechanism working exactly as intended: the scan walks the four committed regions, finds ~49MB FREE at 0x0108CA90, TAKES it, and on each subsequent pass the committed heap has grown - 1,100,432 -> 2,424,832 -> 3,739,648 bytes - with the free region shrinking to match (49,755,504 -> 48,431,104 -> 47,116,288). That is the engine's pool growing, which is the thing that has never once worked on this project. It also correctly reports base=0x00F80000 when queried at 0x011D0000 after the high-water mark moves past it. REMAINING WALL, unchanged by this and now the top item: same crash as ledger #34, read at Xbox VA 0xFFFFFFFE in sub_001E8F30+0x180 (recomp_0014.c ~line 1071), reached from sub_0020F209+0x1FB7. esi = 0xFFFFFFFE = -2 with eax/ecx/edx all NULL - a MEM16/32 read at `ptr - 2` off a NULL. So something downstream still returns NULL and the caller does not check it; that is a separate bug from pool growth and was hidden behind the sweep until now. Note a diagnostic left in place deliberately: a [QVMSWEEP] counter in the bridge logs every 4096th NtQueryVirtualMemory call with a backstep count. It cannot fire at five calls per boot, so it costs nothing and will shout immediately if the sweep ever returns.",
+   "tags": [
+    "NtQueryVirtualMemory",
+    "ordinal-217",
+    "kernel-bridge",
+    "pool-growth",
+    "port-fix",
+    "reached",
+    "xbox_HeapHighWater"
+   ],
+   "when": "2026-08-07 13:43"
+  },
+  {
+   "id": 36,
+   "claim": "The sub_001E8F30 crash is a NULL handler registry at 0x5BC53C, never written because its init ICALL target is 0 - the object field g508+0x30 is still zero when sub_001F6FD1 runs",
+   "verdict": "confirmed",
+   "evidence": "Deep-dived sub_001E8F30 and reconstructed the crash from the registers alone, then confirmed the cause with one probe. THE ARITHMETIC CLOSES EXACTLY. sub_001E8F30 is the engine's \"ask every registered handler to free memory\" pass, called by the allocator under pressure. It walks two registries: `ecx = MEM32(0x5BC53C); edx = MEM32(ecx); esi = MEM32(edx + edi*4)` then dereferences `eax = MEM32(esi)` at loc_001E8F54. At the crash ecx=0, edx=0, edi=7, esi=0xFFFFFFFE. So MEM32(0x5BC53C) is NULL, edx = MEM32(0) = 0, esi = MEM32(0 + 7*4) = MEM32(0x1C) = 0xFFFFFFFE (guest low-memory garbage), and MEM32(esi) faults at 0xFFFFFFFE. Every register matches; nothing is inferred. The loop count is likewise bogus - `edi = MEM32(eax+4)` with eax NULL reads MEM32(4). WHY 0x5BC53C IS NULL: it has exactly ONE real writer in the whole tree, recomp_0014.c:37356 in sub_001F6FD1, and that store is SKIPPED on failure - `if (TEST_Z(eax,eax)) goto sub_001F700B` at loc_001F6FF9 branches past it. The eax being tested comes from ICALL MEM32(edx + 0xCC) where edx = MEM32(MEM32(0x5BC508) + 0x30). PROBED AT loc_001F6FF9, fires exactly once per boot: alloc_ret=0x00000000 g538=0x00000000 g508=0x01086000 vtbl=0x00000000 slotCC=0x00000000. So g508 itself is a VALID heap object (0x01086000 - ledger #5's \"0x5BC508 never initialised\" stays correctly refuted), but g508+0x30 is NULL, hence the vtable is NULL, hence the ICALL target is 0. That is one of the run's 2 failed icalls and matches triage's reported targets 0x1 and 0x0 exactly. The 12-byte allocation (PUSH 0xC) never happens, eax stays 0, the store is skipped, and 0x5BC53C is NULL for the rest of the boot against 181 read sites. WHY g508+0x30 IS ZERO: the constructor sub_002154F0 (recomp_0015.c:54774) deliberately zeroes it along with ~44 other fields - `MEM32(eax + 0x30) = ecx` with ecx=0. So it is null BY DESIGN at construction and something later must fill it. Object lifecycle is in sub_00239E50: sub_003437F3 allocates 0x3A0 bytes, sub_002154F0 constructs, store to 0x5BC508, then sub_00236500 inits - and sub_00236500 is on the crash stack at +0x31E, so the crash happens DURING that init. This is an ORDERING WINDOW, matching the existing note \"igMetaObject recursion: bootstrap gate is a vtable-install ordering window, not a broken guard\". Note also sub_002156E0 (recomp_0015.c:55005-55014) reads the SAME two registries and does the identical `edx = MEM32(ecx); eax = MEM32(edx + eax*4)` deref, so it carries the same latent crash. NEGATIVE RESULT WORTH RECORDING: a write-watch on 0x01086030 fired and the linker map attributed it to sub_002156E0+0x791, but that function's generated C contains NO write to +0x30 at all, so the attribution is unreliable - probably page-granular or an inlined memset. Do not trust it; who fills +0x30 is still OPEN and is the next thing to find. Tree is clean: probe stripped, 65/2/20/8 deterministic 2 of 2, unchanged.",
+   "tags": [
+    "sub_001E8F30",
+    "sub_001F6FD1",
+    "0x5BC53C",
+    "0x5BC538",
+    "0x5BC508",
+    "sub_002154F0",
+    "sub_002156E0",
+    "null-registry",
+    "ordering-window",
+    "failed-icall"
+   ],
+   "when": "2026-08-07 13:53"
+  },
+  {
+   "id": 37,
+   "claim": "g508+0x30 IS filled, by sub_0021644B at loc_002164A7, but it stores NULL because esi is clobbered by the preceding indirect call through vtable+0x6C = sub_001EC120 - a callee-saved-register preservation bug",
+   "verdict": "confirmed",
+   "evidence": "Answers ledger #36's open question. THE FILLER EXISTS and runs: recomp_seed.c loc_002164A7 does `eax = MEM32(0x5BC508); MEM32(eax + 0x30) = esi;` then immediately calls sub_001F6FB0 to build the registries. So the field is populated right before use - the ordering is CORRECT and the \"ordering window\" theory from #36 is WRONG. The bug is the VALUE. Traced esi across the fragment with four probes at loc_0021647D/loc_00216487/loc_002164A0/loc_002164A7: ESIA=0x01088A90, ESIB=0x01088A90, ESIC=0x01088A90, ESID=0x00000000. So esi is a valid heap object right up to loc_002164A0 and is ZERO immediately after it. Nothing in the generated C between those two points assigns esi - the only thing there is one indirect call. Probed that slot: [T6C] esi=0x01088A90 vtbl=0x003F4770 slot6C=0x001EC120. THE CLOBBERER IS sub_001EC120, called through vtable+0x6C. esi is callee-saved on x86, so the caller is entitled to keep it across that call; in this recompiler the registers are C globals, so a callee that fails to restore esi silently destroys the caller's copy. That is a PORT bug, not game behaviour. Note sub_001EC120 is on the crash backtrace and descends into the allocator (sub_001EC5E0 -> sub_00211530 -> sub_0020F860 -> sub_0020EFD0 -> sub_0020F209 -> sub_001E8F30), so the same call both clobbers esi and reaches the NULL-registry walk. FULL CAUSAL CHAIN, every link probed: sub_001EC120 clobbers esi -> MEM32(g508+0x30) = 0 -> sub_001F6FB0 loads ecx = MEM32(g508+0x30) = 0, edx = MEM32(0) = 0, ICALL MEM32(0+0xCC) = 0 -> failed icall (one of the run's 2, target 0x0) -> the 12-byte allocation returns 0 -> both `MEM32(0x5BC538) = eax` and `MEM32(0x5BC53C) = eax` store or skip to leave NULL -> sub_001E8F30 walks a NULL registry -> reads MEM32(0x1C) = 0xFFFFFFFE -> access violation. NEXT STEP: read sub_001EC120 and find why esi is not preserved - compare its push/pop pairs against the original x86 (faithful.py, and ReVa get-decompilation on 0x001EC120). SECONDARY FINDING worth its own look: sub_001E8F30 is HARMLESS when the registry is NULL and guest MEM32(4) is 0, because `edi = MEM32(4) - 1` goes negative and both loops are skipped. At the crash edi = 7, so MEM32(4) held 8 - something has written to guest low memory, which the 2026-08-05 TIB move was supposed to leave permanently zero. CORRECTION to my own earlier note in #36: the write-watch that blamed sub_002156E0+0x791 was indeed a false lead, now superseded - the real writer is sub_0021644B and it was in the 407 non-stack hits all along. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "g508",
+    "0x5BC508",
+    "sub_0021644B",
+    "sub_001EC120",
+    "esi",
+    "register-preservation",
+    "callee-saved",
+    "recomp-bug",
+    "seeded-fragment",
+    "vtable-6C",
+    "null-registry"
+   ],
+   "when": "2026-08-07 14:02"
+  },
+  {
+   "id": 38,
+   "claim": "esi is not \"clobbered\" by sub_001EC120 - the stack is 40 bytes too deep at its epilogue, so POP32 reads uninitialised stack (zero) instead of the saved esi. The leak is entirely under the vtable+0xCC call to sub_001EC5E0",
+   "verdict": "confirmed",
+   "evidence": "Refines ledger #37, which said sub_001EC120 \"clobbers esi\". It does not overwrite esi - it RESTORES IT FROM THE WRONG PLACE. faithful.py is clean on sub_001EC120 (35 insns, ratio 1.54, no missing labels, no stale flags), so this is not a dropped branch. Probed g_esp and esi at entry, at all four ICALL sites, and at the epilogue. Entry [ECIN] esp=0x00F7FF20 esi=0x01088A90. After the two prologue pushes esp should be 0x00F7FF18 and it is: [ESP1] 0x00F7FF18 (after ICALL vtbl+0xC0) and [ESP2] 0x00F7FF18 (after ICALL vtbl+0x7C) - both calls balance perfectly. Then [ESP3] 0x00F7FEEC after the ICALL through vtbl+0xCC. Expected there is 0x00F7FF14 (0x00F7FF18 less the deliberate `push edi`), so that ONE CALL loses 0x28 = 40 bytes. [ESP4] 0x00F7FEEC - the vtbl+0xFC call adds nothing. At the epilogue [ECOUT] esp=0x00F7FEF0 with MEM32(esp)=0x00000000 and MEM32(esp+4)=0x00000800, so `POP32(esp, esi)` reads a ZERO that was never pushed. THAT zero is the value that reaches MEM32(g508+0x30). The saved esi is still sitting untouched at 0x00F7FF18. edi is destroyed the same way: [TCC] read edi=0 after the +0xCC call where it held the vtable 0x003F4770, which makes the following ICALL MEM32(edi+0xFC) resolve to MEM32(0xFC)=0 - that is one of the run's 2 failed icalls, so the failed-icall count is a SYMPTOM of the leak, not an independent fault. THE LEAKING CALLEE IS sub_001EC5E0, captured before the call because edi is dead after it: [PRECC] esi=0x01088A90 vtbl=0x003F4770 slotCC=0x001EC5E0 slotFC=0x001EC750. That matches the 2026-08-05 note naming sub_001EC5E0 the manager's allocate thunk on vtbl 0x003F4770. sub_001EC5E0's own arithmetic looks RIGHT - it pushes 3 args plus the dummy return and ends `esp += 8; return; /* ret 4 */`, the same shape sub_001E8F30 uses correctly - so the 40 bytes are lost BELOW it, in the call through vtbl+0x1AC that descends into the fpo_leaf allocator chain sub_00211530 -> sub_0020F860 -> sub_0020EFD0 -> sub_0020F209, the family whose g_seh_ebp frame inheritance the project notes already flag as fragile. NEXT STEP: walk g_esp down that chain the same way (probe at each fragment entry and exit) to find the frame that does not restore it. SEPARATE LATENT BUG worth fixing regardless: RECOMP_ICALL_SAFE (recomp_types.h:609) does `g_esp = (saved_esp)` on every failure path, and at loc_001EC176 the callee-save `PUSH32(esp, edi)` is emitted INSIDE the icall block, after `_icall_esp` is captured. So had that call failed, the rewind would have discarded edi's saved slot and the later POP32 would misalign. It did not fire here because the target resolved, but any fragment with a callee-save push inside an icall block has the same hazard. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_001EC120",
+    "sub_001EC5E0",
+    "esp-leak",
+    "stack-imbalance",
+    "register-preservation",
+    "esi",
+    "edi",
+    "RECOMP_ICALL_SAFE",
+    "fpo_leaf",
+    "recomp-bug"
+   ],
+   "when": "2026-08-07 14:09"
+  },
+  {
+   "id": 39,
+   "claim": "The 40-byte leak is inside sub_0020F209, on the path to its THIRD tail-jump to sub_0020F0B2 (return site #3): esp is exactly 0x28 below entry there, and every frame above inherits that same deficit",
+   "verdict": "confirmed",
+   "evidence": "Walked g_esp down the whole chain with entry/exit probes, then re-ran with a SEPARATE counter per return site after discovering the first pass under-sampled (all 8 sites of sub_0020F209 shared one static with limit 3, so the balanced epilogue never printed - worth remembering as a probe-design trap). DESCENT, all clean: E sub_001EC5E0 0x00F7FF0C -> E sub_00211530 0x00F7FEFC (-0x10, exactly sub_001EC5E0's 3 args + dummy) -> E sub_0020F860 0x00F7FEBC -> E sub_0020EFD0 0x00F7FE84 -> tail-jump at 0x00F7FE44. sub_0020EFD0's frame is verifiably 64 bytes (`esp = esp - 0x30` plus pushes of ebx/ebp/esi/edi) and the measured 0x40 drop matches exactly, so that function is CORRECT. sub_0020F209 has NO prologue - a pure fpo_leaf reading locals off esp - so the \"re-entry runs the prologue twice\" theory is dead. Its balanced epilogue is also CORRECT as written: POP edi/esi/ebp/ebx then `esp + 0x30` then `esp += 12 /* ret 8 */`, which unwinds precisely the 64 bytes sub_0020EFD0 allocated. PER-SITE RESULT, sub_0020F209 entered at 0x00F7FE44: site #1 returns at 0x00F7FE44 (= entry, correct for a tail jump, nothing pushed yet), site #2 at 0x00F7FE44 (same), site #3 at 0x00F7FE1C = entry MINUS 0x28, and site #8 (the full epilogue) at 0x00F7FE5C where entry+0x40 = 0x00F7FE84 was due - short by the same 0x28. So 40 bytes are pushed between sub_0020F209's entry and its third tail-jump to sub_0020F0B2 and never popped; sub_0020F0B2 tail-jumps onward without unwinding (correct - it is a loop head, not a frame owner), the deficit rides the cycle, and the epilogue at site #8 unwinds only its own 64, stranding the 40 permanently. UNWIND, every level inheriting exactly -0x28: X sub_0020F860 0x00F7FE94 vs entry 0x00F7FEBC; X sub_00211530 0x00F7FED4 vs entry 0x00F7FEFC; X sub_001EC5E0 0x00F7FEE4 vs entry 0x00F7FF0C. That is the same 40 bytes that makes sub_001EC120's POP32 read a zero and null out g508+0x30 (ledger #38). STILL OPEN, and the next step: WHICH pushes on the path to site #3 are the 40. sub_0020F209's three sub_0020F0B2 tail-jumps are the ones guarded by two sub_001E8F30 calls and an ICALL through vtable+0x54, and the function carries cdecl cleanups (`esp + 8`, `esp + 0xC`, `esp + 0x14`) that sit on other branches - the likely shape is arguments pushed for those calls whose cleanup is skipped when the retry branch is taken. Read sub_0020F209 from entry to its third tail-jump and account for every push against every cleanup. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_0020F209",
+    "sub_0020F0B2",
+    "sub_0020EFD0",
+    "sub_0020F860",
+    "sub_00211530",
+    "sub_001EC5E0",
+    "esp-leak",
+    "stack-imbalance",
+    "fpo_leaf",
+    "tail-jump",
+    "recomp-bug"
+   ],
+   "when": "2026-08-07 14:29"
+  },
+  {
+   "id": 40,
+   "claim": "Do NOT fix the 40-byte leak as the next step: it lives inside the game's FATAL out-of-memory reporter, which ends in `goto self` by design. The real blocker is vtable+0x1B0 (sub_001EC9C0) still returning -1, so pool growth is STILL failing",
+   "verdict": "confirmed",
+   "evidence": "Chased ledger #39's 40 bytes to the exact instruction and found the fix is not worth making. LOCALISED FIRST: probed g_esp at every label in sub_0020F209 - it holds steady at 0x00F7FE44 through loc_0020F34A/F35A/F451/F45E/F467/F480/F491/F499 and drops to 0x00F7FE1C only at loc_0020F4A7, so the loss is entirely the ICALL through vtable+0x54. Probed that slot: [T54] esi=0x01088A90 vtbl=0x003F4770 slot54=0x001E8DB0. Inside sub_001E8DB0: [S:DB0] esp=0x00F7FE38 g5BBA14=0x00011A60 (non-zero, so it takes the CALL path, not the early exit - sub_001E8DCC never fires), [S:DB9] 0x00F7FE38, [S:DC6] 0x00F7FE04 - 0x34 = 52 bytes gone across an ICALL that pushed only 16. Arithmetic closes exactly: 0x00F7FE04 + 0xC + 0xC = 0x00F7FE1C, and 0x00F7FE44 - 0x00F7FE1C = 0x28 = the 40 bytes. WHAT THE CALLEE IS, and this is the point: global 0x5BBA14 holds 0x00011A60, registered through sub_001E8DE0 (a one-line cdecl setter). sub_00011A60 installs a full SEH frame (push -1, push scope table, push fs:[0], mov fs:[0] esp, sub esp 0xC = 24 bytes) and runs a chain sub_00011A60 -> sub_00011AAE -> sub_00011AB4 -> sub_00011B35 of paired sub_001F8250 / sub_001EB1B0 calls against format strings at 0x3C7054, 0x3C701C, 0x3C7000, 0x3C6FE4, 0x3C6FC8, 0x3C6FAC, 0x3C6F90, 0x3C6F8C. That is a formatted diagnostic dump. sub_00011B35 ends `loc_00011E33: goto loc_00011E33;` - an unconditional self-loop, the console fatal-error halt. It DOES have a real SEH teardown at loc_00011C3F (restores fs:[0] from esp+0x14, pops, `esp + 0x18`), so the lifting is not obviously wrong; the leak is somewhere in that long fragment chain. CONCLUSION: this is the engine's fatal OOM reporter and it is MEANT to never return. Repairing the stack there converts the current crash into a clean hang inside a fatal error handler. That is tidier but it is NOT progress toward boot, and it would cost real time in a chain of 8+ fragments. THE ACTUAL BLOCKER, proven by the same label trace with no extra run: sub_0020F209 reaches loc_0020F363 and later loc_0020F451, and the only way there is `loc_0020F35A: if (eax != 0xFFFFFFFF) goto loc_0020F555` NOT being taken - so the ICALL through vtable+0x1B0 (sub_001EC9C0, the manager asking the system for memory) returned -1. It is called twice and fails twice, then sub_001E8F30 is asked to free memory twice (attempts 0 and 1 via MEM32(esp+0x1C)), then at attempt >= 2 control goes to loc_0020F499 and the fatal reporter. So despite ledger #35 making the OS-level pool grow (committed heap 1.1MB -> 2.4MB -> 3.7MB) and xbox_HeapAlloc succeeding 20/20 with zero failures, the ENGINE's own growth path still reports failure. NEXT STEP: instrument sub_001EC9C0 / sub_001EC9D8 / sub_001F09D0 and find which return produces the -1 now that NtQueryVirtualMemory reports real free memory. That is upstream of everything else here. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_0020F209",
+    "sub_001E8DB0",
+    "sub_00011A60",
+    "sub_001EC9C0",
+    "esp-leak",
+    "fatal-handler",
+    "out-of-memory",
+    "pool-growth",
+    "do-not-fix",
+    "priority"
+   ],
+   "when": "2026-08-07 15:25"
+  },
+  {
+   "id": 41,
+   "claim": "The -1 is NOT minted in sub_001EC9C0 or sub_001EC9D8: sub_001F09D0 gets a SUCCESSFUL allocation (edi=0x011D0000) and throws it away, because loc_001F0AC7 compares an out-parameter against the never-initialised global 0x5BC5D8 and both are ZERO, so it loops back. This UNREFUTES ledger #32.",
+   "verdict": "confirmed",
+   "evidence": "Instrumented the whole path as asked. sub_001EC9C0 NEVER mints the -1 itself: [M:C0] this=0x01088A90 A0=0x00000000 A4=0x00000000 on every call, so the `(A0|A4) != 0` shortcut at loc_001EC9D1 is never taken - its probe fired ZERO times - and it always delegates to sub_001EC9D8. sub_001EC9D8 does not mint it either: [M:D8] g5BB9AC=0x0046A72C vtbl=0x003EECB0 slot3C=0x001F09D0, and [M:EE] raw_ret=0xFFFFFFFF, so the -1 arrives already formed from sub_001F09D0. Confirms ledger #31's chain on the current build. Four calls per boot, two per manager object, args alternating pointer/0 which matches sub_0020F209's two vtable+0x1B0 sites. INSIDE sub_001F09D0, four return sites tagged individually: every call exits via RET4 (loc_001F0B0F), whose body is `eax = edi` - so the return value IS edi, and there is no explicit -1 on that path. Calls 1-3 arrive at loc_001F0A91 with edi already 0xFFFFFFFF and take `if (edi == -1) goto loc_001F0B0F` straight out. CALL 4 IS THE INTERESTING ONE: [F:L_001F0A91] eax=0x011D0000 edi=0x011D0000 - the allocation SUCCEEDED, and 0x011D0000 is exactly where the heap high-water mark sat, so ledger #35's fix IS delivering real memory. edi then survives the ICALL through vtable+0xB4 intact ([AFTB4] edi=0x011D0000), and [ATB03] never fires, so the success branch at loc_001F0B03 is NOT taken. Control goes loc_001F0AB8 -> loc_001F0AC7, and there: [AC7] edi=0x011D0000 MEM(eax)=0x00000000 g5BC5D8=0x00000000 match=1. The branch `if (ecx == MEM32(0x5BC5D8)) goto loc_001F09E0` is TAKEN, the loop goes round again, and the good 0x011D0000 is discarded; the function later leaves with edi back at -1. THIS UNREFUTES LEDGER #32, which recorded loc_001F0AC7 as firing ZERO times. That was true when measured, but it was measured BEFORE the NtQueryVirtualMemory work (#33/#34/#35). On the current build the branch is live and it is the decisive one. Refutations expire when the code underneath them changes - worth remembering as a general caution about this ledger. MECHANISM: at loc_001F0AB8 the code passes `esp + 0x20` as an OUT-PARAMETER to vtable+0xB4, and that call returns a stack pointer (eax=0x00F7FDF4). loc_001F0AC7 then reads MEM32(eax) - the out-parameter the callee was supposed to fill - and compares it against MEM32(0x5BC5D8). Both are zero, so the test passes and the loop repeats. Ledger #31 predicted exactly this (\"very likely testing against a sentinel that never gets its real value\") and marked it NOT YET PROVEN; it is now proven. OPEN, and the next fork: either (a) the vtable+0xB4 callee should be filling that out-parameter with something non-zero and is not, or (b) 0x5BC5D8 should hold a non-zero sentinel. 0x5BC5D8's only writer is recomp_0017.c:2652 in sub_00239E50, which stores ZERO deliberately at init, so (a) is the more likely of the two and should be tested first - identify the vtable+0xB4 target and check whether it runs or is a stub. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_001EC9C0",
+    "sub_001EC9D8",
+    "sub_001F09D0",
+    "0x5BC5D8",
+    "loc_001F0AC7",
+    "pool-growth",
+    "sentinel",
+    "ledger-32",
+    "unrefute",
+    "root-cause"
+   ],
+   "when": "2026-08-07 15:54"
+  },
+  {
+   "id": 42,
+   "claim": "CORRECTION to #41: 0x5BC5D8 is NOT an uninitialised sentinel and the loop-back is NOT discarding a good allocation. It is the SUCCESS status code. The -1 comes from a SECOND allocation on the loop's next iteration",
+   "verdict": "refuted",
+   "evidence": "Tested option (a) from #41 and it is REFUTED, and testing it also overturned #41's own reading of 0x5BC5D8. THE STATUS-CODE PAIR: sub_001F1660 (the vtable+0xB4 target, resolved statically from the vtable at 0x003EECB0+0xB4) loads `ebp = MEM32(0x5BC5D8)` at entry as its default result and overwrites it with `ebp = MEM32(0x46A728)` on EVERY failure path (loc_001F16D9, loc_001F1753, loc_001F1771), then writes ebp into the caller's out-parameter. sub_00239E50 sets 0x5BC5D8 = 0 and 0x46A728 = 1 on adjacent lines (recomp_0017.c:2652-2653). So they are a deliberate SUCCESS/FAILURE pair, both correctly initialised, and `if (out == MEM32(0x5BC5D8)) goto loc_001F09E0` reads as \"if it succeeded, go round again\". #41 called this \"throwing away a successful allocation\"; that is wrong - the loop-back IS the success path. Ledger #31's long-standing \"0x5BC5D8 is a sentinel that never gets its real value\" suspicion is now definitively dead. (a) IS ALSO REFUTED ON ITS OWN TERMS: sub_001F1660 runs and succeeds. Probed its State branch - [G:ENTRY] flag=1 -> [G:CSTATE] State=0x00001000, and [G:ENTRY] flag=0 -> [G:DSTATE] State=0x00001000. All three FAILURE probes fired ZERO times. The commit path only accepts MEM_COMMIT (skip) or MEM_RESERVE (commit) and would fail on the MEM_FREE 0x10000 our bridge now reports, but the ranges it queries are inside already-committed heap, so that never arises. My MEM_FREE theory was wrong. A SECOND THEORY OF MINE ALSO DIED: sub_001F09D0's loop head has `PUSH32(esp, ebp)` inside it, which looked like a per-iteration leak, but esp is identical on both iterations (0x00F7FDE4) - no drift. WHAT ACTUALLY HAPPENS, measured with an iteration probe at loc_001F09E0 (5 iterations across 4 calls): on call 4 iteration 1, ebx_slot=0 so it takes loc_001F09ED, ICALLs vtable+0x70, and `edi = eax` yields 0x011D0000 - a genuine success at the heap high-water mark. loc_001F0AC7 confirms success and loops back. On iteration 2 ebx_slot is STILL 0, so it calls vtable+0x70 AGAIN and `edi = eax` OVERWRITES the good address with the new result, which is -1. loc_001F0A91 then sends it to loc_001F0B0F where `eax = edi` returns that -1. So the loop allocates repeatedly until one fails, and the failure is the return value by design. THE REAL QUESTION IS NOW NARROW: why does the SECOND vtable+0x70 call fail? Resolved that slot statically via ReVa read-memory at 0x003EED20 -> bytes 50 E8 1F 00 -> sub_001FE850. Its first gate is a 64MB-block test: `if ((MEM32(0x46A668) >> 26) > (MEM32(0x5BBAD0) >> 26)) return -1` - position block vs limit block, and our RAM ends at exactly 0x04000000, so a position at the top of the heap lands in block 1 while a limit inside RAM is block 0. NEXT STEP: probe MEM32(0x46A668) (position) and MEM32(0x5BBAD0) (limit) at sub_001FE850's entry and tag its exits. THIRD EXPIRED REFUTATION IN TWO DAYS: the 2026-08-05 note says \"I probed sub_001FE850 and it NEVER FIRES\". It fires now. Same lesson as #32 - a refutation is only valid against the build it was measured on. Tree clean: probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_001F09D0",
+    "0x5BC5D8",
+    "0x46A728",
+    "sub_001F1660",
+    "sub_001FE850",
+    "correction",
+    "ledger-41",
+    "expired-refutation",
+    "vtable-70"
+   ],
+   "when": "2026-08-07 16:10"
+  },
+  {
+   "id": 43,
+   "claim": "ROOT CAUSE of the -1: no memory region is ever registered. sub_001FE670, the only writer of the min/max pair 0x46A668 / 0x5BBAD0, NEVER RUNS, so they stay at their identity values and sub_001FE850's 64MB-block gate rejects every allocation",
+   "verdict": "confirmed",
+   "evidence": "Probed both globals at sub_001FE850's entry as asked. IDENTICAL on all three calls: [P:IN] pos=0xFFFFFFFF limit=0x00000000 posblk=63 limblk=0 size=0x00140000 gate_fails=1, and [P:RETNEG1] fires all three times. [P:PASSED] and [P:SAMEBLK] fire ZERO times, so sub_001FE850 never gets past its first instruction group - every allocation through vtable+0x70 returns -1 immediately. THE VALUES ARE NOT GARBAGE, which is the key insight and the opposite of what they look like. 0x46A668 = 0xFFFFFFFF and 0x5BBAD0 = 0x00000000 are the IDENTITY VALUES OF A MIN/MAX PAIR. Their only writer is the tail of sub_001FE670 (recomp_0015.c:5131-5147): `if (edx >= MEM32(0x46A668)) skip; else MEM32(0x46A668) = edx` is a min update, and `if (eax <= MEM32(0x5BBAD0)) skip; else MEM32(0x5BBAD0) = eax` is a max update. +inf and -inf are exactly right for an empty set. So sub_001FE850's gate `(min >> 26) > (max >> 26)` is not a RAM-boundary check at all - it is \"has any region been registered yet?\", and 63 > 0 is the correct answer for NONE. THE REGISTRAR NEVER RUNS: probed sub_001FE670's entry, it fired ZERO times on a full boot. sub_001FE670 is the region registrar - it fills a table at 0x5BBB38, ICALLs vtable+0xAC per entry, calls sub_001F0D20, then updates the min/max. Nothing is ever added, so the engine believes it owns no memory whatsoever. CALL CHAIN UP, for whoever picks this up: sub_001FE670 is reached by FALL-THROUGH from sub_001FE5C0, which has one real caller sub_001FFCD0 (recomp_0015.c:7701) plus a fall-through from sub_001FE570. So the next question is why sub_001FFCD0 -> sub_001FE5C0 -> sub_001FE670 never executes - whether sub_001FFCD0 itself never runs, or runs and takes a branch that skips the registration. RECONCILES THE EARLIER MEASUREMENT: ledger #42 saw edi = 0x011D0000 on one iteration and called it a success through vtable+0x70. It was not - only 3 of the 5 loop iterations take the ebx==0 path to vtable+0x70 (the others go to vtable+0x6C), and all 3 of those fail here. The 0x011D0000 came from the vtable+0xA4 FALLBACK at loc_001F09FB/loc_001F0A06, which succeeds while the fast path is dead. So the engine is limping along on its fallback allocator and failing as soon as the fallback cannot serve a request. Tree clean: all probes stripped, 65/2/20/8 deterministic 2 of 2.",
+   "tags": [
+    "sub_001FE850",
+    "sub_001FE670",
+    "sub_001FE5C0",
+    "sub_001FFCD0",
+    "0x46A668",
+    "0x5BBAD0",
+    "vtable-70",
+    "region-table",
+    "root-cause",
+    "pool-growth",
+    "never-runs"
+   ],
+   "when": "2026-08-07 16:21"
+  },
+  {
+   "id": 44,
+   "claim": "FIXED: a deferred-flag miscompile at 0x001F0AB2 was why no memory region was ever registered. The lifter re-tested `cmp ecx, eax` after `mov ecx, esi` clobbered ecx, so the branch to the region registrar never fired. Repairing it takes reached 37 -> 43",
+   "verdict": "confirmed",
+   "evidence": "Probed sub_001FFCD0 as asked: it fires ZERO times, and so does sub_001FE5C0. But that turned out to be a dead end by design - sub_001FE5C0 ends in `ret` and does NOT fall through into sub_001FE670, so the \"caller\" the deepdive listed was a fall-through guess, not a real edge. ReVa find-cross-references on 0x001FE670 returns ZERO references of any kind. The generated header says `Category: game_vtable` and recomp_dispatch.c:15084 registers it, so it is reached only indirectly. FOUND THE SLOT by dumping the allocator vtable at 0x003EECB0 with ReVa read-memory: entry 26 (offset +0x68) is `70 E6 1F 00` = sub_001FE670, entry 27 (+0x6C) is sub_001FE770, entry 28 (+0x70) is sub_001FE850 - the last independently confirming the earlier static read. vtable+0x68 is called from exactly ONE site: loc_001F0B03 in sub_001F09D0, and the [ATB03] probe from ledger #42 had already measured that site as never firing. THE BUG, at the branch that guards it: loc_001F0AA9 reads `ecx = MEM32(eax)` (the returned status), loads `eax = MEM32(0x5BC5D8)` (the SUCCESS code, 0), then the lifter emitted `(void)0; /* cmp ecx, eax */`, then `ecx = esi`, then `if (CMP_EQ(ecx, eax))`. The original x86 compares ecx BEFORE `mov ecx, esi` clobbers it; the generated C re-tests at the jcc and therefore compares the OBJECT POINTER against 0. esi is never 0, so the branch never fired. faithful.py confirms independently and names the exact address: \"DEFERRED FLAG RISK, UNREPAIRED (1) - the C re-tests at the branch, so it reads the clobbered value: 0x001F0AB2 cmp ecx, eax then mov ecx, esi\". Note the earlier deepdive on this function reported faithful as CLEAN - it had been run with no_faithful=true. Do not trust a skipped check. THE FIX: evaluate the comparison into a local before the clobber (`const int _je = CMP_EQ(ecx, eax); ecx = esi; if (_je) ...`). Deterministic 3 of 3: reached 37 -> 43 (best ever recorded), kernel_calls 65 -> 60, heap allocs 9 -> 10 pointers with 0 failed and 0 duplicate, crash moved from sub_001E8F30+0x180 (RVA 0xD247F0) to sub_00205170+0x5EA (RVA 0xDFC60A). CAUSAL CONFIRMATION in the new backtrace: it now runs sub_001F6FB0 -> sub_001E9CC0, which is sub_001F6FB0's SUCCESS path - the 12-byte registry allocation through vtable+0xCC that had been returning NULL since ledger #36 now succeeds, so the NULL registry at 0x5BC53C is fixed as a downstream consequence rather than needing its own fix. Persisted through `manual_edits.py extract` (1054 edits; marker audit addition=19 fix=25 guard=59) so a gen/ regeneration cannot silently destroy it. kernel_calls dropping 65 -> 60 is NOT a regression - see ledger #33/#34 on why that signal is a logging cap and `reached` is the tiebreak. NEW WALL: read at Xbox VA 0xD8282444 in sub_00205170+0x5EA (recomp_0015.c ~19385), esi = 0xD8282444 garbage, edi NULL, reached via sub_0020F860 -> sub_00211530 -> sub_001EC5E0 -> sub_001E9CC0 -> sub_001F6FB0.",
+   "tags": [
+    "sub_001F09D0",
+    "sub_001FE670",
+    "sub_001FE850",
+    "sub_001FFCD0",
+    "deferred-flag",
+    "faithful",
+    "miscompile",
+    "port-fix",
+    "manual-edit",
+    "region-table",
+    "reached"
+   ],
+   "when": "2026-08-07 16:33"
+  },
+  {
+   "id": 45,
+   "claim": "The sub_00205170 garbage read is a live C++ object being walked as a heap block: its first word is the manager VTABLE 0x003F4770, read as a block header. This is ledger #29's no-block-header caveat arriving one level up, in the engine's own free-list coalescer",
+   "verdict": "confirmed",
+   "evidence": "faithful.py is CLEAN on sub_00205170 this time (199 insns, ratio 1.16, no missing labels, no stale flags) - I ran it enabled after ledger #44's lesson about no_faithful hiding a real defect. So this is not a lifting bug. THE CODE: sub_00205170 is the free-list coalescer. It reads a block header at MEM32(esi), unpacks the same 19-bit size field seen in sub_0020F0B2, and at loc_00205276 does backward merging: `ecx = MEM32(esi - 4); esi = esi - ecx; ecx = MEM32(esi)` - step back over the previous block using a footer. That backward path is guarded by `if (LO8(ebx) & 1) skip`, a PREV_INUSE flag in bit 0 of the header. PROBED both points. Iteration 1: [BLKHDR] esi=0x011D0004 hdr=0x00000203 previnuse=1 - a SANE block (bit0 set, size field 0x203>>5 & 0x7FFFF = 16), and it correctly skips the backward merge. Iteration 2: [BLKHDR] esi=0x011CD000 hdr=0x003F4770 previnuse=0. THAT VALUE IS NOT A HEADER - 0x003F4770 is the manager object's VTABLE POINTER, the exact value probed repeatedly in ledgers #37/#41 as `vtbl=0x003F4770`, and 0x011CD000 is the manager `this` seen in [M:C0] of ledger #41. So the coalescer is walking a LIVE C++ OBJECT and reading its vtable pointer as a block header. Bit 0 of 0x003F4770 is clear, so previnuse reads as 0, so it takes the backward-merge path it should never have taken: [BACKMRG] esi=0x011CD000 footer=0x00000000 newesi=0x011CD000 - the footer is zero so esi does not move, then MEM32(esi) yields 0x3F4770, which is treated as the next header and the walk continues into unrelated memory until it dereferences 0xD8282444 and faults. WHY THE OBJECT IS THERE: xbox_HeapAlloc is a pure bump allocator that hands out consecutive regions with NO engine block header and no gaps. Both 0x011CD000 (the manager object) and 0x011D0000 (the region the engine's now-working growth obtained, measured as edi=0x011D0000 in ledger #42) come from it, back to back. The engine assumes its pool is a contiguous run of blocks it carved itself, so walking off the end of one lands directly in a neighbouring bump allocation owned by something else. Ledger #29 predicted exactly this when the CRT heap was replaced - \"anything stepping back from a block to read one now finds unrelated memory\" - and it has now surfaced one level up, in the engine's own allocator rather than the CRT's, because #44 made pool growth work for the first time. NOT YET DECIDED, and worth separating before touching anything: (a) give xbox_HeapAlloc real block headers/footers so neighbours are walkable, (b) pad or guard-page between bump allocations so a walk terminates instead of wandering, or (c) find out why a live object is on the free list at all - iteration 2's esi comes from `esi = MEM32(eax)` at loc_002051D0, a list read, so the list contents are the thing to probe first. (c) is the cheapest and is the honest next step; (a) and (b) are workarounds that would hide it. Tree clean: probes stripped, 60/2/20/8 deterministic 2 of 2, reached 43.",
+   "tags": [
+    "sub_00205170",
+    "coalescing",
+    "block-header",
+    "vtable",
+    "xbox_HeapAlloc",
+    "bump-allocator",
+    "ledger-29",
+    "prev-inuse",
+    "root-cause"
+   ],
+   "when": "2026-08-07 16:37"
+  },
+  {
+   "id": 46,
+   "claim": "Option (c) answered: the deferred-free array is FINE. sub_00205170's cursor and end are read from stack slots that drift 12 bytes per iteration, because two undetected functions (sub_001E6C5B, sub_001E6CC9) were stubbed with a generic `g_esp += 4` that restores 4 where the real epilogue restores 16. Seeding sub_001E6CC9 took reached 43 -> 47",
+   "verdict": "confirmed",
+   "evidence": "Probed the list as asked and it is HEALTHY, which kills option (c) as originally framed: [L:POOL] pool=0x011CE000 word=0x0000004B count=9 start=0x011CE004 end=0x011CE020, and the entries walk cleanly - [L:SLOT] cursor=0x011CE004 entry=0x00000000, then cursor=0x011CE008 entry=0x011D0004 (a block with a valid header). Nothing put a live object on the array. THE REAL FAULT is that the cursor and end are held in STACK SLOTS (MEM32(esp+0x14) and MEM32(esp+0x20)) and esp drifts underneath them. Third iteration reads cursor=0x0001FA68 (an address in .text) and end=0x00000018 - both garbage, both simply the wrong slots. Measured the drift directly: [LOOPESP]/[AFT9330] give esp 0x00F7FE3C -> 0x00F7FE30 -> 0x00F7FE24 -> 0x00F7FE18, exactly 0xC = 12 bytes per pass. SOURCE OF THE 12: sub_001E6C10 (called twice per loop iteration) pushes esi and edi then tail-jumps out on two of its three exits. Its balanced exit and sub_001E6C8E both end `POP edi; POP esi; esp += 8` = 16 bytes restored. But sub_001E6C5B and sub_001E6CC9 were BOTH in recomp_stubs_unresolved.c as `void sub_XXX(void) { g_esp += 4; /* not detected */ }` - 4 restored where 16 is owed, a 12-byte deficit that matches the measurement exactly. These are mid-function jump targets the disassembler never found, so the generic stub silently replaced a real epilogue. FIXED with seed_missing_functions.py --va, which is purely additive (new bodies land in gen/recomp_seed.c, registered via recomp_lookup_manual, no full regeneration and no risk to the 1056 manual edits). Each needed its stub line replaced by the project's existing `/* sub_XXXXXXXX: moved to src/recomp_seed.c ... */` marker or the link fails with LNK2005. TWO SEEDS, MEASURED SEPARATELY per the 2026-08-05 rule about adding one at a time. sub_001E6C5B alone: NO CHANGE - signals identical at 60/2/20/8, reached 43, drift still 12 bytes per pass (re-probed to confirm rather than assumed). Kept anyway because it replaces a wrong stub with the real 51-byte body and is strictly more faithful, and it is not a regression. sub_001E6CC9: THIS IS THE ONE - reached 43 -> 47 (best ever), kernel_calls 60 -> 65, heap_allocs 20 -> 21, failed_icalls 2 -> 3, and the crash CHANGES CATEGORY from an access violation at 0xD8282444 to an integer divide-by-zero, which means the coalescer now completes instead of walking into unrelated memory. NEW WALL: integer divide-by-zero at RVA 0xDAEB5D = sub_001FAB40+0x83D, with ecx=0 and edx=0 as the divisor and edi=0x01310000 (the heap high-water region). GENERAL LESSON, third instance today: a generic stub is not neutral. `g_esp += 4` is only correct for a plain `ret` with no callee-saved pushes; for anything else it silently corrupts the caller's stack frame, and the damage surfaces far away. Worth sweeping recomp_stubs_unresolved.c for stubs that are tail-jump targets of functions with register pushes.",
+   "tags": [
+    "sub_00205170",
+    "sub_001E6C10",
+    "sub_001E6C5B",
+    "sub_001E6CC9",
+    "esp-leak",
+    "stub",
+    "undetected-function",
+    "seed",
+    "port-fix",
+    "reached",
+    "deferred-free"
+   ],
+   "when": "2026-08-07 16:50"
+  },
+  {
+   "id": 47,
+   "claim": "The divide-by-zero is a real `div r8` at RVA 0xDAEB5D, but sub_001FAB40 - the only symbol within 0x900 of it - contains ZERO division statements in its generated C. The attribution and the source disagree and that must be resolved before chasing the divisor",
+   "verdict": "inconclusive",
+   "evidence": "Deep-dived sub_001FAB40 and could NOT find the division. Recording this as inconclusive rather than guessing, because every cheap explanation has been checked and eliminated. WHAT IS SOLID: (1) The exception is genuinely EXCEPTION_INT_DIVIDE_BY_ZERO - main.c:779 prints ep->ContextRecord->Rip directly, so the RIP is not a stack-scan artefact. (2) The faulting instruction is real. Parsed the PE section table and read the bytes at file offset 0xDADF5D: `41 8B 0C 1C  FF C8  41 03 C0  81 C1 A8 00 00 00  49 F7 F0` - and 49 F7 F0 is `div r8`, a REX.W 64-bit UNSIGNED divide. Registers at fault: ecx=0 edx=0 eax=4 edi=0x01310000. (3) The build is not stale - exe 16:48:58, recomp_0014.c 16:32:27, its .obj 16:32:43. (4) The map attribution is not a near-miss: sub_001FAB40 sits at sec1:0x00DAE320 and is the ONLY symbol in the following 0x900 bytes, with the next public symbol (sub_001FAFF0) 0x2010 away. (5) faithful.py is CLEAN on sub_001FAB40 - 389 insns, ratio 1.18, no missing labels, no stale flags - and I ran it enabled, not skipped (ledger #44's lesson). WHAT CONTRADICTS IT: sub_001FAB40's generated C spans recomp_0014.c lines 45421..45980, bounded by the next `void sub_...(void)` definition rather than by a `^}` guess, and contains ZERO division or modulo statements after stripping comments line-preservingly. Verified the search itself is sound by running the same matcher over the whole gen tree: it finds 605 functions that DO divide, in forms like `eax = (uint32_t)((int32_t)(_dividend / (int32_t)ecx))` and `fp_top() = fp_top() / fp_st(1)`. So the matcher works and sub_001FAB40 genuinely has none. NOTE also that a REX.W 64-bit unsigned div does not correspond to any 32-bit guest DIV the lifter would emit - the generated forms are 32-bit - which hints the instruction may come from the RUNTIME rather than lifted game code. NEXT STEP, and do this before touching the divisor: disassemble forward from sub_001FAB40's entry at RVA 0xDAE320 to 0xDAEB5D and identify which C statement that div belongs to, or dump the .obj to see whether the compiler emitted it from a macro (MEM32/XBOX_TO_NATIVE/fp_* are the candidates worth checking). Until that is settled, any theory about why ecx/edx are zero is unfounded. Tree clean: no probes, 65/3/21/8 deterministic, reached 47.",
+   "tags": [
+    "sub_001FAB40",
+    "divide-by-zero",
+    "attribution",
+    "map",
+    "contradiction",
+    "open"
+   ],
+   "when": "2026-08-07 16:56"
+  },
+  {
+   "id": 48,
+   "claim": "RESOLVES #47: the divide-by-zero is `_dividend / (uint32_t)ebx` at recomp_0014.c:45275 in sub_001FA9E0 - NOT sub_001FAB40. The divisor is ebx = MEM32(pool + 0x7DC), a granularity field that is zero. The map mis-attributed it because sub_001FA9E0 has no public symbol of its own",
+   "verdict": "confirmed",
+   "evidence": "Disassembled the native body forward from RVA 0xDAE320 with capstone (487 instructions) and matched the faulting instruction's neighbourhood to generated C by idiom, which settles ledger #47's contradiction. THE INSTRUCTION STREAM at the fault: `add ecx,7 / and ecx,0xfffffff8 / sub eax,ecx / sub eax,[rbx+rbp] / mov ecx,[r12+rbx] / dec eax / add eax,r8d / add ecx,0xa8 / div r8`. THE MATCHING C, found by searching the whole gen tree for the 0xFFFFFFF8 rounding idiom within 15 lines of a division - recomp_0014.c:45268-45276 inside sub_001FA9E0: `ecx = ecx + 7; ecx = ecx & 0xFFFFFFF8u; eax = eax - ecx; eax = eax - esi; eax = eax + ebx + -1; edx = 0; { uint64_t _dividend = ((uint64_t)edx << 32) | eax; eax = (uint32_t)(_dividend / (uint32_t)ebx); edx = (uint32_t)(_dividend % (uint32_t)ebx); }`. Every instruction corresponds, and the `uint64_t _dividend` explains the REX.W prefix that #47 could not account for - the lifter builds a 64-bit dividend from edx:eax, so MSVC emits a 64-bit `div r8` rather than a 32-bit one. That was the detail that made the instruction look like it could not be lifted game code. THE DIVISOR IS ebx, LOADED AT recomp_0014.c:45252 AS `ebx = MEM32(ebp + 0x7DC)` where ebp is the pool - so pool+0x7DC is a block-size/granularity field and it is ZERO. The crash registers corroborate exactly: ebx=0, edx=0, eax=4, esi=0, edi=0x01310000. progress.json already listed +0x7DC on 2026-08-05 as one of the pool fields worth reading (\"off the pool at MEM32(manager+0x70): +0x2C (cursor), +0x48 (sentinel), +0x7DC\") but it was never actually read. MAP-ATTRIBUTION LESSON, and it cost most of #47: triage resolves an RVA to the nearest PRECEDING public symbol. sub_001FA9E0 has no public symbol at its own address, so its code resolved to sub_001FAB40+0x83D, and I then correctly established that sub_001FAB40's C contains no division - a true statement about the wrong function. The check that broke the deadlock was matching the DISASSEMBLY to the C by idiom rather than trusting the symbol. When a triage attribution and the source disagree, disassemble; do not assume the map is right just because the next symbol is far away. NEXT STEP: probe MEM32(pool + 0x7DC) at sub_001FA9E0's entry and find who is supposed to initialise it - the same pool object whose +0x2C/+0x48 are already known good. Tree clean, no probes, 65/3/21/8 deterministic, reached 47.",
+   "tags": [
+    "sub_001FA9E0",
+    "sub_001FAB40",
+    "divide-by-zero",
+    "pool",
+    "0x7DC",
+    "map-attribution",
+    "disassembly",
+    "root-cause"
+   ],
+   "when": "2026-08-07 16:59"
+  },
+  {
+   "id": 49,
+   "claim": "pool+0x7DC is set CORRECTLY (0x1000, twice). The divide-by-zero is that sub_001FA9E0 reads it off a STACK address, because it is an fpo_leaf that inherits ebp via g_seh_ebp and the lifter publishes g_seh_ebp on tail-jumps ONLY - never on the 1624 direct RECOMP_ABI_CALL sites",
+   "verdict": "confirmed",
+   "evidence": "Probed both ends as asked. THE WRITER IS FINE: sub_00204E03 does `ecx = MEM32(0x5BB9AC); edx = MEM32(ecx); ICALL MEM32(edx + 0x50); MEM32(ebp + 0x7DC) = eax` - it asks the global system allocator for its granularity through vtable+0x50 (= sub_001F0BE0, index 20 in the 0x003EECB0 vtable dump) and stores the result. Measured: [7DC:W1] writing 0x00001000 to pool 0x01089A90, then again to pool 0x011CE000. So the field is initialised to 0x1000 = 4096 on BOTH real pool objects. Nothing is missing and nobody forgot to set it. THE READER IS WHERE IT BREAKS: [7DC:READ] pool=0x011CE000 val=0x00001000 on the first call - correct, matches the writer. [7DC:READ] pool=0x00F7EAB8 val=0x00000000 on the second - and 0x00F7EAB8 is a STACK address (the guest stack is 0x00780000..0x00F80000), not a pool object at all. So sub_001FA9E0 divides by MEM32(stack + 0x7DC), which is zero. ROOT CAUSE, and it is architectural rather than a single bad value: sub_001FA9E0 is `fpo_leaf`, so its generated prologue is `ebp = g_seh_ebp; /* inherit caller's frame */`, and it uses ebp as a LIVE INBOUND POINTER to the pool (fields +0x2C, +0x7DC, +0x7FC). In the original x86 that works because ebp is a real register that simply keeps its value across a `call`. In the recompiler every function declares its own local `uint32_t ebp`, so the value does NOT flow; g_seh_ebp is the only bridge. Counted in recomp_0015.c: `g_seh_ebp = ebp` is published on 563 TAIL-JUMPS and on ZERO of the 1624 direct `RECOMP_ABI_CALL` sites. The caller here, sub_0020AA90 (named by the crash backtrace, call at recomp_0015.c:31548), holds the pool in its own ebp - it reads MEM32(ebp + 0x7C4) and MEM32(ebp + 0x7C8) on the two lines immediately before - but calls sub_001FA9E0 without publishing it. So the callee reads whatever g_seh_ebp was last left holding by some unrelated tail-jump, which this run is a stack address. NOTE ebp is the ONLY x86 register the lifter models as a per-function local; eax/ecx/edx/ebx/esi/edi are all C globals and flow across calls correctly. That asymmetry is the whole bug. DO NOT reflexively make ebp a global or publish it at all 1624 call sites - that is exactly the wide-scope change seed_missing_functions.py's own docstring warns about (\"this project has been burned by wide-scope changes before (61 -> 44)\"). The bounded options, in increasing risk: (a) publish g_seh_ebp before ABI_CALLs whose callee is fpo_leaf AND reads ebp without writing it first - a small, checkable set the lifter can identify; (b) hand-fix this one call site in sub_0020AA90 and measure; (c) make ebp global. Start with (b) to confirm the diagnosis cheaply, then (a). Tree clean: probes stripped, 65/3/21/8 deterministic 2 of 2, reached 47.",
+   "tags": [
+    "sub_001FA9E0",
+    "sub_0020AA90",
+    "sub_00204E03",
+    "0x7DC",
+    "g_seh_ebp",
+    "fpo_leaf",
+    "abi",
+    "lifter-bug",
+    "systemic",
+    "root-cause"
+   ],
+   "when": "2026-08-07 17:07"
+  },
+  {
+   "id": 50,
+   "claim": "(b) applied and PROVEN to fix both known call sites - sub_001FA9E0's entry ebp is now correct on every entry - but the crash is unchanged, because a THIRD execution reaches the division with ebp=0 without appearing at the entry probe",
+   "verdict": "inconclusive",
+   "evidence": "Hand-fixed both RECOMP_ABI_CALL sites that reach sub_001FA9E0 by inserting `g_seh_ebp = ebp;` immediately before the call - recomp_0015.c in sub_0020AA90 (loc_0020AD13) and in sub_0020A8E0 (loc_0020AA25). Both carry the `/* Manual fix (not in original x86): ... */` marker and are persisted (manual_edits 1056 -> 1058, fix count 25 -> 27). MEASURED ONE AT A TIME per the 2026-08-05 rule: sub_0020AA90 alone - no change, 65/3/21/8 identical. Adding sub_0020A8E0 - also no change. THE FIX IS NEVERTHELESS CORRECT AND PROVEN, which is the useful part: a recomp_where probe at sub_001FA9E0's entry now reports `ebp=011CE000 f7DC=00001000` on BOTH calls, resolving the caller as sub_0020A8E0+0x61A <- sub_001E8F30+0x85B <- sub_0020F209+0x1FB7. Before the fix the second entry read ebp=0x00F7EAB8, a stack address. So ledger #49's diagnosis of the g_seh_ebp publish gap was right and the repair works at those sites. WHY THE CRASH SURVIVES, and this is new: sub_001FA9E0 contains TWO divisions, not one - recomp_0014.c:45278 and 45316, both dividing by the same ebx loaded from MEM32(ebp + 0x7DC). I had only ever looked at the first. Probing both: execution 1 gives [DIV1] ebx=0x1000 ebp=0x011CE000 and [DIV2] ebx=0x1000 ebp=0x011CE000 - correct. A THIRD execution then hits DIV1 with ebx=0, ebp=0, f7DC=0. ebp is ZERO there, not a stack address, and f7DC=0 is simply MEM32(0 + 0x7DC) read out of the zeroed guest low memory. THE OPEN CONTRADICTION: that third execution does NOT appear at the entry probe, which recorded only two entries, both healthy. So either sub_001FA9E0 is being entered other than through loc_001FA9E0 (it is a fall-through target of sub_001FA6F0, and it is registered in recomp_dispatch so it can also be reached by ICALL), or ebp is clobbered between entry and the division by an intervening call - ebx and ebp are both C globals here, so any callee with a bad epilogue destroys them, exactly the class ledger #46 found. NEXT STEP: probe sub_001FA9E0's entry with a HIGHER recomp_where limit (the default truncated at 2) plus a counter, and probe ebp immediately before and after each call inside the function between entry and DIV1. That distinguishes \"third entry from an unseen caller\" from \"ebp clobbered mid-function\" in one run. Both manual fixes KEPT - they are strictly more faithful, demonstrably correct at their sites, and not a regression. Tree clean: probes stripped, 65/3/21/8 deterministic 2 of 2, reached 47.",
+   "tags": [
+    "sub_001FA9E0",
+    "sub_0020A8E0",
+    "sub_0020AA90",
+    "g_seh_ebp",
+    "fpo_leaf",
+    "partial-fix",
+    "open",
+    "ledger-49"
+   ],
+   "when": "2026-08-07 17:25"
+  },
+  {
+   "id": 51,
+   "claim": "CORRECTION to #49/#50: sub_001FA9E0 does NOT use inherited ebp - it overwrites it at recomp_0014.c:45254 with MEM32(this + 0x70). The g_seh_ebp theory was wrong and both (b) edits were no-ops, now reverted. The real cause is a SECOND manager object at 0x01310000 whose pool pointer is NULL",
+   "verdict": "refuted",
+   "evidence": "Probed the entry with --limit 12 as asked, which settles it: the entry fires EXACTLY TWICE, never three times, while DIV1 fires three times. There is no third entry and no loop - a scan of the function for backward gotos finds ZERO. THE ACTUAL SHAPE, from reading recomp_0014.c:45244-45256: `PUSH ecx/ebx/ebp/esi/edi; edi = ecx; ebp = MEM32(edi + 0x70); ecx = MEM32(ebp + 0x2C); ebx = MEM32(ebp + 0x7DC)`. So the inbound parameter is ecx (thiscall, the MANAGER), ebp is immediately OVERWRITTEN with MEM32(this + 0x70) (the POOL), and ebx is the divisor read off that pool. The inherited ebp from g_seh_ebp is pushed and then discarded without ever being read. That makes ledger #49's premise - \"sub_001FA9E0 uses ebp as a live inbound value\" - FALSE, and explains cleanly why the (b) fix in #50 changed nothing: it was a no-op. It also explains the misleading earlier measurement: the entry probe read `ebp` BEFORE line 45254, so it was reporting the inherited value, not the one the division uses. Probing the right thing (ecx and MEM32(ecx+0x70)) gives the answer immediately: call #1 this=0x011CD000 pool=0x011CE000 f7DC=0x1000, call #2 this=0x01310000 pool=0x00000000 f7DC=0x00000000. BOTH from the same caller, sub_0020A8E0+0x61A. So the second call passes a DIFFERENT manager, 0x01310000, whose +0x70 pool pointer is NULL - the divisor is then MEM32(0 + 0x7DC) = 0 read out of zeroed guest low memory. 0x01310000 is exactly the bump allocator's high-water mark at that point (the log's last NtQueryVirtualMemory shows the committed heap ending at 0x01311000), so it is a FRESHLY ALLOCATED, NEVER CONSTRUCTED manager object - allocated but its pool pointer never filled in. BOTH (b) EDITS REVERTED (manual_edits 1058 -> 1056). They were harmless no-ops but carried an explanation now proven wrong, and on this project a wrong recorded rationale is worse than no edit - the whole method depends on trusting the ledger and the in-tree comments. Signals unchanged by the revert: 65/3/21/8 deterministic 2 of 2, reached 47. THE g_seh_ebp PUBLISH GAP ITSELF IS STILL REAL and still worth recording - ebp is the only register modelled as a per-function local, published on 563 tail-jumps and 0 of 1624 ABI_CALL sites in recomp_0015.c - it simply is not the cause of THIS bug. NEXT STEP: find who allocates the manager at 0x01310000 and why its +0x70 is never set. sub_0020A8E0 makes both calls, so probe it for where the second `this` comes from - most likely a newly created pool/manager pair where construction is skipped or fails.",
+   "tags": [
+    "sub_001FA9E0",
+    "sub_0020A8E0",
+    "g_seh_ebp",
+    "correction",
+    "ledger-49",
+    "ledger-50",
+    "uninitialised-object",
+    "pool",
+    "root-cause",
+    "revert"
+   ],
+   "when": "2026-08-07 18:01"
+  },
+  {
+   "id": 52,
+   "claim": "There is NO second manager. sub_001FAB40 clobbers esi - a callee-saved register - so 0x01310000 is just whatever it left in the global. Measured directly: esi=0x011CD000 before the call, 0x01310000 after",
+   "verdict": "confirmed",
+   "evidence": "Probed sub_0020A8E0 as asked and walked inward until the clobber was cornered. STEP 1 - the manager arriving at sub_0020A8E0 is CORRECT on both entries: [A8E0IN] #1 and #2 both esi=011CD000 pool70=011CE000 ebp=011CE000, callers sub_001E8F30+0x85B <- sub_0020F209 <- sub_0020EFD0. sub_0020A8E0 never assigns esi itself (checked the whole body), and esi IS a C global in this recompiler, so it flows in from the caller and both flows are healthy. So the corruption happens INSIDE sub_0020A8E0, between its entry and its call to sub_001FA9E0 at loc_0020AA25. STEP 2 - ruled out the obvious suspect. loc_0020A974 contains a lifted `rep movsd`/`rep movsb` block that uses esi as the memcpy source and then restores it with `esi = MEM32(esp + 0x14)`, which looked like a frame-offset hazard. Probed both sides: it fires ZERO times. Not it. STEP 3 - the answer, one probe either side of the only call inside the loop: [PRE1FAB40] before sub_001FAB40 esi=011CD000, [POST1FAB40] after sub_001FAB40 esi=01310000. sub_001FAB40 DESTROYS esi. On x86 esi is callee-saved, so sub_0020A8E0 is entitled to keep it across that call; here the registers are C globals, so a callee that fails to restore one silently corrupts its caller. THIS REFUTES THE \"UNCONSTRUCTED OBJECT\" READING IN #51. 0x01310000 is not a freshly allocated manager whose pool pointer was never set - it is simply garbage left in the esi global, and it happens to sit at the bump allocator's high-water mark because that is what sub_001FAB40 was last working with. Nothing is missing its construction; there is a register-preservation bug. Same class as #38 (esp leak corrupting POP32 restores) and #46 (generic stubs restoring the wrong amount) - the third distinct instance of \"callee-saved state is not preserved across a generated call\". NOTE sub_001FAB40 is faithful-CLEAN (389 insns, ratio 1.18, no missing labels, no stale flags), so the defect is not a mis-lift of its own body - it is either an unbalanced push/pop within it or, more likely given #46, one of ITS callees returning without restoring. NEXT STEP: probe esi at sub_001FAB40's entry and at each of its return sites to find which path loses it, then walk into whichever callee is responsible. Tree clean: probes stripped, 65/3/21/8 deterministic 2 of 2, reached 47.",
+   "tags": [
+    "sub_0020A8E0",
+    "sub_001FAB40",
+    "esi",
+    "callee-saved",
+    "register-preservation",
+    "root-cause",
+    "ledger-51",
+    "uninitialised-object-refuted"
+   ],
+   "when": "2026-08-07 18:07"
+  },
+  {
+   "id": 53,
+   "claim": "sub_001FAB40 loses esi because its BODY leaks 8 bytes, misaligning the epilogue POPs. Pinned to the sub_001F8350 call at loc_001FAD63; sub_001F8350 itself balances, so the leak is inside sub_001EB390 / sub_001EB3AC - a printf-family path called from many sites",
+   "verdict": "confirmed",
+   "evidence": "Probed esi at sub_001FAB40's entry and all 6 return sites with per-site tags. Only two fire: [FB:ENT] esi=0x011CD000 esp=0x00F7FDE0 and [FB:R4] esi=0x01310000 esp=0x00F7FDD8. Return site 4 (loc_001FADAE) DOES `POP32(esp, esi)`, so the pop is present - it simply read the wrong slot. The esp arithmetic proves why: entry 0x00F7FDE0, and after the full epilogue (4 pops plus `esp + 0x24`) it should be back at 0x00F7FDE0 but is 0x00F7FDD8, EIGHT BYTES LOW. Prologue (`esp - 0x24` plus 4 pushes = 52) and epilogue (4 pops plus 0x24 = 52) balance on paper, so the loss is in the body - the same shape as ledger #38. LOCATED IT by probing esp immediately after all 20 call sites in the function: esp holds steady at 0x00F7FDAC through C01, C02, C03 and C08 (x3), then C11 reads 0x00F7FD88 where 0x00F7FD90 was due - 8 short - and esi is ALREADY clobbered there, reading 0x00000004. C10 reads 0x00F7FDA4 but that is EXPECTED, not a leak: its probe lands before the `esp = esp + 8` cleanup of the sub_001E9AE0 call. Do not misread it. C11 IS THE `sub_001F8350` CALL at loc_001FAD63 - 7 args pushed (28 bytes) with the caller cleaning via `esp = esp + 0x1C`. sub_001F8350 ITSELF IS BALANCED: it pushes 3 args plus a dummy (16) and cleans `esp + 0xC` plus `esp += 4` (16). So the leak is one level deeper, in sub_001EB390, which does `eax = 0x1000; call sub_00341D40` - that is __chkstk allocating a 4KB buffer - then either `esp + 0x1000; ret` on the quiet path or tail-jumps to sub_001EB3AC. sub_001EB3AC calls sub_0034278E (a vsnprintf-shaped 4-arg call, cleaned with `esp + 0x10`), then ICALLs through the global function pointer at 0x46A3BC, then cleans `esp + 8`, `esp + 0x1000` and `esp += 4`. Both look balanced on paper too, so this needs measuring rather than reading - candidates are the __chkstk model in sub_00341D40, the sub_0034278E call, and the ICALL through 0x46A3BC (note RECOMP_ICALL_SAFE rewinds g_esp to a value captured BEFORE its two argument pushes, which on a failure path interacts badly with the following `esp = esp + 8`). WHY THIS MATTERS MORE THAN THE CURRENT WALL: sub_001F8350 is a printf-family entry point called from at least sub_0020EFD0, sub_0020F209 and sub_001FAB40 with format-string constants (0x3F4600, 0x3F4588, 0x3F4528, 0x3EFB60). An 8-byte leak per call corrupts EVERY caller's frame, so this one defect plausibly explains several unrelated-looking failures. NEXT STEP: probe esp at sub_001EB390's entry, after the chkstk call, at sub_001EB3AC's entry, after sub_0034278E, and after the 0x46A3BC ICALL. One run names the leaker. Tree clean: probes stripped, 65/3/21/8 deterministic 2 of 2, reached 47.",
+   "tags": [
+    "sub_001FAB40",
+    "sub_001F8350",
+    "sub_001EB390",
+    "sub_001EB3AC",
+    "esp-leak",
+    "esi",
+    "callee-saved",
+    "chkstk",
+    "widely-called",
+    "root-cause"
+   ],
+   "when": "2026-08-07 18:12"
+  },
+  {
+   "id": 54,
+   "claim": "FIXED: sub_001F83D0's 7-entry jump table had NONE of its targets registered, so every RECOMP_ITAIL through it failed, stranding a pushed esi. Seeding the taken target sub_001F840B takes reached 47 -> 54 and kernel_calls 65 -> 82",
+   "verdict": "confirmed",
+   "evidence": "Walked the esp leak from ledger #53 to its end. sub_001F8350's printf path is sub_001F8350 -> sub_001EB390 -> sub_001EB3AC, and probing every boundary showed all three are BALANCED: [A_entry390] esp=0x00F7FD7C, [B_afterChkStk] 0x00F7ED7C (exactly -0x1000, so the __chkstk model in sub_00341D40 is correct), [D_entry3AC] 0x00F7ED7C, [E_after278E] 0x00F7ED6C then back to [F_beforeICall] 0x00F7ED7C. The loss is entirely at the ICALL through the global hook 0x46A3BC: [G_afterICall] esp=0x00F7ED6C, 4 bytes low, and esi destroyed to 0x00000004. Probed the hook: it holds 0x001F83D0. INSIDE sub_001F83D0: it does `PUSH32(esp, esi)` at entry, loads the switch index with `esi = MEM32(esp + 8)`, and dispatches via `RECOMP_ITAIL(MEM32(esi * 4 + 0x1F84AC))` - a 7-entry jump table. Its balanced exit at loc_001F843F does `POP32(esp, esi); esp += 4; ret`. Measured: [JT:entry] esp=0x00F7ED70 esi=0x011CD000 (esi is the caller's MANAGER, a global), [JT:gotIdx] esp=0x00F7ED6C idx=4, [JT:preITAIL] tgt=0x001F840B - and [JT:balancedExit] fires ZERO times. So the tail jump never lands and the POP never runs, which is exactly the 4-byte leak, and the esi the caller gets back is 0x00000004 - the SWITCH INDEX left in the global. That is why it looked like a plausible object pointer for two turns. ROOT CAUSE: read the table from Ghidra at 0x001F84AC - entries are 0x001F83EF, 0x001F83F6, 0x001F83FD, 0x001F8404, 0x001F840B, 0x001F8443, 0x001F844A - and NONE of the seven is defined or present in recomp_dispatch.c. The lifter emitted the switch cases as unreachable blocks inside sub_001F83D0 (visible as dead code after the ITAIL) but never registered them as dispatchable, so EVERY indirect tail jump through that table fails. FIX: seeded 0x001F840B, the index-4 target actually taken. Deterministic 2 of 2: reached 47 -> 54 (biggest single jump of the session), kernel_calls 65 -> 82, heap_allocs 21 -> 22, and the crash changes category from integer divide-by-zero back to an access violation - read at VA 0xFFFFFFFD in sub_00205170+0x6F3. NOTE 0x001F8443 and 0x001F844A were seeded first and changed NOTHING, because index 4 is the only one taken on this boot; they are kept as strictly-more-faithful and not regressions. THE REMAINING FOUR (0x001F83EF, 0x001F83F6, 0x001F83FD, 0x001F8404) ARE STILL UNREGISTERED and will fail identically the moment their index comes up - seed them one at a time when reached. GENERALISATION WORTH SWEEPING: any RECOMP_ITAIL through a jump table whose targets are absent from recomp_dispatch.c has this bug. That is a mechanical check over the whole tree.",
+   "tags": [
+    "sub_001F83D0",
+    "sub_001F840B",
+    "jump-table",
+    "RECOMP_ITAIL",
+    "missing-function",
+    "seed",
+    "esi",
+    "esp-leak",
+    "port-fix",
+    "reached"
+   ],
+   "when": "2026-08-07 18:21"
+  },
+  {
+   "id": 55,
+   "claim": "TREE-WIDE: 265 of 272 jump tables have targets missing from recomp_dispatch.c - 2,651 unregistered targets in total. Essentially every switch statement in the game is broken the same way sub_001F83D0 was",
+   "verdict": "confirmed",
+   "evidence": "Generalised ledger #54 into a tree-wide sweep. Method: extract every jump-table dispatch site from gen/*.c - both `RECOMP_ITAIL(MEM32(reg * 4 + 0xBASE))` and the non-tail `uint32_t _jt = MEM32(reg * 4 + 0xBASE)` switch form - read each table straight out of game/default.xbe, and check every entry against the 26,785 addresses registered in recomp_dispatch.c. The script SELF-CHECKS its VA->offset arithmetic against the known table at 0x001F84AC and refuses to run if that read does not match ledger #54's values, so a wrong mapping cannot produce a plausible-looking list. RESULT: 272 jump-table sites, 265 of them have at least one unregistered target, 2,651 unregistered targets in total. So this is not a quirk of one function - the lifter emits switch cases as unreachable blocks inside their owning function and never registers them as dispatchable, so EVERY indirect jump through a table fails and lands on whatever the ITAIL fallback does. Each failure strands the owning function's pushes, which is how it surfaces: a stack leak and a clobbered callee-saved register, far from the switch. DELIBERATELY NOT MASS-SEEDING. 2,651 seeds in one step is exactly the wide-scope change seed_missing_functions.py's docstring warns about, and the 2026-08-05 entry records a 25x regression (1452 -> 56) from batch-adding 13 unverified fragments. These targets are better founded than those were - they are read from real jump tables, so they are certainly real instruction starts - but each seeded fragment still runs from its address to the owner's end, duplicating tails, which is the exact mechanism of that regression. WHAT I DID INSTEAD: finished the one table proven to be on the boot path. Seeded the remaining four entries of 0x001F84AC (0x001F83EF, 0x001F83F6, 0x001F83FD, 0x001F8404) after 0x001F840B from #54. Deterministic 2 of 2: 82/3/22/8, reached still 54, crash unchanged. Neutral as expected - index 4 is the only one taken on this boot - but they are strictly more faithful and pre-empt the same failure the moment another index comes up. STAGED PLAN for the rest, in order of value: (1) when a wall involves a switch, check its table first - this sweep makes that a lookup; (2) seed per-table for tables owned by functions already on the boot path, measuring per table; (3) only consider a bulk pass once a per-table pass has shown it is safe, and back up seed_list.json first (the 2026-08-05 entry is explicit that this is what made recovery cheap). The sweep script is at scratchpad/sweep_jumptables.py and is worth promoting into tools_data/ - it is title-agnostic and re-runnable after any regeneration.",
+   "tags": [
+    "jump-table",
+    "RECOMP_ITAIL",
+    "recomp_dispatch",
+    "missing-function",
+    "sweep",
+    "systemic",
+    "lifter-bug",
+    "seed",
+    "do-not-mass-seed"
+   ],
+   "when": "2026-08-07 18:32"
+  },
+  {
+   "id": 56,
+   "claim": "The faithful sweep does NOT yield a backlog of deferred-flag bugs. Its 1094 findings are dominated by unlifted stubs, and its flag column produces false positives; the accurate detector reports ZERO remaining sites. The class is clean",
+   "verdict": "refuted",
+   "evidence": "Ran `faithful --sweep 0` as planned: 30,002 functions checked, 1,094 with findings. THREE LAYERS OF INFLATION, peeled one at a time. (1) The ranking is by missing labels weighted 10x, and almost every top scorer lives in recomp_stubs_unresolved.c - sub_000C2145 with 170 \"missing labels\", sub_0006129A with 121, and so on. A stub has no labels because it was never lifted, so those rows re-report the missing-function class, not a miscompile. (2) Filtering to the flags column in LIFTED code only gives 835 functions - but those collapse to 329 DISTINCT sites, because heavily overlapping fragments report the same site repeatedly (sub_002106B0 and sub_00210710 both report the identical two entries). (3) Of those 329, re-checking each against the real file text rather than the body faithful was handed shows 34 already carry an `_sf` snapshot repair, leaving 295 claimed. THE 295 ARE FALSE POSITIVES. Hand-checked recomp_0000.c:2871, reported as \"test esi, esi then pop esi\" in sub_000125B0. The actual generated C is `esi = MEM32(eax + ecx * 4 + 4); (void)0; /* test esi, esi - flags set */; PUSH32(esp, edi); if (TEST_Z(esi, esi)) goto ...` - the intervening instruction PUSHES EDI and never touches esi. faithful matched a `pop esi` that occurs elsewhere in the original x86, not between the test and the branch. CORROBORATED INDEPENDENTLY by the project's own purpose-built pair: find_stale_flag_tests.py scans 15,234 deferred-flag sites and reports \"sites whose tested register is clobbered: 0\", and fix_stale_flags.py answers \"nothing to fix - already applied, or the detector reports none\". Those two work from the generated C, which is the thing that actually runs, so they cannot be fooled by instruction pairing across branches the way the disassembly-side check can. CONCLUSION: the deferred-flag class is CLEAN. The one real instance (0x001F0AB2, ledger #44, worth reached 37 -> 43) was found and fixed today, and faithful DID name it correctly - so the checker is still valuable per-function, where its output is read with the source in front of you. It is its SWEEP mode that should not be treated as a work queue. PRACTICAL UPSHOT, and the reason this is worth recording as a refutation rather than a note: without this check the obvious next move was to work through 295 \"known bugs\", every one of which would have cost a build, a run and a hand inspection to disprove. Use find_stale_flag_tests.py for this class, not the faithful sweep. Tree unchanged by this investigation: 82/3/22/8 deterministic, reached 54.",
+   "tags": [
+    "faithful",
+    "sweep",
+    "deferred-flag",
+    "false-positive",
+    "find_stale_flag_tests",
+    "fix_stale_flags",
+    "negative-result",
+    "tool-accuracy"
+   ],
+   "when": "2026-08-07 18:39"
+  },
+  {
+   "id": 57,
+   "claim": "CORRECTION to #55: the jump-table problem is 75 tables / 608 targets, not 265 / 2,651. The _jt dispatch form is SAFE and must not be counted, and seeded functions register in recomp_manual.c not recomp_dispatch.c. Zero remain on the boot path - that work is DONE",
+   "verdict": "refuted",
+   "evidence": "Went to seed the boot-path tables and found my own sweep was wrong in two ways, both of which inflated it. ERROR 1 - THE SAFE FORM WAS COUNTED. The lifter emits two shapes. The bare `RECOMP_ITAIL(MEM32(reg * 4 + 0xBASE))` is the broken one (ledger #54). The other is `{ uint32_t _jt = MEM32(reg * 4 + 0xBASE); if (_jt == 0x002164CDu) goto loc_002164CD; ... RECOMP_ITAIL(_jt); }` - every target resolved inline by an explicit goto, with the ITAIL only a fallback. That form is FINE. Verified by reading sub_0021624C's table 0x00216590, which my sweep had flagged as \"8/8 missing\" while the generated C resolves all six distinct targets by goto. Counting it took the site count from 83 to 272. ERROR 2 - THE WRONG REGISTRY WAS CHECKED. seed_missing_functions.py registers through `recomp_lookup_manual()` in src/recomp_manual.c as `if (xbox_va == 0x001F840Bu) return sub_001F840B;`, NOT in recomp_dispatch.c. My sweep only read the dispatch table, so it reported the seven targets I had already seeded as still missing. CORRECTED FIGURES: 83 bare-ITAIL sites, 75 tables with unregistered targets, 608 distinct targets. Ledger #55's \"265 tables / 2,651 targets\" is withdrawn. THE BOOT-PATH WORK IS ALREADY COMPLETE. Checked all 20 functions in the current crash backtrace and the chains confirmed executing this session against the corrected sweep: ZERO have an unregistered bare-ITAIL table. sub_001F83D0's table 0x001F84AC was the only one on the path and all seven of its targets are seeded (0x001F840B in #54, then 0x001F83EF/F6/FD, 0x001F8404, 0x001F8443, 0x001F844A). The two tables that looked like boot-path hits, in sub_0021624C and sub_0021644B, are both the safe _jt form. So there is nothing further to seed here right now - the remaining 608 targets are all in functions the boot does not currently reach, and will become relevant as it gets further. TOOL FIXED AND KEPT: tools_data/sweep_jumptables.py now matches only the bare form, unions recomp_dispatch.c with recomp_manual.c, takes --func to check one function, and documents both mistakes in its header so they are not repeated. Re-run it after any regeneration or whenever a new wall involves a switch. Signals unchanged throughout: 82/3/22/8 deterministic, reached 54.",
+   "tags": [
+    "jump-table",
+    "RECOMP_ITAIL",
+    "sweep",
+    "correction",
+    "ledger-55",
+    "recomp_manual",
+    "_jt",
+    "tool-fixed",
+    "boot-path"
+   ],
+   "when": "2026-08-07 18:43"
+  },
+  {
+   "id": 58,
+   "claim": "The 0xFFFFFFFD crash is in sub_002053F0, NOT sub_00205170 - triage mis-attributed it again. Also seeded sub_001ECAD0, a newly-reached missing function: reached 54 -> 55, failed icalls 3 -> 2",
+   "verdict": "confirmed",
+   "evidence": "TWO RESULTS, one a fix and one a correction. THE SEED: the failed-icall list changed after the jump-table fix (#54) from the usual 0x1/0x0 garbage to include 0x001ECAD0, a real-looking .text address - a sign we now reach code that calls it. sub_001ECAD0 appears NOWHERE in the tree: not lifted, not in recomp_stubs_unresolved.c, not referenced by any generated line, so it is reached purely through a function pointer. Seeded it (17 bytes, 0x001ECAD0-0x001ECAE1). Deterministic 2 of 2: reached 54 -> 55, failed_icalls 3 -> 2, kernel_calls and heap_allocs unchanged at 82 and 22. A small but real gain, and it confirms the pattern that a failed icall to a plausible .text address is a genuinely missing function worth seeding. It did NOT move the crash, so it is not the cause of this wall. THE CORRECTION, and this is the more important half: triage reports the crash as sub_00205170+0x6F3, but resolving RVA 0xDFC7B3 against the linker map puts it inside sub_002053F0, which spans 0xDFBD00-0xDFC820. The symbols either side are sub_002053CC at 0xDFBC60 and sub_0020563B at 0xDFC820, so the attribution is unambiguous. triage is using a symbol source that lacks sub_002053F0 (seeded_functions.json rather than the linker map) and therefore falls back to the nearest name it does know. THIS IS THE SECOND TIME TODAY - ledger #48 lost a full turn to exactly this, when a divide was attributed to sub_001FAB40 while the code belonged to sub_001FA9E0. The lesson from #48 should have been applied here immediately: when chasing a crash, resolve the RVA against build/*.map yourself before deep-diving whatever triage names. CONSEQUENCE: ledgers #45 and #46 deep-dived sub_00205170 for the EARLIER crashes at +0x5EA and 0xD8282444 and their findings about the coalescer stand on their own probe evidence, but the CURRENT wall was never in that function. sub_002053F0 is fresh ground - faithful is CLEAN on it (149 insns, ratio 1.28, no missing labels, no stale flags), it has no ledger history, its only caller is a fall-through from sub_002053CC, and it reads globals 0x5BC508 and 0x5BC5D8 with one ICALL through MEM32(edi + 0x98). STILL OPEN: which read produces 0xFFFFFFFD. Registers are eax=5 ebx=0x2F000000 ecx=0 edx=0 edi=4 esi=1. The function has NO reads with a negative displacement, and its only two reads off the zero registers are MEM32(edx + 0x30) and MEM32(ecx + 0xC0), which would fault at 0x30 and 0xC0, not at -3. So the faulting address is computed, and the honest next step is to disassemble sub_002053F0 forward from 0xDFBD00 to the fault - the technique that cracked #48 - rather than guess from the register dump. Tree clean: no probes, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_002053F0",
+    "sub_00205170",
+    "sub_001ECAD0",
+    "triage",
+    "map-attribution",
+    "missing-function",
+    "seed",
+    "reached",
+    "open"
+   ],
+   "when": "2026-08-07 18:49"
+  },
+  {
+   "id": 59,
+   "claim": "CORRECTION to my own #58: triage was RIGHT - the crash IS sub_00205170+0x6F3. I mis-parsed the linker map, reading the section-relative column as an RVA. The faulting instruction is the backward-coalescing footer read MEM32(esi + -4) with esi = 1",
+   "verdict": "refuted",
+   "evidence": "MY #58 CORRECTION WAS ITSELF WRONG AND MUST NOT BE ACTED ON. The MSVC map has three address columns per row: `0001:00dfbd00  sub_002053F0  0000000140dfcd00 f  recomp_0015.c.obj`. The first is SECTION-RELATIVE, the third is Rva+Base with image base 0x140000000. I parsed the first as an RVA, which is off by the section VA, and that shifted every lookup. Re-resolved with the correct column (62,972 symbols): fault RVA 0xDFC7B3 -> sub_00205170 + 0x6F3, symbol at 0xDFC0C0. That is EXACTLY what triage said. sub_002053F0 is at 0xDFCD00, well past the fault. RE-CHECKED #48 THE SAME WAY, because it made the mirror-image claim: RVA 0xDAEB5D -> sub_001FA9E0 + 0x15D (symbol 0xDAEA00), while sub_001FAB40 sits at 0xDAF3A0. So #48's CONCLUSION was right - the divide really is in sub_001FA9E0, which idiom-matching had already established - but triage was genuinely wrong there while being right here. So triage is not reliably wrong; it is inconsistent. The durable rule is simply: resolve against the Rva+Base column yourself, which is authoritative either way. THE ACTUAL ANSWER, obtained by disassembling from the correct base 0xDFC0C0 (435 instructions, target on a clean boundary): 0x00DFC7B0 `lea ecx, [rdx - 4]` then 0x00DFC7B3 `mov edx, dword ptr [rcx + rax]` where rax holds the guest memory base loaded from [rip + 0x9be610]. So the faulting expression is MEM32(guest_reg - 4) and the guest register is 1, giving 1 - 4 = 0xFFFFFFFD exactly as reported. In the generated C that is `ecx = MEM32(esi + -4)` at loc_00205276 - the BACKWARD-COALESCING FOOTER READ, corroborated by deepdive's field list for sub_00205170 which shows esi with a -0x4 read and nothing else negative. SO WE ARE BACK IN THE COALESCER of ledgers #45/#46, one layer on: the walk now reaches loc_00205276 with esi = 1 instead of a block pointer, reads the previous block's footer at esi-4, and faults. Previously the bad value was a vtable pointer (#45) and then the walk was fixed by seeding (#46); now it is the small integer 1, which is the same signature as the switch index 4 that ledger #54 traced to a stranded jump-table push. NEXT STEP: probe esi at loc_002051D0 and loc_00205276 to see where the 1 enters the walk, and check whether it arrives from the deferred-free array or from a register clobbered across one of the loop's calls - both have precedent today. Tree clean: no probes, 82/2/22/8 deterministic, reached 55.",
+   "tags": [
+    "sub_00205170",
+    "map-parsing",
+    "triage",
+    "correction",
+    "ledger-58",
+    "ledger-48",
+    "coalescing",
+    "Rva+Base",
+    "self-correction"
+   ],
+   "when": "2026-08-07 18:52"
+  },
+  {
+   "id": 60,
+   "claim": "The 0xFFFFFFFD crash is an ALIASING bug: sub_00211280 decrements a refcount at MEM32(obj + 4) where obj = MEM32(esi + 0xB0) resolves to the POOL 0x011CE000, and pool+4 is simultaneously the first slot of the deferred-free array sub_00205170 walks. The refcount value 1 is then read as a block pointer",
+   "verdict": "confirmed",
+   "evidence": "Traced the fault end to end. THE FAULTING INSTRUCTION, from disassembling sub_00205170 at its true base 0xDFC0C0: `0x00DFC7B0 lea ecx, [rdx - 4]` then `0x00DFC7B3 mov edx, dword ptr [rcx + rax]` with rax the guest base - i.e. the generated `ecx = MEM32(esi + -4)` at loc_00205276, the backward-coalescing footer read, with esi = 1 giving MEM32(0xFFFFFFFD). WHERE THE 1 COMES FROM, probed at three points in the walk with a limit high enough not to truncate (the first attempt capped at 12 and hid it): the deferred-free array walks cleanly for several passes - cursor 0x011CE004 through 0x011CE020 with entries null except a valid block 0x011D0004 at 0x011CE008 - and then on a later pass `[W:LIST] cursor=0x011CE004 entry=0x00000001`. The SLOT ITSELF changed from 0 to 1 between passes. Confirmed downstream: `[W:HDR] esi=0x00000001 hdr=0x2F000000`, and LO8(0x2F000000) = 0 so the PREV_INUSE bit is clear and the code takes the backward-merge path exactly as in #45. hdr also matches ebx=0x2F000000 in the crash dump. THE WRITER, from a write-watch on 0x011CE004: RIP RVA 0xE4D125 = sub_00211280 + 0x365 (resolved with the Rva+Base column per #59). sub_00211280 is faithful-CLEAN (118 insns, ratio 1.23). Its two writes to +4 are the same idiom: `ecx = MEM32(esi + 0xB0); if (ecx == ebx) skip; edx = MEM32(ecx + 4); edx--; MEM32(ecx + 4) = edx; if (eax & 0x7FFFFF) skip;` - a REFERENCE-COUNT DECREMENT with the same 0x7FFFFF mask seen in sub_00011B35. So the value 1 is a refcount, not a pointer. THE CONFLICT: sub_00211280 treats MEM32(pool + 4) as a refcount field on the object at MEM32(esi + 0xB0), while sub_00205170 treats MEM32(pool + 4) as the FIRST SLOT of the deferred-free array - and #46 verified that array reading works, since slot pool+8 legitimately held the valid block 0x011D0004. Both cannot be right about the same four bytes. NOT YET PROVEN, and this is the fork: either MEM32(esi + 0xB0) wrongly holds the pool pointer when it should point at some refcounted object, or the array base is off by one slot. The cheap decisive test is to probe esi and MEM32(esi + 0xB0) at loc_0021133E and loc_00211369 and see whether that field is meant to be the pool at all - if it is a stale or mis-assigned pointer, the aliasing is the bug; if it legitimately IS the pool, then the pool genuinely carries a refcount at +4 and sub_00205170's array must start at +8. Tree clean: probes stripped, 82/2/22/8 deterministic, reached 55.",
+   "tags": [
+    "sub_00205170",
+    "sub_00211280",
+    "aliasing",
+    "refcount",
+    "deferred-free",
+    "pool",
+    "coalescing",
+    "root-cause",
+    "write-watch"
+   ],
+   "when": "2026-08-07 18:58"
+  },
+  {
+   "id": 61,
+   "claim": "The current wall is sub_00205170+0x682 (fault 0xB0348CB9), NOT the +0x6F3 / 0xFFFFFFFD read that ledger #60 analysed. Same function, 0x71 apart, different read. Re-baseline before acting on #60",
+   "verdict": "inconclusive",
+   "evidence": "Checked determinism after noticing the possibility tool's baseline crash did not match my earlier measurement. Per-build determinism is FINE: 4 of 4 runs give exactly RVA=0xDFC742, all four counters identical, verdict deterministic. Tree integrity also verified - zero probe lines left in gen/, all four of today's seeds still registered in recomp_manual.c (sub_001F840B, sub_001ECAD0, sub_001E6CC9, sub_001E6C5B), and the deferred-flag manual fix still present in recomp_0014.c. So this is not a dirty tree and not run-to-run noise. BUT THE WALL MOVED between measurements. Resolved both addresses against the Rva+Base column: 0xDFC7B3 = sub_00205170 + 0x6F3 and 0xDFC742 = sub_00205170 + 0x682. Same function, 0x71 apart, but the fault address differs completely - 0x10000FFFD (guest 0xFFFFFFFD, the esi-4 footer read with esi=1) versus 0xB0348CB9 (guest ~0xB0338CB9, wild garbage). Those are DIFFERENT reads in the same coalescer loop. I cannot cleanly attribute the shift. The +0x6F3 measurement was taken probe-free right after seeding sub_001ECAD0; the current one is probe-free too. Candidates: the possibility tool builds via build_compile.bat directly while the MCP build may take another path, or a probe/strip cycle changed layout - ledger #17 already refuted \"probes are behaviourally free\". Not worth chasing on its own; what matters is the consequence. CONSEQUENCE, and this is why it is recorded rather than shrugged off: ledger #60's whole analysis - the refcount/array aliasing at pool+4, the write-watch, the sub_00211280 attribution - was of the +0x6F3 read. It is sound for THAT read but is NOT established as the cause of the wall standing in front of us now. The possibility run is still informative: variant A (suppress the refcount store to the pool) MOVED the crash while variant B (shift the array base to +8) was completely inert, so the aliasing is real and the array base is not the problem. But neither improved reached, and A merely moved the crash to the +0x6F3 read - i.e. A converts the current wall into the previously-analysed one. NEXT STEP: re-triage the CURRENT crash at +0x682 from scratch - resolve the faulting instruction by disassembling from sub_00205170's true base and read what it dereferences - before spending anything further on #60. Two turns were already lost today to acting on a mis-identified location.",
+   "tags": [
+    "sub_00205170",
+    "baseline",
+    "ledger-60",
+    "crash-site",
+    "determinism",
+    "possibility",
+    "caution"
+   ],
+   "when": "2026-08-07 20:37"
+  },
+  {
+   "id": 62,
+   "claim": "RESOLVES #61: +0x682 and +0x6F3 are ONE bug, not two. Both consume esi = 1 from the corrupted deferred-free slot at pool+4; which garbage read faults first depends only on code layout. Ledger #60's analysis DOES apply to the live wall",
+   "verdict": "confirmed",
+   "evidence": "Re-triaged +0x682 from scratch as planned. THE FAULTING INSTRUCTION, disassembled from sub_00205170's true base 0xDFC0C0 (406 insns, clean boundary): `0x00DFC733 mov rax, [rip + 0x9be686]` loads the guest memory base, `0x00DFC73E add ecx, [r12 + r14]` computes block + size, then `0x00DFC742 mov edx, [rcx + rax]` faults - and the next instructions are `mov eax, edx; shr eax, 5`, the 19-bit size unpack seen throughout this allocator. So +0x682 is the FORWARD walk `edx = MEM32(edi + esi)`: step to the next block and read its header. +0x6F3, analysed in #60, is the BACKWARD merge `ecx = MEM32(esi + -4)`. Different reads, same loop. THEY SHARE ONE CAUSE. Probed the walk with a limit high enough not to truncate: [S:LIST] cursor=0x011CE004 entry=0x00000001, then [S:BLK] esi=0x00000001 hdr=0x2F000000, then [S:NEXT] esi=0x00000001 ebx=0x2F000000. That is the SAME corrupted array slot #60 traced to sub_00211280's refcount decrement, and the same header 0x2F000000 read out of guest low memory at MEM32(1). With esi = 1 the unpacked size is garbage, so `edi + esi` is garbage and the forward read faults; on a different layout the backward read faults first instead. CONFIRMED BY THE FLIP: stripping the probes moved the crash back from 0xDFC742 (+0x682) to 0xDFC7B3 (+0x6F3), deterministic 2 of 2 either way. The wall did not change between measurements - the same corruption simply exits through whichever garbage read the code layout puts first. That fully explains the \"wall moved\" puzzle in #61, which is now closed. So #60 stands and is live: the deferred-free slot at pool+4 is written with a refcount by sub_00211280 and read as a block pointer by sub_00205170. CAVEAT ON THE POSSIBILITY RUN: variant A guarded its store with `ecx != MEM32(MEM32(0x5BC508) + 0x70)`, but there are TWO pools in play - 0x01089A90 and 0x011CE000, both seen taking `[7DC:W1] writing 0x00001000` - so that guard may have protected the wrong one and A's apparent \"crash moved\" is likely just the same layout flip, not a real effect. Re-run the possibility spec with the guard keyed to the pool the walk actually uses (0x011CE000, i.e. whichever MEM32(manager+0x70) the failing walk holds) before drawing anything from A vs B. NEXT STEP: re-arm the write-watch on 0x011CE004 to confirm sub_00211280 is still the writer on the current build, then decide between \"esi+0xB0 holds the wrong object\" and \"the pool legitimately has a refcount at +4\" with a variant that targets the right pool. Tree clean: probes stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_00205170",
+    "ledger-60",
+    "ledger-61",
+    "coalescing",
+    "pool",
+    "crash-site",
+    "resolved",
+    "layout-sensitivity"
+   ],
+   "when": "2026-08-07 20:49"
+  },
+  {
+   "id": 63,
+   "claim": "RETRACTS #60: the write-watch caught the pool CONSTRUCTOR zeroing itself (a 517-dword rep stosd writing 0), not a refcount decrement. The watch is ONE-SHOT and disarmed on that first legitimate write, so the actual writer of the value 1 into pool+4 was never seen and is still unknown",
+   "verdict": "refuted",
+   "evidence": "Re-armed the watch on 0x011CE004 as planned. It fired again at the same RIP, RVA 0xE4D125 = sub_00211280 + 0x365 (resolved via Rva+Base). But disassembling sub_00211280 from its true base 0xE4CDC0 shows what that instruction actually is: `mov eax,[rbx+r9]; mov ecx,[rbx+rsi]; lea edx,[rax+r8*4]; inc r8d; mov [rdx+rax], ecx; cmp r8d, eax; jb` - an INDEXED FILL LOOP, not a refcount update. The matching C at recomp_0015.c:44505 is unambiguous: `edi = MEM32(esi + 0x70); eax = 0; ecx = 0x205; for (_i = 0; _i < ecx; _i++) MEM32(edi + _i*4) = eax;` - a lifted `rep stosd` zeroing 517 dwords (0x814 bytes) of the pool. It writes ZERO, and it is the pool constructor doing exactly what it should. WHY #60 WAS WRONG: I assumed the first watched write was the corrupting one. It was not - it is the earliest write to that address in the boot, which is the memset, and the watch DISARMS after one hit (\"Each fires once, names the writing instruction, then disarms\"). Everything after it, including whatever actually stores 1, went unobserved. CORROBORATED by probing the two refcount sites I had blamed: [RC1] at loc_0021133E gives esi=011CD000 objB0=0x00000018 ecx=0x18, and [RC2] at loc_00211369 gives obj78=0x00000018 ecx=0x18. MEM32(manager+0xB0) and MEM32(manager+0x78) both hold 0x18 - not pointers - so both sites decrement MEM32(0x1C) in guest low memory, nowhere near the pool. They cannot be the writer. The refcount/array ALIASING story in #60 is therefore withdrawn entirely. ALSO INVALIDATES the possibility run: [RC1] shows g508pool = MEM32(MEM32(0x5BC508) + 0x70) = 0x00000000, so variant A's guard `ecx != MEM32(MEM32(0x5BC508) + 0x70)` compared against ZERO and could never fire. A was a no-op, and its \"crash MOVED\" was the layout flip of #62, exactly as that entry cautioned. Variant B being inert remains the only real signal from that run. WHAT STANDS: the fault itself (#62) - both +0x682 and +0x6F3 consume esi = 1 taken from the deferred-free slot at 0x011CE004, measured directly. What is unknown again is who writes the 1. TOOL LIMITATION WORTH REMEMBERING: a one-shot write-watch answers \"what wrote here FIRST\", which is only the same question as \"what corrupted this\" when the address starts out untouched. Here the constructor writes it legitimately first. NEXT STEP: bracket the write in time instead - probe MEM32(0x011CE004) at the entry of several functions on the boot path (sub_00211280, sub_0020A8B0, sub_00205170) and find the first point where it already reads 1; that narrows the window without needing a re-arming watch. Tree clean: probes stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_00211280",
+    "sub_00205170",
+    "write-watch",
+    "one-shot",
+    "retraction",
+    "ledger-60",
+    "pool",
+    "rep-stosd",
+    "tool-limitation"
+   ],
+   "when": "2026-08-07 20:55"
+  },
+  {
+   "id": 64,
+   "claim": "The 1 is written by sub_001F7CD0+0x8A - a C++ CONSTRUCTOR (stores vtable 0x3EEAE8 at +0 and refcount 1 at +4) running on 0x011CE000, the exact address sub_00205170 walks as its deferred-free array. An object is being constructed on top of the live pool",
+   "verdict": "confirmed",
+   "evidence": "Bracketed the write in time first: canaries at the entry of 17 boot-path functions put it between sub_001FA9E0 (slot still 0) and sub_00202B87 (slot already 1). The window contained only kernel calls - NtQueryVirtualMemory, NtFreeVirtualMemory, and Enter/LeaveCriticalSection pairs - and none of those bridges can be responsible: bridge_NtFreeVirtualMemory is a pure no-op, and xbox_RtlEnterCriticalSection keeps its state in a SIDE TABLE keyed by address (cs_slot_for) and never writes the guest structure. So the writer was game code inside the window, which the canaries did not cover. THE TOOL I SHOULD HAVE USED FIRST: main.c already implements RECOMP_WATCH_TRACE=<n>, which reports EVERY write with its value and never disarms. Its own docstring states the exact lesson #63 relearned the hard way - \"without it a watch answers who wrote here FIRST, and that turned out to be the wrong question every single time on 2026-08-06\". It is not wired into the MCP run tool (which only sets RECOMP_WATCH), so it has to be set in the same cmd that launches the exe - a bat wrapper works, `cmd /c` from git-bash does not pass it through. FULL WRITE HISTORY of 0x011CE004, resolved against Rva+Base: #1 = 0x00000000 from sub_00211280+0x3B5 (the pool constructor's 517-dword rep stosd, the write that the one-shot watch wasted itself on); #2 = 0x00000001 from sub_001F7CD0+0x8A; #3 and #4 write byte +0x3 from the same function; #5 = 0x00000001 again from sub_00202C70+0xD2; #7 = 0x00000000 from sub_00205170+0x5D1, which is the consumer clearing the slot at loc_002051DA exactly as it should. THE WRITER IS A CONSTRUCTOR. sub_001F7CD0 is 56 lines and its body is unmistakable: `esi = ecx; eax = MEM32(esi+4); eax &= 0xFF000001; eax |= 1; MEM32(esi+4) = eax; MEM32(esi) = 0x3EEAE8; MEM8(esi+7) = 0;` - a vtable pointer stored at +0 and a refcount initialised to 1 at +4, the standard shape, and it has 16 callers across the tree. So `this` = 0x011CE000 and the object's refcount field IS the four bytes sub_00205170 reads as its first array slot. CONCLUSION: an object is being constructed ON TOP OF the live pool. The coalescer then reads the refcount 1 as a block pointer, and both crash sites in #62 follow from that. This is the aliasing #60 suspected but attributed to the wrong writer. STILL OPEN: why the two overlap. Either the engine's pool bookkeeping hands 0x011CE000 out for an object while it is still in use as a pool, or MEM32(manager + 0x70) is stale and points at memory that has legitimately been recycled. Note the pool control word was 0x0000004B when the walk read it (#46) and the constructor stores 0x3EEAE8 at +0, so reading MEM32(0x011CE000) at the crash would say which owner won - that is the next single measurement. Tree clean: 54 canary lines stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_001F7CD0",
+    "sub_00205170",
+    "sub_00202C70",
+    "constructor",
+    "vtable",
+    "refcount",
+    "aliasing",
+    "pool",
+    "root-cause",
+    "RECOMP_WATCH_TRACE"
+   ],
+   "when": "2026-08-07 21:06"
+  },
+  {
+   "id": 65,
+   "claim": "The object wins: MEM32(0x011CE000) changes from the pool control word 0x49 to a VTABLE 0x003EEF28 BETWEEN two steps of the same walk. The pool is being recycled into a C++ object while sub_00205170 is still iterating it - a use-after-free in the engine's own allocator, not a lifting bug",
+   "verdict": "confirmed",
+   "evidence": "Read MEM32(0x011CE000) at each step of the failing walk, as planned. Two steps, and they disagree about what lives there: [OWNER] esi=011D0004 word0=0x00000049 slot4=0x00000000 - the pool control word, intact, matching the 0x4B/count-9 shape #46 measured; then [OWNER] esi=0x00000001 word0=0x003EEF28 slot4=0x00000000 - word0 is now a VTABLE POINTER, in the same .rdata vtable region as the 0x3EEAE8 that sub_001F7CD0's constructor stores and the 0x3EECB0 and 0x3F4770 vtables probed all session. So the pool header is overwritten by an object BETWEEN two iterations of one walk. That settles #64's open question: the object owner wins, and the overlap is not a stale pointer being read - it is live memory being taken out from under an in-progress iteration. THE SHAPE IS A USE-AFTER-FREE. sub_00205170 holds a pointer to the pool at 0x011CE000, walks its deferred-free array, and part-way through that walk the engine constructs a refcounted C++ object at the same address - sub_001F7CD0 storing a vtable at +0 and refcount 1 at +4 (#64), with a second constructor evidently running after it since the final vtable is 0x3EEF28 rather than 0x3EEAE8. The walk then reads the refcount as its next array entry, gets 1, and dies on either MEM32(esi-4) or MEM32(edi+esi) depending on layout (#62). NOTE WHAT THIS IS NOT. Our xbox_HeapAlloc is bump-only and never reuses an address (#29's caveat: RtlFreeHeap is a leak), so the recycling cannot come from the port's allocator. It has to be the ENGINE's own allocator handing 0x011CE000 back out - which means the engine believes that memory is free while a walk over it is still running. Every lifting-level explanation is therefore excluded, and so is a fix in the bridge or the lifter: this is engine bookkeeping, reached only because the earlier fixes (#35, #44, #46, #54) got the allocator far enough to start recycling at all. NEXT STEP: find what frees the pool. The engine must return 0x011CE000 to its own free list shortly before the constructor runs; a RECOMP_WATCH_TRACE on 0x011CE000 itself (not +4) will show every writer of the header in order, and the write that precedes the vtable store is the free. Use trace mode from the start - the one-shot watch cost two turns on this address already (#63). Tree clean: probes stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_00205170",
+    "sub_001F7CD0",
+    "use-after-free",
+    "pool",
+    "vtable",
+    "aliasing",
+    "root-cause",
+    "lifetime",
+    "coalescing"
+   ],
+   "when": "2026-08-07 21:20"
+  },
+  {
+   "id": 66,
+   "claim": "Full ownership history of the pool header traced: sub_00222628+0x127 calls constructor sub_00202C70 with this = 0x011CE000 while MEM32(0x011CE000) still reads the LIVE pool control word 0x49. There is no free marker - the pool is simply built over",
+   "verdict": "confirmed",
+   "evidence": "Ran RECOMP_WATCH_TRACE=60 on 0x011CE000 (the header, not +4) via a bat wrapper - the env does not survive `cmd /c` from git-bash, so it must be set in the same cmd that launches the exe. ELEVEN WRITES, resolved against Rva+Base, in order: #1 = 0 from RVA 0x37F41E75B (outside the module - a system DLL memset); #2 = 0 from sub_00211280+0x365, the pool's own 517-dword rep stosd; #3 = 0x48 from sub_00204BD0+0x2A1; #4 = 0x4B from sub_0020AA90+0xE59; #5, #6, #7 = 0x49 from sub_00205170+0x4CD - the WALK ITSELF maintaining the header, which is normal coalescer bookkeeping; then #8 = 0x003EEAE8 from sub_001F7CD0+0x98, #9 = 0x003EEED0 from sub_00202C70+0xF6, #10 = 0x003EEF28 from sub_00202C70+0x2F1 - three vtable stores in sequence, the signature of a THREE-LEVEL C++ class hierarchy being constructed; and finally #11 = 0x003EEF28 from sub_00205170+0x4CD, the walk writing the vtable value back as if it were a block header, which is the corruption propagating. CRITICALLY, THERE IS NO FREE BETWEEN #7 AND #8. The header goes straight from 0x49 (live pool) to a vtable. Nothing marks the memory as released, so whatever recycled it did not go through the header at all - the engine's free bookkeeping lives elsewhere, or there was no free. THE CALLER, from a recomp_where probe at sub_00202C70's entry: [CTOR] this=0x011CE000 hdr=0x00000049, reached via sub_00222628+0x127 <- sub_00236500+0x594 <- sub_00239E50 <- sub_00011E40, under bridge_PsCreateSystemThreadEx. So sub_00222628 hands the constructor the pool's address WHILE THE HEADER STILL READS 0x49 - the object is built on memory the pool believes it owns, during engine startup. WHERE THIS LANDS: our xbox_HeapAlloc is bump-only and cannot hand the same address out twice (#29), so this is not the port's allocator. Either the ENGINE's allocator returned 0x011CE000 for this construction, or sub_00222628 obtained the address by reading a field that happens to hold the pool pointer - a placement-new onto the wrong buffer. Those are distinguishable and it is the last hop: probe sub_00222628 around its call site at +0x127 and see where the `this` it passes comes from - an allocation return value, or a struct field read. Tree clean: probes stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_00222628",
+    "sub_00202C70",
+    "sub_001F7CD0",
+    "sub_00205170",
+    "use-after-free",
+    "pool",
+    "vtable",
+    "constructor",
+    "root-cause",
+    "RECOMP_WATCH_TRACE"
+   ],
+   "when": "2026-08-07 21:24"
+  },
+  {
+   "id": 67,
+   "claim": "ROOT CAUSE REACHED: the `this` is an ALLOCATION RETURN VALUE. sub_00222628 calls the engine allocator sub_001F7E00 for 0x10 bytes and gets back 0x011CE000 - the live pool - then constructs a C++ object on it. The engine allocator is handing out memory it is still using",
+   "verdict": "confirmed",
+   "evidence": "Read sub_00222628 (53 lines, recomp_0016.c:18545) and the answer is in its first eight lines, no probe needed: `edx = MEM32(esp + 4); PUSH esi; PUSH edx; PUSH 0; PUSH 0x10; call sub_001F7E00;` then `esp = esp + 0xC; if (eax == 0) goto sub_0022265D;` - a null check, which is what an allocation return looks like - then `PUSH 1; ecx = eax; call sub_00202C70`. So `this` is NOT a struct field read and NOT a placement-new onto a passed-in buffer: it is the RETURN VALUE of sub_001F7E00 called with size 0x10. #66 posed those two possibilities; it is the first one. THE COMPLETE CHAIN, every link measured this session: sub_001F7E00 allocates 16 bytes and returns 0x011CE000, which is MEM32(manager + 0x70) - the pool that sub_00205170 is at that moment walking, its header still reading the live control word 0x49 (#66). sub_00202C70 then constructs a three-level C++ object there, writing vtables 0x3EEAE8, 0x3EEED0 and 0x3EEF28 at +0 and a refcount of 1 at +4 (#64, #66). The in-progress walk reads +4 as its next deferred-free array slot, gets 1, and faults on either MEM32(esi-4) or MEM32(edi+esi) depending on code layout (#62). So the defect is that THE ENGINE ALLOCATOR RETURNS MEMORY THAT IS STILL IN USE. Not the port's allocator - xbox_HeapAlloc is bump-only and cannot repeat an address (#29) - and not a lifting bug, since faithful is clean on every function in this chain. IMPORTANT FRAMING: this is only reachable because the earlier fixes worked. The engine could not recycle anything until #35 made pool growth work, #44 got the region registrar running, #46 stopped a stack leak corrupting the walk, and #54 fixed the jump-table dispatch. A use-after-free in the engine's allocator is a much later-stage failure than anything seen before today. NEXT STEP: probe sub_001F7E00 - what does it return on each call, and does 0x011CE000 come off a free list or out of a fresh carve? If the pool was pushed onto the engine's own free list, find what freed it; the pool contains its deferred-free array at +4, so a self-referential free is plausible and would explain why no free marker was ever written to the header. Tree clean: probes stripped, 82/2/22/8 deterministic 2 of 2, reached 55.",
+   "tags": [
+    "sub_00222628",
+    "sub_001F7E00",
+    "sub_00202C70",
+    "sub_00205170",
+    "use-after-free",
+    "allocator",
+    "pool",
+    "root-cause",
+    "engine-bug"
+   ],
+   "when": "2026-08-07 21:30"
+  },
+  {
+   "id": 68,
+   "claim": "The 16-byte allocation does NOT come from sub_003437F3 - it takes sub_001F7E00's early exit into sub_001F7E57, which allocates through the MANAGER's own vtable+0xCC. So the manager's pool allocator returned the pool's own base address, 0x011CE000, and the constructor then overwrote the pool header and first array slot",
+   "verdict": "confirmed",
+   "evidence": "Followed the allocation to its source. sub_001F7E00 reads size from esp+4 and a PREFIX size from esp+0x10 into edi, computes esi = size + edi, and then has THREE outcomes: two early exits to sub_001F7E57 (when the esp+0x14 argument is non-zero, and when an ICALL through MEM32(0x5BC5DC)'s vtable+0x58 returns non-zero), and only as a fallback does it call sub_003437F3. sub_001F7E57 is five lines: `edx = MEM32(eax); PUSH esi; ecx = eax; ICALL MEM32(edx + 0xCC);` then `eax = eax + edi` - allocate size+prefix through an allocator OBJECT's vtable+0xCC, then bias the result past the prefix. That is a standard allocate-with-header idiom, and vtable+0xCC on vtbl 0x003F4770 is sub_001EC5E0, the manager's allocate thunk identified in ledger #38. THE DECISIVE EVIDENCE that this is the path taken: sub_003437F3 carries PERMANENT instrumentation (a manual addition recording every returned pointer into g_alloc_trace, deliberately not marked /* PROBE */ so strip_probes leaves it), and its crash-time dump reads \"Allocator returned 10 pointer(s)\" listing 0x01082000, 0x01083000, 0x01085000, 0x01086000, 0x01087000, 0x01088A90, 0x01089A90, 0x011CD000, 0x011CE000, 0x01311000 - and explicitly \"0 failed (returned NULL), 0 repeated a live address\". So sub_003437F3 handed out 0x011CE000 EXACTLY ONCE and never repeated any address. The duplicate therefore cannot have come from it. Since sub_00222628's 16-byte request demonstrably returned 0x011CE000 (#67) and that value appears only once in the trace, the request must have gone down the untraced sub_001F7E57 path. CONCLUSION: the MANAGER'S OWN POOL ALLOCATOR returned the pool's base address. 0x011CE000 is MEM32(manager + 0x70) - the pool - with its control word at +0 and its deferred-free array at +4. Asked for 16 bytes, it handed back a block starting AT the pool base rather than at a carved block inside it, so the constructor's vtable store landed on the control word and its refcount on array slot 0. That is why no free marker was ever written (#66): nothing was freed. The pool allocator simply carved from the wrong offset. NOT YET CONFIRMED and worth one probe before acting: that vtable+0xCC on THIS object is sub_001EC5E0 (it is on vtbl 0x003F4770 per #38, but the allocator object here comes from MEM32(eax) at sub_001F7E57's entry and has not been identified for this call), and what edi (the prefix size) is - if edi is 0 the returned pointer is the raw block base, which would explain landing exactly on the pool base rather than a few bytes in. Probe sub_001F7E57's entry for eax, MEM32(eax), MEM32(MEM32(eax)+0xCC), esi and edi. Tree clean: probes stripped, 82/2/22/8 deterministic, reached 55.",
+   "tags": [
+    "sub_001F7E00",
+    "sub_001F7E57",
+    "sub_003437F3",
+    "sub_001EC5E0",
+    "vtable-CC",
+    "pool",
+    "allocator",
+    "use-after-free",
+    "root-cause",
+    "alloc-trace"
+   ],
+   "when": "2026-08-07 21:34"
+  },
+  {
+   "id": 69,
+   "claim": "ROOT CAUSE of the sub_00205170 crash: the pool allocator sub_001EC5E0 returns NULL (a legitimate failure) but CLOBBERS callee-saved edi, leaving 0x011CE000 in it. sub_001F7E57's `eax = eax + edi` prefix bias then turns the NULL into 0x011CE000 - the pool's own base - so the caller's null check passes and the constructor overwrites the pool header. Callee-saved-clobber class, same as sub_001FAB40 losing esi (#52)",
+   "verdict": "confirmed",
+   "evidence": "MEASURED, two probe lines, deterministic build (82 kernel calls / 2 failed icalls / 22 heap allocs / 8 safe stubs, reached 55). Probes on both ends of sub_001F7E57, the untraced allocation path identified in #68: \"[A:ENT] obj=0x01088A90 vtbl=0x003F4770 target=0x001EC5E0 size=0x00000010 edi=0x00000000\" and \"[A:RET] raw=0x00000000 edi=0x011CE000 -> 0x011CE000\". Exactly one allocation takes this path all boot. THREE facts, each read directly: (1) The ICALL target IS sub_001EC5E0 on vtbl 0x003F4770, confirming ledger #38's identification for this call site - that was an assumption in #68 and is now measured. (2) The allocator RETURNED NULL. raw eax = 0x00000000. Asking the pool for 16 bytes FAILED. That failure is honest and sub_00222628 is written to handle it - it does `if (TEST_Z(eax, eax))` immediately on return (#67). (3) edi entered sub_001F7E57 as 0x00000000 and left the ICALL as 0x011CE000. edi is CALLEE-SAVED on x86, so sub_001EC5E0 is required to restore it; because the registers are C globals in the lifted tree, a callee that fails to restore one silently rewrites its caller's value. THE MECHANISM, end to end: sub_001F7E00 computes esi = size + prefix and puts the prefix in edi (here prefix = 0, so edi = 0). It tail-jumps to sub_001F7E57, which allocates size+prefix through the object's vtable+0xCC and then biases the result past the prefix with `eax = eax + edi`. With edi correctly preserved at 0 the arithmetic is 0 + 0 = 0, sub_00222628's null check fires, and the boot takes the allocation-failure path - faithful behaviour. With edi clobbered to 0x011CE000 the arithmetic is 0 + 0x011CE000 = 0x011CE000, the null check PASSES, and sub_00222628 hands that address to the constructor as `this`. sub_001F7CD0 then writes vtable 0x3EEAE8 to MEM32(this) and refcount 1 to MEM32(this + 4). But 0x011CE000 is MEM32(manager + 0x70) - the live pool - whose control word is at +0 and whose deferred-free array starts at +4. So the vtable store lands on the pool control word and the refcount 1 lands on array slot 0. That is the 1 at 0x011CE004 the trace-watch caught (#65), and it is why no free marker was ever written (#66): nothing was freed, and nothing was allocated either. sub_00205170 then reads the array, takes esi = 1, and either walks to MEM32(edi + 1) at +0x682 or reads the footer MEM32(1 - 4) = MEM32(0xFFFFFFFD) at +0x6F3 - the two faces of one bug (#62), which is why the site flips on layout changes. This closes the chain from the crash back to a single lifter defect. NEXT STEP: find where inside sub_001EC5E0 (or one of its callees) edi is lost, and fix the preservation - not the arithmetic in sub_001F7E57, which is a faithful lift. Run faithful on sub_001EC5E0 first; #46 showed the loss is more often in a callee than in the named function. SEPARATE QUESTION, do not conflate: WHY the pool allocator fails to serve 16 bytes at all. Fixing edi makes the boot take the honest failure path, which may surface as a clean out-of-memory rather than progress - the same shape as #40. Both want fixing; the clobber first, because it is corrupting memory.",
+   "tags": [
+    "sub_001EC5E0",
+    "sub_001F7E57",
+    "sub_001F7E00",
+    "sub_00222628",
+    "sub_00205170",
+    "edi",
+    "callee-saved",
+    "clobber",
+    "root-cause",
+    "lifter-bug-class",
+    "null-check"
+   ],
+   "when": "2026-08-07 21:38"
+  },
+  {
+   "id": 70,
+   "claim": "The edi clobber of #69 IS the 40-byte stack leak of #39 - one and the same defect. This RETRACTS #40's decision not to fix it: the leak does not merely strand stack inside a fatal OOM reporter, it makes every caller's POP restore callee-saved registers from the wrong slot, and that is what corrupts the pool and causes the current crash. Fixing the 40 bytes is the fix for the wall",
+   "verdict": "confirmed",
+   "evidence": "MEASURED by walking edi and g_esp together down the allocator chain with entry + every-return-site probes (31 points across sub_001EC5E0, sub_00211530, sub_0020F860, sub_0020EFD0, sub_0020F209, sub_0020F0B2), each site with its OWN counter. Deterministic build 82/2/22/8, crash unchanged at RVA 0xDFC7B3. THE CONTROL, from the same run - a healthy sub_0020F860 call: \"IN edi=0x00000010 esp=0x00F7FE90\" and \"R3 edi=0x00000010 esp=0x00F7FE90\". esp restored exactly, edi preserved exactly. That is what a correct call looks like, and most calls in the log do this. THE FAILING CALL, the one feeding sub_001F7E57: \"IN edi=0x00000010 esp=0x00F7FEAC\" then \"R4 edi=0x011CE000 esp=0x00F7FE84\". 0x00F7FEAC - 0x00F7FE84 = 0x28 = 40 BYTES, and edi comes back as the pool pointer. THE SAME 40 BYTES RIDES ALL THE WAY OUT, every level inheriting it: sub_00211530 IN 0x00F7FEEC -> R5 0x00F7FEC4 (-0x28, edi=0x011CE000); sub_001EC5E0 IN 0x00F7FEFC -> R0 0x00F7FED4 (-0x28, edi=0x011CE000). sub_001EC5E0 then returns to sub_001F7E57, where `eax = eax + edi` adds that 0x011CE000 to a NULL allocation. WHERE THE 40 GOES, unchanged from #39: sub_0020F860 IN 0x00F7FEAC -> sub_0020EFD0 IN 0x00F7FE74 -> sub_0020EFD0 R0 (its tail-jump) 0x00F7FE34, a 0x40 drop that exactly matches the 64-byte frame sub_0020EFD0 allocates, so that function is CORRECT -> sub_0020F209 IN 0x00F7FE34 -> sub_0020F209 R7 (the full epilogue) 0x00F7FE4C. R7 unwound only 0x18 of the 0x40 it owes; 0x00F7FE74 was due, so it is short by exactly 0x28. And the register proves the pops read the wrong slots: edi at R7 is 0x00F7FE1C, a STACK ADDRESS, not any plausible saved value. sub_0020F860's own epilogue then pops ITS edi from a slot 40 bytes off and gets 0x011CE000. This is precisely #38's finding (\"the stack is 40 bytes too deep at its epilogue, so POP32 reads uninitialised stack instead of the saved esi\") reproduced on edi, one caller further out. WHY THIS RETRACTS #40: #40 refused the fix on the grounds that the leak lives inside the game's fatal out-of-memory reporter, which ends in `goto self` by design, so \"repairing it buys a clean hang, not progress\". The first half is right and the second half is wrong. The reporter path IS being taken - the pool allocator genuinely fails to serve 16 bytes and returns NULL - but the path RETURNS rather than hanging (R7, the balanced epilogue, is reached), and on the way out it destroys the callee-saved registers of four stacked callers. The damage is not confined to the reporter. It is what converts an honest allocation failure into a write through the pool's own base address, and thence to the sub_00205170 crash. So the leak must be fixed, and #40's \"not worth fixing\" no longer holds. NEXT STEP, unchanged from #39's open question and now worth doing: account for every push against every cleanup on sub_0020F209's path to its third sub_0020F0B2 tail-jump and find which 40 bytes are pushed without cleanup. The likely shape is arguments pushed for the two sub_001E8F30 calls or the vtable+0x54 ICALL whose cdecl cleanup (`esp + 8`, `esp + 0xC`, `esp + 0x14`) sits on a branch the retry path skips. SECOND, SEPARATE BUG still open and NOT to be conflated: why the pool allocator refuses a 16-byte request at all. Fixing the leak alone makes the boot take the honest failure branch in sub_00222628, which may read as a clean out-of-memory rather than as progress. Tree clean: 96 probe lines stripped, build verified.",
+   "tags": [
+    "sub_0020F209",
+    "sub_0020F860",
+    "sub_0020EFD0",
+    "sub_00211530",
+    "sub_001EC5E0",
+    "esp-leak",
+    "edi",
+    "callee-saved",
+    "retraction",
+    "ledger-40",
+    "root-cause",
+    "fpo_leaf"
+   ],
+   "when": "2026-08-07 21:41"
+  },
+  {
+   "id": 71,
+   "claim": "THE 40 BYTES ARE FOUND, and they are TWO generic `g_esp += 4` stubs standing in for real code, not one leak: sub_001E9558 costs 8 bytes and sub_00011B2B costs 32. 8 + 32 = 40 exactly. Seeding both fragments is the fix for the current wall",
+   "verdict": "confirmed",
+   "evidence": "Answers #39's open question and completes #70. Method: bracket, then walk labels, then name the target - never guess. STEP 1, bracket to one call. The entry/return probes on sub_0020F209 fire BEFORE their return line, so they print on every pass and all three readings come from ONE invocation: IN esp=0x00F7FE34, R0 (loc_0020F480) 0x00F7FE34, R1 (loc_0020F491) 0x00F7FE34, R2 (loc_0020F4A7) 0x00F7FE0C. Balanced until R1, then 0x28 low at R2. Between loc_0020F491 and loc_0020F4A7 there is exactly ONE call: the ICALL through vtable+0x54. Probed it: \"[V:PRE] slot54=0x001E8DB0 esp=0x00F7FE44\" / \"[V:POST] esp=0x00F7FE1C\" and again \"[V:PRE] esp=0x00F7FE34\" / \"[V:POST] esp=0x00F7FE0C\" - sub_001E8DB0, minus 0x28 both times. STEP 2, walk every label in the reporter chain (85 probes across sub_001E8DB0, sub_00011A60, sub_00011AAE, sub_00011AB4, sub_00011B35), per-label counters. Baseline after sub_001E8DB0's 4 pushes is 0x00F7FE28. Readings: loc_00011A92 0x00F7FE10 (-24, the SEH frame, correct); loc_00011AC1 0x00F7FE10 (still correct); loc_00011ACD 0x00F7FDFC where 0x00F7FE04 was due - 8 BYTES GONE across sub_001E9C10; then loc_00011AD8, AE0, AEA, AF5, AFA, B09, B11, B1B ALL land exactly where the pushes and cleanups predict, so nothing else leaks; and then loc_001E8DC6 0x00F7FE04, meaning the chain RETURNED FROM loc_00011B1B and never reached sub_00011B35 at all. STEP 3, name both. (a) loc_00011B1B branches to sub_00011B2B, and recomp_stubs_unresolved.c:32 reads `void sub_00011B2B(void) { g_esp += 4; /* 0x00011B2B: not detected */ }`. The real code there falls into the SEH teardown at loc_00011C3F, which does POP esi + POP ebx + `esp + 0x18` + ret = +36; the stub gives +4. DEFICIT 32 - exactly the 24-byte SEH frame sub_00011A60 installs plus the 8 bytes of ebx/esi sub_00011AB4 pushes. (b) The 8 inside sub_001E9C10: it is cdecl with one ICALL through an object's vtable+0x60. Recomputed the target from the same globals the ICALL walks - \"[T] idx=1 obj=0x01087000 target=0x001E9500\" - and measured either side: \"[C:ENT] esp=0x00F7FE00\" / \"[C:RET_A] esp=0x00F7FDF8\", with RET_A firing BEFORE `esp += 4`, so the callee popped NEITHER its argument NOR its return address. sub_001E9500 pushes esi then exits at loc_001E9510 to sub_001E9558, and recomp_stubs_unresolved.c:1680 reads `void sub_001E9558(void) { g_esp += 4; /* 0x001E9558: not detected */ }`. Its real epilogue at loc_001E9554 is POP esi + `esp += 8` (ret 4) = +12; the stub gives +4. DEFICIT 8. TOTAL 8 + 32 = 40 = 0x28, matching the measured deficit to the byte, at every level of the chain (#70). NOTE the first slot60 probe printed 0 because it sat at loc_001E9C1E before `ecx` is loaded and read a stale register - the esp readings from that run were still valid and the target was recovered by recomputing the chain from globals instead of trusting a register at a label. THE FIX: seed the real code at 0x001E9558 and 0x00011B2B so both fragments lift properly. This is lifter bug class 3 (generic `g_esp += 4` stubs) from the memory note, and it now has a confirmed instance that costs a boot. NO SWEEP TOOL EXISTS for this class yet and one is clearly worth building - the run reports 8 safe stubs and these two were found only by chasing a specific crash. MEASURE THE FIX ON `reached`, never on kernel_calls (#33). EXPECT the boot to then take sub_00222628's honest allocation-failure branch, because the pool genuinely refuses 16 bytes (#69) - that second bug is separate and still open. Tree clean: all probes stripped, build verified, 82/2/22/8 deterministic.",
+   "tags": [
+    "sub_001E9558",
+    "sub_00011B2B",
+    "sub_001E9500",
+    "sub_001E9C10",
+    "sub_00011AB4",
+    "sub_00011A60",
+    "sub_001E8DB0",
+    "sub_0020F209",
+    "esp-leak",
+    "generic-stub",
+    "lifter-bug-class",
+    "recomp_stubs_unresolved",
+    "root-cause",
+    "seed"
+   ],
+   "when": "2026-08-07 21:54"
+  },
+  {
+   "id": 72,
+   "claim": "Seeding sub_00011B2B and sub_001E9558 FIXES the 40-byte leak and the pool corruption with it - kernel_calls 82 -> 330, heap_allocs 22 -> 28, backtrace 4 -> 18 frames through subsystems never entered before. BUT `reached` went DOWN 55 -> 42, so the project's gated signal disagrees with every other measurement. Recording the conflict rather than picking the flattering number",
+   "verdict": "confirmed",
+   "evidence": "Applied #71's fix: `seed_missing_functions.py --va 0x00011B2B --apply` (0x00011B2B-0x00011E35, 778 bytes, covering the SEH teardown at loc_00011C3F) and `--va 0x001E9558 --apply` (0x001E9558-0x001E9566, 14 bytes), each followed by replacing its line in recomp_stubs_unresolved.c with a `moved to src/recomp_seed.c` comment or the link fails LNK2005. seed_list.json now records 1162 addresses. MECHANICAL CLAIM VERIFIED DIRECTLY, and this is the part that is not in doubt. After seeding sub_00011B2B alone, re-probed sub_001E8DB0 exactly as before the change: six calls, every one reading IN 0x00F7FE38 / OUT 0x00F7FE24, i.e. IN - OUT = 0x14 where 0x0C was due - 8 bytes short, precisely the sub_001E9558 half still outstanding, and 32 of the 40 already recovered. That is #71's arithmetic (8 + 32) confirmed by measurement, one stub at a time, exactly as the memory note instructs. The reporter also went from 2 calls to 6+, so the boot was already living longer. AFTER BOTH SEEDS, deterministic 2 of 2: kernel_calls 82 -> 330, heap_allocs 22 -> 28, failed_icalls 2 -> 3, safe_stub 8 (unchanged), crash RVA 0xDFC7B3 -> 0xD248B0. THE ORIGINAL CRASH IS GONE: sub_00205170 with esi = 1 off the corrupted pool no longer happens, which is the whole chain #68/#69/#70 predicted. The new backtrace is 18 frames where it was 4, and the outer 10 are code the boot had never executed: sub_0019F22E -> sub_001A1C97 -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_002282E0 -> sub_00209650 -> sub_00227F50 -> sub_002235D0 -> sub_001F3680 -> sub_001EC720 -> sub_00211530 -> sub_00210E50 -> sub_0020F860 -> sub_0020EFD0 -> sub_0020F209 -> sub_001E8F30. esp at the crash is 0x00F7FCCC, a healthy stack address. THE CONFLICT, stated plainly: `reached` (distinct indirect dispatch targets) fell 55 -> 42. Memory says judge on `reached`, and it is pointing the wrong way. The available explanation - and it is an explanation, not a proof - is that `reached` counts vtable DIVERSITY, not depth: the old boot spun inside the allocator's retry machinery repeatedly resolving many distinct vtable slots, and this fix is precisely what stops that retry loop, so fewer distinct indirect targets get touched while far more real work happens. Note also that the kernel_calls cap warning (#33) does NOT apply at 330 - that signal is only distorted when pinned at 4000 - so 82 -> 330 is a genuine 4x. DO NOT let this become a second #30, where a good fix was reverted on a misread signal; equally, do not call it settled. THE HONEST STATUS: the mechanical fix is proven, the predicted corruption is gone, and one signal disagrees. AN INTERMEDIATE READING WAS TAKEN AND IS WORTH KNOWING: after seeding only sub_00011B2B, reached was 43 and esp at the crash was 0xFFFFFF68 - NEGATIVE, an over-pop from the half-fixed state. Seeding the second stub cleared that, which is itself evidence the pair belong together and neither should be left alone. NEXT STEP: settle the `reached` question before building on this. Either find a depth-based progress signal, or instrument distinct-function-entry counts rather than distinct-dispatch-target counts. NEW WALL: read at Xbox VA 0x8B011840 in sub_001E8F30 + 0x180, `fault == esi + 0`, with edi = 2 so the region-walk loop RUNS - note memory records this same function as harmless when MEM32(4) is 0 and the loop is skipped, which is no longer the case. Tree clean: probes stripped, build verified.",
+   "tags": [
+    "sub_00011B2B",
+    "sub_001E9558",
+    "seed",
+    "esp-leak",
+    "generic-stub",
+    "port-fix",
+    "reached",
+    "signal-conflict",
+    "sub_001E8F30",
+    "new-wall"
+   ],
+   "when": "2026-08-07 22:09"
+  },
+  {
+   "id": 73,
+   "claim": "`reached` counts ONLY indirect dispatch - RECOMP_ICALL, RECOMP_ICALL_SAFE and RECOMP_ITAIL are the only three callers of recomp_mark_reached(). Direct RECOMP_ABI_CALL sites are plain C calls and are never counted, so `reached` is structurally blind to directly-called code and CAN fall while the boot runs strictly more. Added g_callsite_count to cover the blind spot",
+   "verdict": "confirmed",
+   "evidence": "Settled by reading the implementation, not by inference from run numbers. recomp_mark_reached() is defined at recomp_types.h:252 and grep finds exactly THREE call sites, all indirect: RECOMP_ICALL (line ~597), RECOMP_ICALL_SAFE (~634) and RECOMP_ITAIL (~649), each as `if (_fn) { recomp_mark_reached(_va); _fn(); }`. RECOMP_ABI_CALL - the direct-call macro, 1624+ sites in recomp_0015.c alone - expanded to bare `fn()` with no marking at all. So g_reached_count is \"distinct INDIRECT targets\", never \"distinct functions entered\". THE HEADER ITSELF ADMITS THIS at recomp_types.h:233: \"It counts indirect-call targets, not every function - direct calls are ordinary C calls with nothing to hook. In this engine that is a good proxy: 18,556 generated call sites are indirect, because the whole thing is virtual dispatch through igMetaObject.\" The proxy argument is sound in general and fails in one specific case: a fix that REMOVES indirect work. That is exactly what #72 did - seeding the two stubs cut a vtable-heavy retry spin out of the allocator, so the boot stopped re-resolving the same slots and ran straight-line code instead. Judged on `reached` alone it read as a regression while kernel_calls went 82 -> 330 and the backtrace 4 -> 18 frames. This retroactively explains #72's conflict and means `reached` should NOT be treated as the sole gate; it is one of two numbers. THE FIX, purely additive and semantically inert: RECOMP_MARK_SITE() in recomp_types.h, one `static uint8_t` per textual call site set on first execution, invoked from BOTH arms of RECOMP_ABI_CALL (the plain one and the RECOMP_CHECK_ABI one). g_callsite_count is defined in recomp_manual.c and printed by recomp_coverage_dump() alongside the existing line. Cost is one predictable branch and one byte of .bss per site; it cannot alter behaviour because it touches no register, no memory model and no control flow. It counts call SITES rather than functions deliberately - finer grained, and marking function entries would mean editing all 30,002 generated bodies instead of one macro. FIRST READING on the current post-seed tree: \"distinct=42 of 1032192 dispatch targets reached\" and \"callsites=177 distinct direct call sites executed\", build deterministic at 330/3/28/8. The pre-seed comparison is being measured now by rebuilding recomp_seed.c from a seed list with the two addresses removed (`--from-list ... --apply`, the tool's supported path), with seed_list.json backed up to seed_list.json.bak_settle first. SEPARATE FINDING worth its own work, spotted while reading the header: RECOMP_CHECK_ABI is an EXISTING build mode that validates ebx/esi/edi across every direct call and flags esp leaving the stack range, naming the callee - `recomp_abi_violation()` and `recomp_esp_escape()`. That is an automated detector for the exact bug class (#38, #52, #69, #71) this project has been finding by hand, one probe pair at a time. Nobody appears to have run it. Try a RECOMP_CHECK_ABI build.",
+   "tags": [
+    "reached",
+    "g_reached_count",
+    "g_callsite_count",
+    "recomp_mark_reached",
+    "RECOMP_ABI_CALL",
+    "RECOMP_ICALL",
+    "coverage",
+    "signal",
+    "tooling",
+    "measurement"
+   ],
+   "when": "2026-08-07 22:18"
+  },
+  {
+   "id": 74,
+   "claim": "The set diff settles #72: the seed fix gained only 4 functions and LOST 17, including sub_001FE670 (the region registrar that fix #44 existed to enable), sub_001ECAD0 (fix #5) and sub_001F83D0/sub_001F8408 (fix #54). It converts silent corruption into an honest allocation failure, so the engine takes give-up branches instead of retry branches. KEEP the seeds - they are provably correct - but the blocker is now #69, why the pool refuses 16 bytes",
+   "verdict": "confirmed",
+   "evidence": "MEASURED BY REBUILDING BOTH STATES AND DIFFING THE ADDRESS SETS, not by arguing about scalars. Method: added a [COVERAGE-VA] dump to recomp_coverage_dump() printing every set bit of g_reached as a guest VA; captured the post-seed set; rebuilt the pre-seed tree with `seed_missing_functions.py --from-list <list minus the two addresses> --apply` plus restoring the two stub lines; captured that set; then restored the full 1162-address list and verified the tree returns to 330/3/28/8 exactly. The pre-seed rebuild reproduced 82/2/22/8 exactly, so the two states are faithful. RESULT: before 55, after 42, common 38. ONLY AFTER (4): sub_00194190, sub_002264D0, sub_00227F50, sub_002282E0 - genuinely new ground, and sub_00227F50 and sub_002282E0 both appear in the new 18-frame backtrace. ONLY BEFORE (17): sub_000DDCC0, sub_0013D370, sub_0015FDF0, sub_001E90F0, sub_001ECA40, sub_001ECAD0, sub_001ECAF0, sub_001F0B20, sub_001F14D0, sub_001F1660, sub_001F7020, sub_001F83D0, sub_001F8408, sub_001FA2F0, sub_001FE670, sub_002039A0, sub_0020A8B0. FOURTEEN of the seventeen are in the 0x1E-0x20 allocator/pool/region range, which supports the \"stopped thrashing\" reading - but THREE OF THEM ARE FUNCTIONS EARLIER FIXES EXISTED TO ENABLE, and that must not be glossed: sub_001FE670 is the region registrar reached only via vtable+0x68 from loc_001F0B03, the exact branch fix #44 repaired (worth reached 37 -> 43); sub_001ECAD0 was fix #5 (54 -> 55); sub_001F83D0 and sub_001F8408 are the jump-table pair from fix #54 (47 -> 54). Those fixes are not wrong and should NOT be reverted, but they are now dormant. INTERPRETATION, and it follows from #69 rather than being invented to fit: the pool genuinely refuses the 16-byte request. Before the seed, the 40-byte leak corrupted edi so `eax + edi` laundered that NULL into the pool's own base address and the null check passed - the engine believed it had succeeded and carried on into its retry/growth machinery. After the seed the null check fires honestly, so the engine takes GIVE-UP branches instead of RETRY branches. That is why the retry machinery went quiet and why kernel_calls still quadrupled: different path, not merely a longer one. VERDICT: keep the seeds. They are mechanically proven (#71/#72), they remove real memory corruption, and reverting would restore a bug. But this is NOT clean forward progress and should not be recorded as such. THE BLOCKER IS NOW #69 - why the pool allocator refuses a 16-byte request - and everything else is downstream of it. ALSO SETTLED, correcting my own prediction: I expected a direct-call counter to show the gain the indirect-only `reached` was missing. It did not. g_callsite_count fell 194 -> 177, agreeing with `reached`. Both coverage counts measure BREADTH, which a retry spin inflates, so neither can distinguish \"went further\" from \"stopped thrashing\" - only the set diff can. TOOLING PROMOTED so this is repeatable: tools_data/diff_reached.py plus baseline_reached_preseed.txt and baseline_reached_postseed.txt. Temporary seed lists deleted; seed_list.json back to 1162.",
+   "tags": [
+    "reached",
+    "coverage",
+    "set-diff",
+    "sub_00011B2B",
+    "sub_001E9558",
+    "sub_001FE670",
+    "sub_001ECAD0",
+    "sub_001F83D0",
+    "seed",
+    "signal",
+    "measurement",
+    "diff_reached",
+    "priority"
+   ],
+   "when": "2026-08-07 22:33"
+  },
+  {
+   "id": 75,
+   "claim": "THE POOL REFUSES 16 BYTES BECAUSE OUR OWN KERNEL BRIDGE IGNORES THE REQUESTED BASE ADDRESS. bridge_NtAllocateVirtualMemory reads base_hint then calls xbox_HeapAlloc(size, 4096) for MEM_RESERVE, returning the bump pointer instead of the requested base. The engine reserves at an address it verified free, gets a different one back, checks `if (returned != requested) fail`, and gives up. Measured off by exactly 0x3000 twice",
+   "verdict": "confirmed",
+   "evidence": "Walked the whole chain top to bottom on the CURRENT build (330/3/28/8 deterministic), re-measuring rather than trusting #40/#41 because fix #44 and the #72 seeds both changed the code underneath them. STEP 1 - sub_001F09D0: ten loop iterations, every one ending edi = -1. Probes at all ten labels show CMIT/STAT/UNDO/STA2/WIN/FAIL never fire, so the commit/undo logic #41 analysed is NEVER REACHED on this build. That supersedes #41's picture without contradicting its measurements - the code changed. STEP 2 - the allocator gate: vtable+0x70 is sub_001FE850, whose entire test is `ecx = MEM32(0x46A668) >> 0x1A; edx = MEM32(0x5BBAD0) >> 0x1A; if (ecx <= edx) ok; else return -1`. At identity values MIN=0xFFFFFFFF MAX=0 that is 63 <= 0, false, so it refuses. STEP 3 - the bootstrap: the ONLY writer of MIN and MAX is sub_001FE670's tail (recomp_0015.c:5136-5146, a min/max extender), and its ONLY caller is loc_001F0B03, which is downstream of a SUCCESSFUL allocation. Circular by construction, so something must break the cycle - and that is the fallback at loc_001F09FB. Probed it: \"[Q:A4PRE] vtbl=0x003EECB0 target=0x001FFD50\" on all 10 calls, \"[Q:A4POST] ret=0xFFFFFFFF\" on all 10. STEP 4 - walked all 65 labels of sub_001FFDA1, the OS reservation logic (sub_0034D457 queries, sub_0034D3ED reserves/commits, sub_0034D41B releases). The scan WORKS: it walks ebx 0x00000000 -> 0x00010000 -> 0x00780000 -> 0x00F80000 -> 0x0108CA90, testing `mbi.State == 0x10000 (MEM_FREE) && mbi.RegionSize >= edi` at loc_001FFEB0/loc_001FFEBE, and it FINDS a free region of 0x02F70000 - so ledger #35's MEM_FREE work is delivering correctly. It then aligns to base 0x01090000 and reserves 0x140000 bytes with flags 0x2000 (MEM_RESERVE) via sub_0034D3ED at loc_001FFF2D. THE FAILURE, at loc_001FFF3B: eax = 0x0108D000. The call returned a DIFFERENT address than the 0x01090000 requested. loc_001FFF86 loads ecx = the requested base and loc_001FFF8E does `if (eax != ecx) goto loc_0020012B` - the failure exit, which returns MEM32(esp+0x14), seeded to 0xFFFFFFFF by sub_001FFD50. Second attempt identical: requested 0x011D0000, got 0x011CD000. BOTH OFF BY EXACTLY 0x3000. STEP 5 - confirmed in our own source. kernel_bridge.c:388 bridge_NtAllocateVirtualMemory reads `base_hint = BRIDGE_MEM32(base_ptr)` at line 399 and even LOGS it at 402, handles the MEM_COMMIT-without-RESERVE case at 422, and then at line 435 does `uint32_t xbox_va = xbox_HeapAlloc(size, 4096);` - base_hint is simply DISCARDED for MEM_RESERVE. xbox_memory_layout.c:659 xbox_HeapAlloc is a pure bump allocator with no address parameter at all: `result = (g_heap_next + alignment - 1) & ~(alignment - 1)`. So a reservation at a caller-chosen address is impossible to express. THIS IS A PORT BUG IN OUR KERNEL, NOT A LIFTER BUG AND NOT GAME BEHAVIOUR. The engine is doing the correct and normal thing: query for a free region, reserve exactly there, verify it got what it asked for. PROPOSED FIX: honour base_hint for MEM_RESERVE. Add an xbox_HeapAllocAt(base, size) that, when base >= xbox_HeapHighWater() and base + size <= XBOX_HEAP_BASE + XBOX_HEAP_SIZE, sets g_heap_next = base + size, zero-fills, and returns base exactly. That is consistent with what bridge_NtQueryVirtualMemory already reports since #35 - everything from the high-water mark up is MEM_FREE - so any base the engine picks from a MEM_FREE report is by construction above the bump pointer and safe to hand over. Both observed requests (0x01090000 vs bump 0x0108D000, and 0x011D0000 vs 0x011CD000) are ABOVE the bump pointer, so the simple forward-skip covers the measured cases. Fall back to the current behaviour when base_hint is 0. EXPECT ON FIX: the reservation succeeds, sub_001FFDA1 returns a real address, sub_001F09D0 reaches loc_001F0A96 and then loc_001F0B03, sub_001FE670 registers the region, MIN/MAX get real values, and sub_001FE850 stops refusing - which should also revive sub_001FE670, sub_001ECAD0, sub_001F83D0 and sub_001F8408, the functions #74 recorded as going dormant. Measure with tools_data/diff_reached.py against baseline_reached_postseed.txt, not on counts alone. Tree clean: 233 probe lines stripped.",
+   "tags": [
+    "bridge_NtAllocateVirtualMemory",
+    "xbox_HeapAlloc",
+    "base_hint",
+    "MEM_RESERVE",
+    "sub_001FFDA1",
+    "sub_001FFD50",
+    "sub_001FE850",
+    "sub_001F09D0",
+    "pool-growth",
+    "root-cause",
+    "kernel-bridge",
+    "priority"
+   ],
+   "when": "2026-08-07 22:44"
+  },
+  {
+   "id": 76,
+   "claim": "FIXED #75: bridge_NtAllocateVirtualMemory now honours base_hint via a new xbox_HeapAllocAt(). The engine gets the exact address it reserves, registers its memory region, and STOPS ENTERING THE OOM REPORTER ENTIRELY. reached 42 -> 63 and callsites 177 -> 248, beating the all-time best of 55 with 20 functions that never ran in ANY previous state. Best result of 2026-08-07",
+   "verdict": "confirmed",
+   "evidence": "THE FIX, entirely in our kernel, no lifter or generated code touched. Added xbox_HeapAllocAt(base, size) in xbox_memory_layout.c: refuses when base < g_heap_next (that would overlap a live allocation and would mean our MEM_FREE reporting disagrees with the allocator - worth seeing, not papering over) or when base+size runs past the heap end; otherwise sets g_heap_next = base + size, zero-fills, and returns base EXACTLY. Declared in xbox_memory_layout.h. kernel_bridge.c:435 changed from `xbox_HeapAlloc(size, 4096)` to `base_hint ? xbox_HeapAllocAt(base_hint, size) : xbox_HeapAlloc(size, 4096)`. Safe by construction: since #35 the bridge reports everything from xbox_HeapHighWater() up as MEM_FREE, so a base the engine chose from our own report is at or above the bump pointer. IT WORKS, first try, deterministic 2 of 2: \"[HEAP] #14: AT 0x01090000 size=1310720 -> 0x01090000..0x011D0000 (used 2424832/50855936)\" - the engine asked for 0x01090000 and got 0x01090000, where before it got 0x0108D000 and gave up. SIGNALS: reached 42 -> 63, callsites 177 -> 248. 63 BEATS THE ALL-TIME BEST OF 55. kernel_calls fell 330 -> 44 and heap_allocs 28 -> 20, which is EXPECTED and good - the 330 was dominated by the failing NtQueryVirtualMemory scan loop hammering the address space, and that loop is gone because the first reservation now succeeds. This is the case #73/#74 warned about, in reverse: judge on the SET, not the count. SET DIFF vs the pre-fix state (tools_data/diff_reached.py): 27 gained, 6 lost. The six lost are precisely the failure path and are CORRECT to lose - sub_00011A60 (the fatal out-of-memory reporter itself), sub_001E8DB0 (the vtable+0x54 thunk that reaches it), sub_001E9500 (whose sub_001E9558 stub was seeded in #72), plus sub_00194190, sub_00227F50, sub_002282E0. THE BOOT NO LONGER ENTERS THE OOM REPORTER AT ALL. sub_001FE670, the region registrar, is BACK - confirming #75's prediction and closing the circular dependency: reservation succeeds -> loc_001F0B03 runs -> MIN/MAX at 0x46A668/0x5BBAD0 get real values -> sub_001FE850's gate stops refusing. SET DIFF vs the ORIGINAL 55-function best: 63 reached, 43 common, and 20 functions that never ran in ANY previous state, mostly a whole band of new subsystems - sub_002181F0, sub_00219A10, sub_0021A170, sub_0021C680, sub_0021DB50, sub_0021E190, sub_0021F190, sub_00220040, sub_00221F50, sub_002221E0, sub_00226250. PREDICTION PARTLY WRONG, recorded honestly: #75 predicted all four dormant functions would revive. Only sub_001FE670 did. sub_001ECAD0, sub_001F83D0 and sub_001F8408 are still NOT reached, so whatever gated them is a separate matter and should not be assumed fixed. NEW WALL: read at Xbox VA 0x74C98508 in sub_00221F50 + 0x187 (recomp_0016.c ~17670), reached through 12 frames: sub_001A1C97 -> sub_0019F22E -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_0023666F -> sub_002366BC -> sub_00209650 -> sub_002221E0 -> sub_002235D0 -> sub_00221F50. Every register at the crash is a pointer INSIDE the newly reserved region (eax=0x01091AB1, ecx=0x01091B50, edi=0x01091AB0, esi=0x01091B18, all within 0x01090000..0x011D0000), so the engine is genuinely USING the memory it reserved. esp=0x00F7FDE4 is healthy. ALSO WORTH SEEDING: one of the 3 failed indirect calls is target 0x00221E50, a plausible code address rather than garbage - a genuinely missing function. Tree clean, no probes.",
+   "tags": [
+    "bridge_NtAllocateVirtualMemory",
+    "xbox_HeapAllocAt",
+    "xbox_HeapAlloc",
+    "base_hint",
+    "MEM_RESERVE",
+    "sub_001FFDA1",
+    "sub_001FE670",
+    "pool-growth",
+    "port-fix",
+    "kernel-bridge",
+    "reached",
+    "best-ever"
+   ],
+   "when": "2026-08-07 23:01"
+  },
+  {
+   "id": 77,
+   "claim": "Seeding the single missing 153-byte function sub_00221E50 took reached 63 -> 99 and callsites 248 -> 382 with 36 functions gained and ZERO lost - the first unambiguous \"strictly more code ran\" result on this project. A failed-icall target that disassembles cleanly is the cheapest lead available and should be checked at EVERY wall",
+   "verdict": "confirmed",
+   "evidence": "Method that found it, and it was almost free: triage prints \"failed indirect calls this run\" with their targets. After #76 those were 0x00000001, 0x00000000 and 0x00221E50. The first two are garbage pointers; the third is a plausible code address AND sits immediately below the crashing function sub_00221F50 in the same subsystem. `search sub_00221E50` returned ZERO hits - not defined, not even stubbed in recomp_stubs_unresolved.c - so the ICALL had nothing to resolve to and fell through to recomp_icall_fail_log. `seed_missing_functions.py --va 0x00221E50` disassembled a clean extent 0x00221E50-0x00221EE9 (153 bytes), which is the confirmation the notes call for: a clean disassembly means a genuinely missing function, nonsense means a bad pointer. Seeded with --apply (seed_list.json now 1163). NO STUB LINE TO REMOVE, unlike #72 - the function was absent entirely rather than stubbed, so there was no LNK2005 risk. RESULT, deterministic 2 of 2: reached 63 -> 99, callsites 248 -> 382, heap_allocs 20 -> 25, kernel_calls unchanged at 44, failed_icalls unchanged at 3. SET DIFF vs baseline_reached_best63.txt: 36 gained, 0 LOST. diff_reached.py's verdict line reads \"strictly more code ran. Unambiguous progress.\" That is the first time this project has produced a clean gain with no losses - #72 was 4 gained / 17 lost and #76 was 27 gained / 6 lost, both needing interpretation. This one needs none. THE 36: sub_0021B7D0, sub_0021EED0, sub_0021EFB0, sub_00220870, sub_00221E50, sub_00226550, sub_00226700, sub_00227CC0, sub_00227E00, sub_00227F50, sub_002282E0, sub_002287E0, sub_002289E0, sub_00229260, sub_00229360, sub_002293E0, sub_00229960, sub_00229F80, sub_0022A0B0, sub_0022A3C0, sub_0022AC70, sub_0022B850, sub_0022B9E0, sub_0022DFC0, sub_0022E0C0, sub_0022E3C0, sub_0022F420, sub_0022F4F0, sub_00230880, sub_002316D0, sub_00231820, sub_00233490, sub_00235FE0, sub_002361A0, sub_00236280, sub_002362C0 - an entire band of 0x0022xxxx/0x0023xxxx the boot had never entered. One 153-byte function was gating all of it. GENERAL LESSON worth applying at every future wall: check triage's failed-icall targets FIRST. It costs one search and one dry-run, and the payoff here was larger than any lifter repair made today. NEW WALL: read at Xbox VA 0xFFFFFFFF in sub_0022C2A0 + 0x279 (recomp_0016.c ~40112), fault == ecx + 0 with ecx = -1, eax/edi/esi all NULL. Backtrace sub_001A1C97 -> sub_0019F22E -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_002392E0 -> sub_0022C2A0. WATCH THIS: esp = 0x00F80120, which is ABOVE XBOX_HEAP_BASE 0x00F80000 and therefore PAST THE TOP OF THE STACK (the stack region is 0x00780000-0x00F80000, growing down). That is a stack UNDERFLOW - too many pops - not the overflow direction. triage labels it \"heap\" because the address is in the heap range, which is misleading here. Investigate whether the newly seeded fragments over-pop before trusting the next measurement. AND THE SAME LEAD IS AVAILABLE AGAIN: this run's failed icalls are 0x00000001, 0x00000000 and 0x00216F70; sub_00216F70 does not exist and dry-runs to a clean 6-byte extent 0x00216F70-0x00216F76, a thunk or trivial getter. Seeding it now.",
+   "tags": [
+    "sub_00221E50",
+    "seed",
+    "failed-icall",
+    "missing-function",
+    "reached",
+    "best-ever",
+    "method",
+    "sub_00221F50",
+    "sub_0022C2A0"
+   ],
+   "when": "2026-08-07 23:18"
+  },
+  {
+   "id": 78,
+   "claim": "Seeding sub_00216F70 is a FAITHFUL lift but a mixed result - reached 99 -> 101 yet callsites 382 -> 357 and failed_icalls 3 -> 5. KEEPING it because the lift is provably complete, not truncated. The real finding is systemic: esp is ABOVE the top of the stack in both recent crashes, a stack UNDERFLOW, so a RECOMP_CHECK_ABI build is now running to name the over-popping callee automatically",
+   "verdict": "confirmed",
+   "evidence": "Followed #77's lead a second time: this run's failed icalls were 0x00000001, 0x00000000 and 0x00216F70; sub_00216F70 did not exist in the tree and dry-ran to a clean 6-byte extent. Seeded (seed_list.json now 1164). RESULT, deterministic 2 of 2: reached 99 -> 101, callsites 382 -> 357, heap_allocs 25 -> 23, failed_icalls 3 -> 5, kernel_calls unchanged at 44. Set diff: 4 gained (sub_001EB200, sub_001EB250, sub_00216F70, sub_00217FD0), 2 lost (sub_0022E0C0, sub_00233490) - and the two lost are NOT the abandoned-failure-path pattern that justified #76's losses, they are from the band #77 had just won. WHY IT IS KEPT ANYWAY: I checked the lifted body rather than trusting the extent, because a 6-byte auto-detected function is exactly the shape of a truncated fragment and the 2026-08-05 regression came from unverified fragments. recomp_seed.c:119077 reads in full `void sub_00216F70(void) { loc_00216F70: eax = MEM32(0x5BC274); esp += 4; return; /* ret */ }` - two instructions, `mov eax, [0x5BC274]` then `ret`, exactly 6 bytes, a COMPLETE getter returning the same global singleton sub_00221F50 reads. It is not truncated. A faithful lift that changes downstream behaviour is REVEALING a bug elsewhere, not causing one: previously the ICALL failed and RECOMP_ICALL_SAFE handed back eax = 0, so the engine was branching on a fake null. Reverting correct code to keep a nicer number would be the wrong trade. The callsites drop is recorded as an open question, not explained away. THE LEAD IS NOW EXHAUSTED: this run's failed icall targets are 0x00000001, 0x00000000, 0x00000010, 0xFFFFFFFF and 0x0000000B - all garbage pointers, no plausible code addresses left, so the cheap #77 method has no more candidates at this wall. THE SYSTEMIC FINDING, which is the real value of this step: esp is ABOVE the top of the stack in BOTH recent crashes. The stack region is 0x00780000-0x00F80000 and grows DOWN, so a valid esp is always below 0x00F80000. Measured esp = 0x00F80120 at sub_0022C2A0 + 0x279, and esp = 0x00F8031C at sub_00204800 + 0x24D - past the top by 0x120 and 0x31C, and getting worse. That is an UNDERFLOW (too many pops), the opposite direction from the 40-byte leak of #70/#71. NOTE triage labels these \"heap\" because 0x00F80000 is XBOX_HEAP_BASE, which is misleading - it is the stack having run off its top, not a heap pointer. THE TOOL FOR THIS ALREADY EXISTS AND HAS NEVER BEEN RUN: recomp_types.h defines RECOMP_CHECK_ABI, which wraps every direct call to verify ebx/esi/edi are restored (recomp_abi_violation) and to flag esp leaving RECOMP_ESP_LO 0x00700000 .. RECOMP_ESP_HI 0x00F80000, NAMING THE CALLEE (recomp_esp_escape). CMakeLists.txt:28 exposes it as an option. Configured and building now via `cmake -S . -B build_abi -DRECOMP_CHECK_ABI=ON` in a SEPARATE directory so the normal build is untouched. This is an automated detector for the exact bug class that has dominated 2026-08-07 - #38, #52, #69, #71 were all found by hand, one probe pair at a time. CURRENT WALL: write at Xbox VA 0xFFFFFF03 in sub_00204800 + 0x24D (recomp_0015.c ~17954), esi = -1, eax = 0xFFFFFF00, ebx = 0x65637275 which is ASCII \"urce\" so string data is in a register. Backtrace sub_001A1C97 -> sub_0019F22E -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_002392E0 -> sub_002155B0 -> sub_0020DA95 -> sub_0020A360 -> sub_00204800.",
+   "tags": [
+    "sub_00216F70",
+    "seed",
+    "esp-underflow",
+    "RECOMP_CHECK_ABI",
+    "stack",
+    "sub_0022C2A0",
+    "sub_00204800",
+    "tooling",
+    "method"
+   ],
+   "when": "2026-08-07 23:20"
+  },
+  {
+   "id": 79,
+   "claim": "RECOMP_CHECK_ABI now runs and works - 23 distinct callee-save violations captured to tools_data/abi_violations.txt. But it did NOT fire on esp, which is the important NEGATIVE result: the stack underflow does not happen across any DIRECT call, so it must be an ICALL or a tail-jump chain. The violation list needs triage, not blind trust - several are string-copy code where esi/edi are legitimately consumed",
+   "verdict": "confirmed",
+   "evidence": "FIRST EVER RUN of RECOMP_CHECK_ABI on this project - the mode has existed in recomp_types.h and CMakeLists.txt:28 the whole time and nobody had used it. Built into a SEPARATE directory so the normal build is untouched: `cmake -S . -B build_abi -DRECOMP_CHECK_ABI=ON` then `cmake --build build_abi --config Release`, clean apart from four pre-existing C4700 uninitialised-local warnings in recomp_0017.c (mm2, mm3, ebp x2 - worth a separate look). VALIDITY CHECK FIRST: the instrumented binary reports \"distinct=101\" and \"callsites=357\", identical to the normal build, and crashes the same way (0xC0000005). So the checking is behaviour-neutral and its observations describe the real run, not a perturbed one. RESULT 1 - 23 distinct callee-save violations, saved to tools_data/abi_violations.txt. Format is \"[ABI] sub_X did not restore:  ebx BEFORE->AFTER  esi ...  edi ...\". Examples: sub_003432E3 loses all three; sub_00204020 loses esi and edi; sub_0021ACD0 loses all three; sub_002235D0, sub_00209650, sub_001EA600, sub_002096B0, sub_0020E520, sub_002226E0, sub_001EA730, sub_001EA770, sub_002041D0, sub_001EA6B0, sub_00227F90, sub_00236500, sub_00342AA0, sub_001183A0 and a run of sub_00023440/70/80/4C0/4E0/500. DO NOT TREAT THIS AS A BUG LIST - IT NEEDS TRIAGE. Several entries show ASCII in the \"after\" values: 0x6769203A = \": ig\", 0x624F6174 = \"taOb\", 0x654D6769 = \"igMe\", 0x65726854 = \"Thre\", 0x45747865 = \"extE\", 0x0163656A = \"jec\". Those are string bytes being moved, i.e. rep movsd / rep stosd style copies where esi and edi are the source and destination pointers and are legitimately consumed. A function whose whole job is a memory copy will trip this check without being wrong. The sub_00023440-sub_00023500 cluster all showing the identical \"edi 0044B0A4->00000001\" also smells like one CRT-ish helper family rather than six independent bugs. Triage by asking whether the caller actually depends on the register afterwards - that is what made #37/#38/#52/#69 real. RESULT 2, AND THE MORE USEFUL ONE - A NEGATIVE: recomp_esp_escape NEVER FIRED. Zero esp reports in the whole run. The check is `if ((g_esp < 0x00700000 || g_esp > 0x00F80000) && (esp_before >= 0x00700000 && esp_before <= 0x00F80000)) recomp_esp_escape(...)`, so it catches the TRANSITION out of range across a direct call. The crash has esp = 0x00F8031C, which IS out of range (initial esp is 0x00F7FFF0 per the startup banner \"Stack: 8192 KB at Xbox VA 0x00780000 (ESP = 0x00F7FFF0)\", so the stack has been popped 0x32C bytes more than pushed). Since no direct call was observed carrying esp out of range, THE OVER-POP IS NOT IN A DIRECT CALL. That leaves: an ICALL (RECOMP_ICALL / RECOMP_ICALL_SAFE / RECOMP_ITAIL are NOT wrapped by RECOMP_ABI_CALL and so are unchecked), a tail-jump fragment chain, or arithmetic inside one function. This rules out a large search space for one build. NEXT STEP, and it is cheap: extend the esp range check into RECOMP_ICALL_SAFE and RECOMP_ITAIL, where the target address is already in hand and can be printed - that would name the over-popping indirect callee the same way recomp_esp_escape names a direct one. Given #71 found TWO generic `g_esp += 4` stubs whose real epilogues owed 12 and 36 bytes, an indirect call landing on a stub that pops the wrong amount is exactly the expected shape, and safe_stub still reads 8 every run. State unchanged: 44 kernel calls / 5 failed icalls / 23 heap allocs / 8 safe stubs, reached 101, callsites 357, deterministic.",
+   "tags": [
+    "RECOMP_CHECK_ABI",
+    "recomp_abi_violation",
+    "recomp_esp_escape",
+    "esp-underflow",
+    "callee-saved",
+    "tooling",
+    "abi_violations",
+    "negative-result",
+    "false-positive"
+   ],
+   "when": "2026-08-07 23:26"
+  },
+  {
+   "id": 80,
+   "claim": "CORRECTION to #79: its central negative - \"recomp_esp_escape NEVER FIRED, so the over-pop is not in a direct call\" - is WRONG. It did fire. My grep was truncated at 20 lines and the 40+ `[KERNEL] ... esp=` lines crowded the `[ESP]` report out of view. The first and biggest escape IS a direct call: sub_00227F90, delta +180",
+   "verdict": "refuted",
+   "evidence": "HOW I GOT IT WRONG, recorded because the method failure matters more than the fact. To look for esp reports in the first RECOMP_CHECK_ABI run I ran `Select-String -Pattern \"esp\" | Where-Object { $_.Line -notmatch \"^\\[ABI\\]\" } | Select-Object -First 20`. Every one of the first 20 matches was a `[KERNEL] #N: ordinal X esp=0x00F7FFxx` progress line - there are 40+ of them and they appear early in the log. The `[ESP]` report sits after them and was cut off by `-First 20`. I then reported \"ZERO esp reports\" as a finding and built ledger #79's whole conclusion on it. RECOMP_ABI_CALL was not modified between the two builds, so that report was present in the first run too and I simply did not see it. This is the same class of mistake as the shared probe counter that hid the interesting site three times today: a display limit silently truncating evidence, then a confident conclusion drawn from the truncated view. Do not conclude \"X never happens\" from a head-limited grep - count the matches first, or grep for the exact tag. WHAT THE FULL RESULT ACTUALLY IS, from the rebuilt binary (coverage identical at distinct=101 / callsites=357, so the instrumentation remains behaviour-neutral and both runs describe the same execution), four escapes in firing order: (1) \"[ESP] sub_00227F90 left esp outside the stack: 00F7FF54 -> 00F80008 (delta +180)\" - NO \"icall to\" prefix, so this is recomp_esp_escape, a DIRECT call, and it is the FIRST transition out of range and the one to chase; (2) \"[ESP] icall to sub_00220870 ... 00F7FF58 -> 00F8002C (delta +212)\"; (3) \"[ESP] icall to sub_00211530 ... 00F7FFF8 -> 00F80008 (delta +16)\"; (4) \"[ESP] icall to sub_00216F70 ... 00F80000 -> 00F80004 (delta +4)\". SO BOTH PATHS OVER-POP, direct and indirect - #79's narrowing was not just unproven, it was backwards. The new RECOMP_ESP_WATCH added to RECOMP_ICALL / RECOMP_ICALL_SAFE / RECOMP_ITAIL is still worth having: it produced entries 2-4, which the direct-call check could never have caught, and it names target VAs. PRIME SUSPECT sub_00227F90: it is both the first esp escape (+180) and already present in tools_data/abi_violations.txt as \"[ABI] sub_00227F90 did not restore: ebx 6769203A->45747865 esi 624F6174->6769203A\" - ASCII \": ig\" -> \"extE\" and \"taOb\" -> \": ig\", i.e. it is moving string bytes through the callee-saved registers. A function that both destroys ebx/esi AND leaves esp 180 bytes high is a much stronger candidate than anything on the raw violation list. NOTE ON sub_00216F70, the 6-byte getter seeded in #78: its escape is only +4 and it starts from esp = 0x00F80000, i.e. esp was ALREADY at the stack ceiling when it ran. Its lifted body pops exactly 4 for its `ret`, which is correct. It is a VICTIM of the earlier drift, not a cause - do not revert it on this evidence. NEXT STEP: bracket sub_00227F90 with entry/exit esp probes and account for every push against every pop, the method that cracked #71. Tree state unchanged and verified: normal build 44 kernel calls / 5 failed icalls / 23 heap allocs / 8 safe stubs, reached 101, callsites 357, deterministic 2 of 2. The recomp_types.h change is behaviour-neutral - the normal build's numbers are identical before and after it.",
+   "tags": [
+    "correction",
+    "ledger-79",
+    "recomp_esp_escape",
+    "sub_00227F90",
+    "esp-underflow",
+    "RECOMP_CHECK_ABI",
+    "method",
+    "grep-truncation"
+   ],
+   "when": "2026-08-08 01:41"
+  },
+  {
+   "id": 81,
+   "claim": "THE 180 BYTES ARE FOUND: sub_00204020 captures _icall_esp ABOVE its callee-saved pushes of esi and edi, so a FAILED ICALL rolls esp back past both saves while the epilogue pops them anyway - 8 bytes per call, in a loop, up a six-level chain. BUT the obvious fix REGRESSES the boot 101 -> 64 reached with 37 lost and ZERO gained, so it is reverted and the site carries a warning comment",
+   "verdict": "confirmed",
+   "evidence": "SIX LEVELS, EVERY ONE BRACKETED WITH PROBES RATHER THAN REASONED - and reasoning was wrong at every level, because four of the six functions balance perfectly on paper. (1) sub_00227F90, entry esp 0x00F7FF54: the five sub_00209650 calls gain instead of losing 4 each - after call 1 esp=0x00F7FF80 where 0x00F7FF50 was due (48 lost), then 32 lost on each of calls 2-5. 48 + 4x32 = 176, plus 4 for its own ret = 180, matching RECOMP_CHECK_ABI's \"[ESP] sub_00227F90 ... 00F7FF54 -> 00F80008 (delta +180)\" to the byte. Its own arithmetic (5 pushes, one `esp + 0x14`) is correct. (2) sub_00209650 is a callback dispatcher reading its target from MEM32(esp+8). Balanced. (3) sub_00227F50, the first callback: loc_00227F50 0x00F7FF44 -> loc_00227F55 0x00F7FF44 proves its sub_00227F90 re-entry is balanced; loc_00227F88 reads 0x00F7FF48 where 0x00F7FF18 was due. Its own 11 pushes = 0x2C are cleaned by `esp + 0x2C`. Balanced. (4) sub_002235D0 loses 24 per hit, twice on this path = 48. Walking all 60 labels: prologue correct (-0x108 frame, -0x10 for four pushes, steady at 0x00F7FDFC), then loc_00223736 -> loc_00223738 jumps +0x18 across ONE ICALL that pushes only a 4-byte dummy. DECISIVE DETAIL: the recursive INNER frame runs that same ICALL BALANCED. Probing the target explained why - \"[T:PRE] #1 target=0x00226250\" then POST unchanged, versus \"[T:PRE] #2 target=0x00221F50 esp=0x00F7FDFC\" then \"[T:POST] #2 esp=0x00F7FE14\". Same code, different callback. (5) sub_00221F50 is balanced at all 17 labels until its last call: loc_0022216C 0x00F7FDE0 -> loc_00222193 0x00F7FDF8 where 0x00F7FDE0 was due. Its own frame (esp-8 plus four pushes = 24, epilogue pops 4 registers plus `esp + 8` = 24) balances. (6) sub_0021ACD0 walked at 38 labels: prologue correct (-0x14 then -0xC = 32 wound, steady at 0x00F7FDAC), and loc_0021ADFB -> loc_0021AE17 gains 8 EVERY LOOP ITERATION - iteration 1 0x00F7FDAC -> 0x00F7FDB4, iteration 2 0x00F7FDB4 -> 0x00F7FDBC. Three iterations = 24. Both of ITS paths balance on paper too. THE TERMINAL CAUSE: the only call between those two labels is sub_00204020, thiscall with NO stack arguments. Its body is `{ uint32_t _icall_esp = g_esp; PUSH32(esp, esi); esi = ecx; eax = MEM32(esi); PUSH32(esp, edi); ... RECOMP_ICALL_SAFE(...); }` - _icall_esp captured ABOVE both callee-saved pushes. On failure RECOMP_ICALL_SAFE does `g_esp = saved_esp`, rolling past esi and edi; the epilogue (via sub_00204039 / sub_00204086) pops them regardless, so the caller ends 8 bytes high. Two saves = 8 bytes = exactly the per-iteration figure, and the run has 5 failed icalls. This is precisely the class tools_data/find_icall_esp_saves.py exists for; its fix comments are already present in sub_00209650 and sub_002235D0, and sub_00204020 was missed. THE SWEEP: 16,236 icall save points scanned, 3,140 capture across register saves - 2,519 at 4 bytes, 403 at 8, 143 at 12, 63 at 16, 7 at 20, 3 at 24, 2 at 28. IMPORTANT FRAMING: the skew only materialises when the ICALL actually FAILS, so these are LATENT sites, not 3,140 live bugs. THE FIX WAS APPLIED AND REVERTED. Moving the capture below the two pushes is correct in isolation and cut failed_icalls 5 -> 2 and heap_allocs 23 -> 22, but measured deterministic 2 of 2 it took reached 101 -> 64 and callsites 357 -> 265, and diff_reached.py returned \"NOTHING new was reached and 37 were lost. That is a regression on this measure. Do not explain it away.\" Zero gained is the deciding difference from #72, which gained 4 while losing 17 and was rightly kept. Reverted; tree confirmed back at 44/5/23/8 with reached 101 and callsites 357. The site now carries a comment recording what was tried, the exact numbers, and the instruction to judge any retry on diff_reached.py rather than on failed_icalls - which improved while the boot got worse, a trap worth naming. STILL OPEN: why removing a real 8-byte skew makes the boot die earlier. Something downstream either depends on it or is masked by it. That question, not the skew, is now the wall.",
+   "tags": [
+    "sub_00204020",
+    "sub_0021ACD0",
+    "sub_00221F50",
+    "sub_002235D0",
+    "sub_00227F50",
+    "sub_00209650",
+    "sub_00227F90",
+    "icall-esp-save",
+    "find_icall_esp_saves",
+    "esp-underflow",
+    "root-cause",
+    "reverted",
+    "regression"
+   ],
+   "when": "2026-08-08 02:12"
   }
  ]
 }

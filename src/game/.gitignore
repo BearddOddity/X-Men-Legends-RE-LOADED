@@ -78,6 +78,12 @@ rebuild_check.log
 recon_report.md
 recon_findings.json
 manual_edits.json.bak-*
+possibility_report.md
+
+# possibility.py's verified backups. Ignored for the SAME reason as
+# src/recomp/gen/ above, not merely as noise: these are byte copies of the
+# generated sources, which are mechanically derived from a copyrighted XBE.
+possibility_backups/
 investigation_report.md
 investigate_run.log
 seeds_run.log

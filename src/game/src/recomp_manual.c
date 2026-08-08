@@ -63,10 +63,44 @@ extern volatile uint64_t g_icall_count;
 uint8_t  g_reached[RECOMP_COVER_BITS / 8u];
 uint32_t g_reached_count;
 
+/*
+ * Distinct DIRECT call sites executed - see the comment on g_callsite_count
+ * in recomp_types.h. g_reached_count is blind to direct calls, so a fix that
+ * REMOVES indirect work can lower it while the boot runs far more code. That
+ * happened on 2026-08-07 (ledger #72) and cost a turn of doubt.
+ */
+uint32_t g_callsite_count;
+
 void recomp_coverage_dump(void)
 {
     fprintf(stderr, "[COVERAGE] distinct=%u of %u dispatch targets reached\n",
             g_reached_count, (unsigned)RECOMP_COVER_BITS);
+    fprintf(stderr, "[COVERAGE] callsites=%u distinct direct call sites executed\n",
+            g_callsite_count);
+
+    /*
+     * Dump the actual reached ADDRESSES, not just how many.
+     *
+     * Counts cannot settle whether a change is progress. On 2026-08-07 a fix
+     * that quadrupled kernel calls lowered BOTH coverage counts, because the
+     * boot had previously been thrashing through a retry spin and visiting
+     * many distinct places while achieving nothing. Breadth fell; depth rose.
+     *
+     * The set difference answers it directly: if a run reaches addresses an
+     * earlier run never did, it executed code that never ran before, whatever
+     * the totals did. Diff two of these dumps instead of arguing about which
+     * scalar to trust.
+     *
+     * At most a few hundred lines at this stage of the boot, so printing them
+     * all is cheap and needs no filtering.
+     */
+    fprintf(stderr, "[COVERAGE] reached VAs:\n");
+    for (uint32_t bit = 0; bit < RECOMP_COVER_BITS; bit++) {
+        if (g_reached[bit >> 3] & (uint8_t)(1u << (bit & 7u))) {
+            fprintf(stderr, "[COVERAGE-VA] 0x%08X\n",
+                    RECOMP_COVER_LO + (bit << 2));
+        }
+    }
     fflush(stderr);
 }
 
@@ -469,6 +503,7 @@ static void sub_001A237D_stub(void)
  * here rather than in the generated recomp_funcs.h so the wiring
  * survives a regeneration.
  */
+extern void sub_00011B2B(void);
 extern void sub_00011B35(void);
 extern void sub_00011EC0(void);
 extern void sub_000147ED(void);
@@ -1063,13 +1098,17 @@ extern void sub_001E26F9(void);
 extern void sub_001E4F9A(void);
 extern void sub_001E55A2(void);
 extern void sub_001E5EC0(void);
+extern void sub_001E6C5B(void);
+extern void sub_001E6CC9(void);
 extern void sub_001E7F50(void);
 extern void sub_001E8682(void);
+extern void sub_001E9558(void);
 extern void sub_001EC0D9(void);
 extern void sub_001EC0E4(void);
 extern void sub_001EC5E0(void);
 extern void sub_001EC750(void);
 extern void sub_001ECA9D(void);
+extern void sub_001ECAD0(void);
 extern void sub_001ED185(void);
 extern void sub_001ED2E7(void);
 extern void sub_001EF6F8(void);
@@ -1100,6 +1139,13 @@ extern void sub_001F5804(void);
 extern void sub_001F5860(void);
 extern void sub_001F6DD0(void);
 extern void sub_001F76D0(void);
+extern void sub_001F83EF(void);
+extern void sub_001F83F6(void);
+extern void sub_001F83FD(void);
+extern void sub_001F8404(void);
+extern void sub_001F840B(void);
+extern void sub_001F8443(void);
+extern void sub_001F844A(void);
 extern void sub_001F8AB0(void);
 extern void sub_001FBA90(void);
 extern void sub_001FBD3C(void);
@@ -1619,6 +1665,8 @@ extern void sub_00397556(void);
 extern void sub_00397598(void);
 extern void sub_00397618(void);
 extern void sub_00397732(void);
+extern void sub_00221E50(void);
+extern void sub_00216F70(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -1632,6 +1680,7 @@ extern void sub_00345AB0(void);
 
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
+    if (xbox_va == 0x00011B2Bu) return sub_00011B2B;
     if (xbox_va == 0x00011B35u) return sub_00011B35;
     if (xbox_va == 0x00011EC0u) return sub_00011EC0;
     if (xbox_va == 0x000147EDu) return sub_000147ED;
@@ -2226,13 +2275,17 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001E4F9Au) return sub_001E4F9A;
     if (xbox_va == 0x001E55A2u) return sub_001E55A2;
     if (xbox_va == 0x001E5EC0u) return sub_001E5EC0;
+    if (xbox_va == 0x001E6C5Bu) return sub_001E6C5B;
+    if (xbox_va == 0x001E6CC9u) return sub_001E6CC9;
     if (xbox_va == 0x001E7F50u) return sub_001E7F50;
     if (xbox_va == 0x001E8682u) return sub_001E8682;
+    if (xbox_va == 0x001E9558u) return sub_001E9558;
     if (xbox_va == 0x001EC0D9u) return sub_001EC0D9;
     if (xbox_va == 0x001EC0E4u) return sub_001EC0E4;
     if (xbox_va == 0x001EC5E0u) return sub_001EC5E0;
     if (xbox_va == 0x001EC750u) return sub_001EC750;
     if (xbox_va == 0x001ECA9Du) return sub_001ECA9D;
+    if (xbox_va == 0x001ECAD0u) return sub_001ECAD0;
     if (xbox_va == 0x001ED185u) return sub_001ED185;
     if (xbox_va == 0x001ED2E7u) return sub_001ED2E7;
     if (xbox_va == 0x001EF6F8u) return sub_001EF6F8;
@@ -2263,6 +2316,13 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001F5860u) return sub_001F5860;
     if (xbox_va == 0x001F6DD0u) return sub_001F6DD0;
     if (xbox_va == 0x001F76D0u) return sub_001F76D0;
+    if (xbox_va == 0x001F83EFu) return sub_001F83EF;
+    if (xbox_va == 0x001F83F6u) return sub_001F83F6;
+    if (xbox_va == 0x001F83FDu) return sub_001F83FD;
+    if (xbox_va == 0x001F8404u) return sub_001F8404;
+    if (xbox_va == 0x001F840Bu) return sub_001F840B;
+    if (xbox_va == 0x001F8443u) return sub_001F8443;
+    if (xbox_va == 0x001F844Au) return sub_001F844A;
     if (xbox_va == 0x001F8AB0u) return sub_001F8AB0;
     if (xbox_va == 0x001FBA90u) return sub_001FBA90;
     if (xbox_va == 0x001FBD3Cu) return sub_001FBD3C;
@@ -2782,6 +2842,8 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00397598u) return sub_00397598;
     if (xbox_va == 0x00397618u) return sub_00397618;
     if (xbox_va == 0x00397732u) return sub_00397732;
+    if (xbox_va == 0x00221E50u) return sub_00221E50;
+    if (xbox_va == 0x00216F70u) return sub_00216F70;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;

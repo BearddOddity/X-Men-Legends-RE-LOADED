@@ -1,0 +1,29 @@
+{
+  "name": "pool+4: refcount or first array slot?",
+  "question": "sub_00211280 decrements a refcount at MEM32(obj+4) where obj resolves to the pool 0x011CE000; sub_00205170 reads the same 4 bytes as the first deferred-free array slot and then dereferences the value. Which reading is wrong? (ledger #60)",
+  "runs": 2,
+  "variants": [
+    {
+      "id": "A",
+      "hypothesis": "esi+0xB0 wrongly holds the POOL, so the refcount decrement is landing on an object it should never touch. Suppressing that one write should stop the array being corrupted and let the walk finish.",
+      "edits": [
+        {
+          "file": "src/recomp/gen/recomp_0015.c",
+          "old": "loc_0021133E: ;\n    edx = MEM32(ecx + 4);\n    edx--;\n    eax = edx;\n    (void)0; /* test eax, 0x7FFFFF - flags set for next jcc */\n    MEM32(ecx + 4) = edx;\n    if (TEST_NZ(eax, 0x7FFFFF)) goto loc_00211353; /* jne: not equal / not zero */",
+          "new": "loc_0021133E: ;\n    edx = MEM32(ecx + 4);\n    edx--;\n    eax = edx;\n    (void)0; /* test eax, 0x7FFFFF - flags set for next jcc */\n    /* POSSIBILITY VARIANT A (diagnostic, not a fix): suppress the refcount\n     * store that the write-watch caught corrupting pool+4. If the walk then\n     * completes, esi+0xB0 was pointing at the wrong object. */\n    if (ecx != MEM32(MEM32(0x5BC508) + 0x70)) MEM32(ecx + 4) = edx;\n    if (TEST_NZ(eax, 0x7FFFFF)) goto loc_00211353; /* jne: not equal / not zero */"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "hypothesis": "The pool legitimately carries a refcount at +4, so the deferred-free array starts at +8 and sub_00205170's base is off by one slot. Shifting the cursor should skip the refcount and walk only real entries.",
+      "edits": [
+        {
+          "file": "src/recomp/gen/recomp_0015.c",
+          "old": "    edx = ecx + eax * 4 + -4;\n    PUSH32(esp, ebp);\n    eax = ecx + 4;\n    PUSH32(esp, esi);\n    MEM32(esp + 0x20) = edx;\n    MEM32(esp + 0x14) = eax;",
+          "new": "    edx = ecx + eax * 4 + -4;\n    PUSH32(esp, ebp);\n    /* POSSIBILITY VARIANT B (diagnostic, not a fix): start the deferred-free\n     * walk at pool+8 instead of pool+4, on the reading that pool+4 is a\n     * refcount field and never was an array slot. */\n    eax = ecx + 8;\n    PUSH32(esp, esi);\n    MEM32(esp + 0x20) = edx;\n    MEM32(esp + 0x14) = eax;"
+        }
+      ]
+    }
+  ]
+}
