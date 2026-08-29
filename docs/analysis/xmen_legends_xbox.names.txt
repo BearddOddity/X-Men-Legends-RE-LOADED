@@ -803,6 +803,7 @@ F	00060b00	CConversationSystem::vfunc0	__thiscall	undefined4 * CConversationSyst
 F	00060b20	IConversationSystem::ctor_or_dtor_00060b20	__fastcall	undefined IConversationSystem::ctor_or_dtor_00060b20(undefined4 * param_1)
 F	00060c00	GetPhysicsOrCollisionManager	unknown	undefined GetPhysicsOrCollisionManager(void)
 F	000622f0	CConversationSystem::vfunc4	__thiscall	undefined CConversationSystem::vfunc4(void * this, char * param_1)
+F	00062f10	ExpandTextMacros_PercentEnd	__thiscall	undefined ExpandTextMacros_PercentEnd(void * this, char * param_1, char * param_2)
 F	00063eb0	CBlock::vfunc2	__thiscall	float10 CBlock::vfunc2(void * param_1, int param_2)
 F	00064610	CBlock::vfunc4	unknown	undefined CBlock::vfunc4(void)
 F	00065080	CConversationSystem::vfunc5	__thiscall	undefined4 CConversationSystem::vfunc5(void * this, char * param_1, undefined4 * param_2, int * param_3)
@@ -4935,6 +4936,7 @@ F	002041d0	free_object_instance	__fastcall	undefined free_object_instance(int * 
 F	0020be80	CPythonGameInterface::vfunc13	unknown	undefined CPythonGameInterface::vfunc13(void)
 F	0020e610	Gap::Core::igDataList::vfunc19	__thiscall	void * Gap::Core::igDataList::vfunc19(void * this, int param_1)
 F	002123a0	CFxPrimitiveBase::vfunc1	__stdcall	undefined4 CFxPrimitiveBase::vfunc1(void)
+F	00216210	SubsystemRegistry_Register	unknown	undefined SubsystemRegistry_Register(void)
 F	0021a170	CFxOrientedSpritePrimitive::vfunc1	unknown	undefined CFxOrientedSpritePrimitive::vfunc1(void)
 F	0022ecb0	Gap::Core::igInfo::vfunc21	__thiscall	undefined4 Gap::Core::igInfo::vfunc21(void * this, void * param_1, uint param_2)
 F	00239e50	alloc_core_engine_buffer	__cdecl	undefined alloc_core_engine_buffer(int param_1)
@@ -5246,14 +5248,19 @@ F	0035d900	D3D8__D3DDevice_SetRenderState_Simple	__fastcall	void D3D8__D3DDevice
 F	0035d930	D3D8__D3DDevice_SetRenderStateNotInline	__stdcall	undefined D3D8__D3DDevice_SetRenderStateNotInline(int param_1, undefined4 param_2)
 F	0035d990	D3D8__D3DDevice_GetViewportOffsetAndScale	__stdcall	void D3D8__D3DDevice_GetViewportOffsetAndScale(D3DXVECTOR4 * pOffset, D3DXVECTOR4 * pScale)
 F	0035dac0	D3D8__D3D_UpdateProjectionViewportTransform	__stdcall	undefined D3D8__D3D_UpdateProjectionViewportTransform(void)
+F	0035dc00	D3D8__D3DDevice_SetRenderState_EdgeAntiAlias	unknown	undefined D3D8__D3DDevice_SetRenderState_EdgeAntiAlias(void)
+F	0035dc40	D3D8__D3DDevice_SetRenderState_ShadowFunc	unknown	undefined D3D8__D3DDevice_SetRenderState_ShadowFunc(void)
 F	0035dc80	D3D8__D3DDevice_SetRenderState_FogColor	__stdcall	void D3D8__D3DDevice_SetRenderState_FogColor(DWORD Value)
 F	0035dcd0	D3D8__D3DDevice_SetRenderState_CullMode	__stdcall	void D3D8__D3DDevice_SetRenderState_CullMode(DWORD Value)
+F	0035dd40	D3D8__D3DDevice_SetRenderState_FrontFace	unknown	undefined D3D8__D3DDevice_SetRenderState_FrontFace(void)
 F	0035dd80	D3D8__D3DDevice_SetRenderState_NormalizeNormals	__stdcall	void D3D8__D3DDevice_SetRenderState_NormalizeNormals(DWORD Value)
 F	0035ddc0	D3D8__D3DDevice_SetRenderState_TextureFactor	__stdcall	void D3D8__D3DDevice_SetRenderState_TextureFactor(DWORD Value)
 F	0035de20	D3D8__D3DDevice_SetRenderState_LineWidth	__stdcall	void D3D8__D3DDevice_SetRenderState_LineWidth(DWORD Value)
 F	0035de90	D3D8__D3DDevice_SetRenderState_Dxt1NoiseEnable	__stdcall	void D3D8__D3DDevice_SetRenderState_Dxt1NoiseEnable(DWORD Value)
 F	0035df10	D3D8__D3DDevice_SetRenderState_ZBias	__stdcall	void D3D8__D3DDevice_SetRenderState_ZBias(DWORD Value)
+F	0035df90	D3D8__D3DDevice_SetRenderState_LogicOp	unknown	undefined D3D8__D3DDevice_SetRenderState_LogicOp(void)
 F	0035dff0	D3D8__D3DDevice_SetRenderState_FillMode	__stdcall	void D3D8__D3DDevice_SetRenderState_FillMode(DWORD Value)
+F	0035e0a0	D3D8__D3DDevice_SetRenderState_TwoSidedLighting	unknown	undefined D3D8__D3DDevice_SetRenderState_TwoSidedLighting(void)
 F	0035e170	D3D8__D3DDevice_SetTextureState_TexCoordIndex	__stdcall	void D3D8__D3DDevice_SetTextureState_TexCoordIndex(DWORD Stage, DWORD Value)
 F	0035e280	D3D8__D3DDevice_SetTextureState_BumpEnv	__stdcall	void D3D8__D3DDevice_SetTextureState_BumpEnv(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
 F	0035e2f0	D3D8__D3DDevice_SetTextureState_BorderColor	__stdcall	void D3D8__D3DDevice_SetTextureState_BorderColor(DWORD Stage, DWORD Value)
@@ -5357,6 +5364,7 @@ F	0036fbcd	DSOUND__CDirectSoundBuffer_SetLoopRegion	__stdcall	int DSOUND__CDirec
 F	0036fc52	DSOUND__CDirectSoundBuffer_GetCurrentPosition	__stdcall	undefined4 DSOUND__CDirectSoundBuffer_GetCurrentPosition(int param_1, uint * param_2, uint * param_3)
 F	0036fca7	DSOUND__CDirectSoundBuffer_Lock	__stdcall	int DSOUND__CDirectSoundBuffer_Lock(int param_1, uint param_2, uint param_3, int * param_4, uint * param_5, undefined4 * param_6, int * param_7, byte param_8)
 F	0036fd89	DSOUND__CDirectSoundBuffer_SetCurrentPosition	__stdcall	int DSOUND__CDirectSoundBuffer_SetCurrentPosition(int param_1, uint param_2)
+F	0036fead	DSOUND__CDirectSoundStream_GetInfo	unknown	undefined DSOUND__CDirectSoundStream_GetInfo(void)
 F	0036fffd	DSOUND__CDirectSoundStream_Process	__stdcall	HRESULT DSOUND__CDirectSoundStream_Process(CDirectSoundStream * pThis, PXMEDIAPACKET pInputBuffer, PXMEDIAPACKET pOutputBuffer)
 F	00370074	DSOUND__CDirectSoundStream_Pause	__stdcall	HRESULT DSOUND__CDirectSoundStream_Pause(CDirectSoundStream * pThis, DWORD dwPause)
 F	003700c5	DSOUND__CDirectSoundStream_FlushEx	__stdcall	HRESULT DSOUND__CDirectSoundStream_FlushEx(CDirectSoundStream * pThis, REFERENCE_TIME rtTimeStamp, DWORD dwFlags)
@@ -12008,17 +12016,12 @@ L	0035d8d0	D3DDevice_SetRenderState_PSTextureModes
 L	0035d8d0	D3D8__D3DDevice_SetRenderState_PSTextureModes
 L	0035d900	D3D8__D3DDevice_SetRenderState_Simple
 L	0035dc00	D3DDevice_SetRenderState_EdgeAntiAlias
-L	0035dc00	D3D8__D3DDevice_SetRenderState_EdgeAntiAlias
 L	0035dc40	D3DDevice_SetRenderState_ShadowFunc
-L	0035dc40	D3D8__D3DDevice_SetRenderState_ShadowFunc
 L	0035dd40	D3DDevice_SetRenderState_FrontFace
-L	0035dd40	D3D8__D3DDevice_SetRenderState_FrontFace
 L	0035df90	D3DDevice_SetRenderState_LogicOp
-L	0035df90	D3D8__D3DDevice_SetRenderState_LogicOp
 L	0035e040	D3DDevice_SetRenderState_BackFillMode
 L	0035e040	D3D8__D3DDevice_SetRenderState_BackFillMode
 L	0035e0a0	D3DDevice_SetRenderState_TwoSidedLighting
-L	0035e0a0	D3D8__D3DDevice_SetRenderState_TwoSidedLighting
 L	0035e120	D3DDevice_SetRenderState_VertexBlend
 L	0035e120	D3D8__D3DDevice_SetRenderState_VertexBlend
 L	0035ecf0	D3DDevice_SetRenderState_YuvEnable
@@ -12261,7 +12264,6 @@ L	0036fe18	DSOUND__CDirectSoundStream_AddRef
 L	0036fe5f	CDirectSoundStream_Release
 L	0036fe5f	DSOUND__CDirectSoundStream_Release
 L	0036fead	CDirectSoundStream_GetInfo
-L	0036fead	DSOUND__CDirectSoundStream_GetInfo
 L	0036ff14	CDirectSoundStream_Discontinuity
 L	0036ff14	DSOUND__CDirectSoundStream_Discontinuity
 L	0036ff61	CDirectSoundStream_Flush
