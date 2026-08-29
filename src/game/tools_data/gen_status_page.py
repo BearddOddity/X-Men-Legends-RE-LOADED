@@ -68,12 +68,34 @@ def wall_history(hist):
     spinning, because reaching one means the previous wall was passed.
     """
     out, seen = [], set()
-    for e in hist:
+    for i, e in enumerate(hist):
         c = e.get("crash_in")
         if c and c not in seen:
             seen.add(c)
-            out.append((e.get("date", ""), c, e.get("kernel_calls")))
+            out.append((e.get("date", ""), c, e.get("kernel_calls"), i))
     return out
+
+
+def wall_economics(hist, walls):
+    """How the cost of a wall has changed, and the spread.
+
+    Split the history in half rather than fitting a curve: with 148 runs and
+    39 walls the sample is small enough that a trend line would imply more
+    precision than the data carries.
+    """
+    idx = [w[3] for w in walls]
+    mid = len(hist) // 2
+    first = [i for i in idx if i < mid]
+    second = [i for i in idx if i >= mid]
+    gaps = sorted(idx[i] - idx[i - 1] for i in range(1, len(idx))) or [0]
+    return {
+        "first_runs": mid, "first_walls": len(first),
+        "second_runs": len(hist) - mid, "second_walls": len(second),
+        "first_cost": mid / max(1, len(first)),
+        "second_cost": (len(hist) - mid) / max(1, len(second)),
+        "median_gap": gaps[len(gaps) // 2],
+        "worst_gap": gaps[-1],
+    }
 
 
 def sparkline(values, w=680, h=120):
@@ -108,6 +130,7 @@ def sparkline(values, w=680, h=120):
 
 def build(hist, sig):
     walls = wall_history(hist)
+    econ = wall_economics(hist, walls)
     lifted = lifted_function_count()
     latest = hist[-1]
     svg, cap = sparkline([e.get("kernel_calls") for e in hist])
@@ -117,7 +140,7 @@ def build(hist, sig):
         '          <tr><td class="n">%s</td><td class="n">%s</td>'
         '<td class="n">%s</td></tr>'
         % (escape(str(d)), escape(str(c)), k if k is not None else "&mdash;")
-        for d, c, k in recent
+        for d, c, k, _ in recent
     )
 
     return """<div class="wrap">
@@ -177,6 +200,26 @@ def build(hist, sig):
       </table>
     </div>
     <p class="track-cap">Most recent walls, newest first.</p>
+
+    <div class="metrics">
+      <div class="metric"><span class="metric-k">First {first_runs} runs</span>
+        <span class="metric-val">{first_walls} walls</span>
+        <span class="track-cap">{first_cost:.1f} runs each</span></div>
+      <div class="metric"><span class="metric-k">Last {second_runs} runs</span>
+        <span class="metric-val">{second_walls} walls</span>
+        <span class="track-cap">{second_cost:.1f} runs each</span></div>
+      <div class="metric"><span class="metric-k">Median wall</span>
+        <span class="metric-val">{median_gap} runs</span></div>
+      <div class="metric"><span class="metric-k">Worst wall</span>
+        <span class="metric-val">{worst_gap} runs</span></div>
+    </div>
+    <p class="track-cap"><strong>Walls are getting more expensive, not
+    cheaper</strong> &mdash; the cost per wall has roughly doubled between the
+    first and second half of the history. That is expected: the cheap ones
+    (missing stubs, obvious nulls) went early, and what remains needs tracing.
+    It also means the wall count is not a countdown. Walls are not independent,
+    and fixing a whole defect class can collapse several at once, which is what
+    the 512-pointer pass did.</p>
   </section>
 
   <section>
@@ -258,6 +301,7 @@ def build(hist, sig):
         heap=sig.get("heap") or 0,
         ended=escape(str(latest.get("ended", "?"))),
         rows=rows,
+        **econ,
     )
 
 
