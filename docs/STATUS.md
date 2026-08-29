@@ -339,3 +339,61 @@ hand-written in `recomp_manual.c` as `static void` and registered in
 backtrace shows. The substantive point stands and is if anything stronger: two
 of the twelve frames on the critical path exist only because someone wrote them
 by hand, because nothing in the binary calls them directly.
+
+
+## Origin found: the object is never constructed, it is returned
+
+`sub_002226E0` is a lookup-or-create, gated on the registry's ready flag at
+`[0x5BC508]+0`:
+
+```
+002226E0  mov eax, [0x5bc508]
+002226E5  cmp byte ptr [eax], 0
+002226E8  je  0x222708          ; flag == 0  -> CREATE (full constructor)
+002226EA  ...                   ; flag != 0  -> LOOK UP via sub_0020E520
+```
+
+Probed across 13 calls: **7 with flag `00`** — exactly matching the 7 objects
+`sub_00222708` builds — and **6 with flag `01`**, once the table at `0x5BC274`
+is populated. The flag flips partway through startup, which is why the early
+descriptors are healthy and the late ones are not.
+
+The lookup path is where the bad object comes from:
+
+```
+0020E521  mov esi, ecx           ; esi = descriptor
+0020E523  mov eax, [esi + 0x3c]  ; forwarding pointer
+0020E530  call eax               ; follow it - INDIRECT
+0020E532  mov esi, eax           ; esi = whatever it returned
+0020E539  jne 0x20e530           ; loop while +0x3c is set
+0020E53B  cmp byte [esi+0x1a], 1
+0020E53F  jne 0x20e547           ; -> the crash path
+```
+
+`esi` becomes the **return value of an indirect call**, not an allocation. That
+is why probes at both the constructor's entry and its vtable store list eight
+objects and exclude the failing pair: the fatal descriptor was never constructed
+here at all. It is produced by whatever `[desc+0x3c]` points at.
+
+It also explains a loose end: `sub_0020E547`, the crash caller that appeared to
+have zero callers anywhere in the binary, is simply the `jne` target inside
+`sub_0020E520` at `0x0020E53F`, taken when `byte [esi+0x1a] != 1`.
+
+### Discarded this round
+
+- **The memcpy clone.** The only bulk copy in the registration chain is at
+  `0x0022367D`, and reading it shows a `strcat` over a stack buffer — it
+  measures a null-terminated string and appends it. Not a descriptor copy.
+- **The registry ready-flag gating a *minimal* constructor.** The minimal path
+  `sub_0022229A` runs zero times; the flag instead selects between create and
+  look-up.
+
+A useful discriminator fell out: every constructor-stamped object has
+`+4 = 00000001`, while both failing objects have `+4 = 18000001`. The
+constructor computes `+4 = (old & 0xFF000001) | 1`, so their prior top byte was
+`0x18` — a value none of the eight constructed objects ever held. Whatever
+produces them writes that field first.
+
+**Next:** capture the target of `call [esi+0x3c]` at `0x0020E530`. That function
+is the last unknown in the chain, and it is what hands back an object carrying
+`-1` in its adjust field.

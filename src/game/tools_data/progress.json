@@ -1995,5 +1995,19 @@
     "message": "The two failing descriptors are created by NONE of the three vtable-writing sites: sub_00222708 makes 7 objects and the ctor runs on all 7, sub_0022229A runs zero times, and neither failing object appears in either list",
     "note": "Paired probes [NEWDESC] on sub_00222708's post-allocation point and [CTORON] on sub_00216EE0 entry. Created: 01091AB0 01096BB8 01097498 01097518 01097728 010977C0 01097858. Constructed: the same 7 plus 00F7FD98 (a stack object from sub_00219A10, the other ctor caller). The failing 01098358 and 01098550 are in neither list, so they carry vtable 0x003F5D88 without passing through any instruction that writes it. Leading hypothesis is now a memcpy/clone of a constructed descriptor, or esi pointing into a larger structure that embeds one - both untested. ALSO CORRECTED: I earlier reported sub_0019F196 as 'not lifted'. It is hand-written in recomp_manual.c as 'static void' and registered at recomp_lookup_manual line 3835; my grep for '^void' missed the static. The backtrace confirms it runs, and gives the full boot chain in one frame list: sub_001A1C97 -> sub_0019F22E -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_0023666F -> sub_002366BC -> sub_00209650 -> sub_002221E0 -> sub_002235D0 -> sub_00222708. Probes stripped, rebuilt, unchanged at 434/92/415.",
     "commit": "66a08af"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Traced the fatal descriptor to its origin: it is not constructed at all. sub_0020E520 follows a forwarding chain through 'call [desc+0x3c]' and the returned object is what carries adjust=-1",
+    "note": "Full chain now closed. sub_002226E0 is lookup-or-create gated on the registry ready flag at [0x5BC508]+0: probe [LOOKUP] over 13 calls shows 7 with flag=00 taking the CREATE path (matching exactly the 7 objects sub_00222708 built) and 6 with flag=01 taking the LOOKUP path once the table at 0x5BC274 is populated. The lookup calls sub_0020E520, which does 'mov esi,ecx; mov eax,[esi+0x3c]; call eax; mov esi,eax' in a loop, so esi becomes whatever the forwarding function returns - and THAT is the object with adjust=-1. It never passes any of the three vtable-writing instructions, which is why probes at both the ctor entry and its vtable store list 8 objects and exclude it. sub_0020E547, the crash caller that appeared to have zero callers, is simply the jne target inside sub_0020E520 at 0x0020E53F, reached when byte [esi+0x1a] != 1. DISCARDED THIS ROUND: the memcpy-clone hypothesis - the only bulk copy in the registration chain is at 0x0022367D in sub_002235D0 and it is a strcat over a stack buffer, not a descriptor copy. Discriminator found: every ctor-stamped object has f4=00000001 while both failing ones have f4=18000001, and the ctor computes f4=(old & 0xFF000001)|1, so their prior top byte was 0x18 - a value none of the constructed objects had. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "5b21ecd"
   }
 ]
