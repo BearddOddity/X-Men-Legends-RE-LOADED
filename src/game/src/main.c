@@ -500,6 +500,20 @@ void recomp_abi_violation_va(uint32_t target_va,
     if (g_esi != esi0) fprintf(stderr, "  esi %08X->%08X", esi0, g_esi);
     if (g_edi != edi0) fprintf(stderr, "  edi %08X->%08X", edi0, g_edi);
     fprintf(stderr, "\n");
+
+    /* Same backtrace the direct-call version prints. Without it the report
+     * names the callee but not who called it, and the question that matters
+     * here is which caller was relying on the register. Resolve an RVA
+     * against build_abi/xmen_legends_recomp.map. */
+    module_range();
+    void *frames[12];
+    USHORT got = CaptureStackBackTrace(1, 12, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t a = (uintptr_t)frames[k];
+        if (in_module(a))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(a - g_mod_base));
+    }
     fflush(stderr);
 }
 

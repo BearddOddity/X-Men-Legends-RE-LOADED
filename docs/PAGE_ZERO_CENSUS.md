@@ -151,3 +151,90 @@ header arithmetic with a garbage pointer. In the normal build those reads return
 
 That makes the crash a downstream symptom, not the root cause. The pointer is
 already wrong by the time it arrives.
+
+## Which callee, and a defect found on the way
+
+Adding the caller backtrace to `recomp_abi_violation_va` (the direct-call
+reporter already had one) named the call sites. Three violators are reached
+directly from `sub_00209650`, at two of its four icall sites — resolved against
+an `/FAsc` listing built with the **ABI** flags, since that build's codegen
+differs from the page-zero build's:
+
+| callee | site | resolves to | edi |
+|---|---|---|---|
+| `sub_002225B0` | `+0x253` | line 28022 `edi = eax` — return of the **entry** icall | `01096C50->01097498` |
+| `sub_002225F0` | `+0x51e` | line 28039 `esi++` — return of the **loop** icall | `01096C50->00000000` |
+| `sub_000CC200` | `+0x51e` | line 28039 `esi++` — return of the **loop** icall | `00000000->00000004` |
+
+Backtrace frames are return addresses, so each lands just after its call.
+
+`0` and `4` are the two values the census recorded, and they arrive from the
+loop's own icall. That is the mechanism, measured end to end.
+
+### The pair is mutually recursive
+
+`sub_002225F0` does nothing but call back in:
+
+```c
+void sub_002225F0(void) {
+    PUSH32(esp, 0x2225B0);            /* push sub_002225B0 as the callback */
+    RECOMP_ABI_CALL(sub_00209650);    /* and re-enter sub_00209650 */
+    POP32(esp, ecx);
+}
+```
+
+`0x2225B0` is the function pointer `call [esp+8]` reads at `sub_00209650`'s
+entry. So "`sub_002225F0` did not restore edi" means "the recursive
+`sub_00209650` subtree did not restore edi" — the damage is inside the
+recursion, not in that three-line thunk.
+
+`sub_002225B0` pushes eleven arguments and calls `sub_002235D0`, unwinding
+`0x2C` — balanced. Among those arguments are `0x5BC2FC`, adjacent to the
+`0x005BB700` / `0x005BC544` subsystem registry in
+[BLOCKER_005BB700.md](BLOCKER_005BB700.md), and `0x3F9780`, which appears in the
+ABI report as `sub_0020B850`'s incoming edi. This is the subsystem registration
+path, reached from the other direction.
+
+### A misapplied esp fix at loc_0020969D
+
+```c
+loc_0020969D:
+    edx = MEM32(eax);
+    PUSH32(esp, edi);                 /* an ARGUMENT to the virtual call */
+    uint32_t _icall_esp = g_esp;      /* captured AFTER that push */
+    ecx = eax;
+    _icall_target = MEM32(edx + 0xFC);
+    PUSH32(esp, 0); RECOMP_ICALL_SAFE(_icall_target, _icall_esp);
+loc_002096A8:
+    POP32(esp, edi);                  /* restores the callee-saved edi */
+```
+
+`RECOMP_ICALL_SAFE` restores `g_esp = _icall_esp` when the target cannot be
+resolved. Because the capture sits *after* the argument push, a failed icall
+leaves that argument on the stack — the real callee would have removed it, the
+safe stub does not. `POP32(esp, edi)` at `loc_002096A8` then takes `edi` from
+the wrong slot and the frame ends 4 bytes off.
+
+The function's own manual-fix comment explains why the capture was moved after
+the push: at the **entry** icall that push is a genuine callee-saved register
+save, and capturing after it is right. At `loc_0020969D` the push is an
+**argument**, which is the opposite case. The same fix was applied to both by
+`tools_data/find_icall_esp_saves.py --fix` — the duplicated comment blocks in
+the generated source are the fingerprint of that pass running repeatedly.
+
+Not yet confirmed as the source of the `0`/`4` values: the backtraces put those
+at the **loop** icall, not this one. This is a real defect found alongside, and
+it should be fixed on its own merits.
+
+### The static clobber checker cannot adjudicate this
+
+`tools_data/find_reg_clobbers.py` reports **no** callee-save violation in
+`sub_002225F0`, `sub_000CC200` or `sub_002225B0`, and `--callees` finds only
+1 function reachable from each — it follows direct calls, so it is blind to
+indirect dispatch for exactly the reason the recompiler is.
+
+For `sub_00209650` it reports `edi push=3 pop=1`, which is a false positive:
+of the three pushes only the entry one is a register save, and the other two are
+call arguments (one cleaned by `esp = esp + 4`, one by the callee). It emits
+**6,321+ findings** overall, so treat it as a lead generator, not a verdict.
+The runtime check is the trustworthy instrument here.
