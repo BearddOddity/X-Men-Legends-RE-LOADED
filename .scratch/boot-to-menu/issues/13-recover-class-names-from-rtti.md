@@ -79,4 +79,91 @@ in.
 
 ## Answer
 
-<!-- filled on resolution -->
+Built `tools/ghidra_naming/rtti_names.py` — a standalone parser, not a
+Ghidra script. PyGhidra was unavailable when this started, and parsing the
+file directly turned out to be the better route anyway: it needs no running
+Ghidra, and it emits the `{addr: name}` shape `merge_names.py` already
+consumes.
+
+### Results, XML1 `default.xbe`
+
+```
+type descriptors               873
+complete object locators       743   (954 candidates rejected)
+vtables                        743   (0 rejected)
+distinct classes with vtables  726
+functions named               1731
+functions left ambiguous      2147   (appear in >1 vtable, deliberately unnamed)
+```
+
+**Correctness signal: 82.1%** of the 1,731 named functions land on an
+address `seeded_functions.json` already knows is a function start. A broken
+address walk would score near zero, so the chain
+descriptor → COL → vtable → method is landing on real entries. The 954
+rejected COL candidates show the validation is doing real work rather than
+accepting every coincidental dword.
+
+Artifacts:
+
+- `tools/ghidra_naming/rtti_names.json` — 2,474 entries, merge_names format
+- `tools/ghidra_naming/rtti_xml1.json` — full report incl. per-vtable methods
+- `src/game/tools_data/rtti_missing_functions.json` — see below
+
+### It does NOT crack the current wall — stated plainly
+
+Every function this map is stuck on came back **not reached via any
+vtable**: `sub_00204800`, `sub_00204020`, `sub_0020F209`, `sub_0020EFD0`,
+`sub_00211530`, `sub_0020F860`, `sub_001F7930`, `sub_0020E547`.
+
+They are non-virtual, so RTTI cannot see them. This ticket predicted that
+limitation up front and it landed exactly there. Ticket 02 remains the route
+to the live wall; this did not shortcut it.
+
+### The genuinely useful by-product: 791 seed candidates
+
+3,878 distinct addresses are vtable slot targets. **791 of them are not in
+`seeded_functions.json`** — the binary proves each is a function (a vtable
+points at it) and the recomp does not know it. That is the same
+missing-function seam that produced `sub_00221E50` (+36 reached, 0 lost),
+and this list is stronger evidence than the icall-failure lists used before,
+because a vtable entry is a compiler-emitted fact rather than an inference
+from a failed call.
+
+Written to `src/game/tools_data/rtti_missing_functions.json`, each with the
+class whose vtable references it.
+
+**DO NOT BULK-SEED THIS LIST.** On 2026-08-05 batch-seeding 13
+tool-recommended addresses took kernel_calls 1452 → 56, a 25x regression.
+The rule that came out of that incident applies exactly here: "this address
+is real" and "seeding this address is safe" are independent questions, and a
+mid-function target emits a fragment that inherits a half-built frame. Seed
+one at a time with a measurement between, and back up `seed_list.json` first.
+
+### Known limitation: the demangler does not handle templates
+
+Names like `$0CA::USAlphaFunctionAttrTraits::?$CAlchemyObjectPool` are
+MSVC template instantiations (`?$` marks a template, `$0CA` an integer
+argument) that the simple reverse-the-components demangler mangles further
+rather than resolving. Plain and nested classes are correct
+(`CMemory::IMemoryPoolInfo` is right); templates are cosmetic noise. Worth
+fixing only if template class names turn out to matter.
+
+### What the class list reveals about the engine
+
+Even without naming the wall, the recovered classes are informative:
+`CMemory`, `CMemory::IMemoryPoolInfo`, **`CMemory::SXMenMemoryPoolInfo`**
+(a game-specific pool descriptor), `XMallocChuckAllocator`,
+`IAlchemyObjectPool`, `Gap::Sg::igObjectPool`, plus `Raven::SceneLib::*` and
+a `ratl::` namespace — Raven's own template library. The allocator we have
+been reversing blind has a documented shape after all.
+
+### Remaining
+
+Not yet done, and both are cheap follow-ups rather than blockers:
+
+1. Cross-check the 743 RTTI-confirmed vtables against `recon.py`'s 1,272
+   detected vtables — agreement on the overlap is a second correctness
+   signal, and recon's extra ~529 are probably vtable-shaped tables without
+   RTTI (or false positives worth knowing about).
+2. Run the same tool against XML2's XBE and diff the class sets, now that
+   PyGhidra is up and ticket 12 can proceed.

@@ -1,0 +1,1461 @@
+{
+  "candidates": {
+    "0x00011000": [
+      "CClient"
+    ],
+    "0x00011130": [
+      "CClient"
+    ],
+    "0x00012D80": [
+      "CFxAmbientLightPrimitive",
+      "CFxCameraShakePrimitive",
+      "CFxCylinderPrimitive",
+      "CFxDLightPrimitive",
+      "CFxFloorCrack",
+      "CFxLightningPrimitive",
+      "CFxLinePrimitive",
+      "CFxModelPrimitive",
+      "CFxOrientedSpritePrimitive",
+      "CFxParticleCloudPrimitive",
+      "CFxPrimitiveBase",
+      "CFxPunchTrailPrimitive",
+      "CFxScreenFlashPrimitive",
+      "CFxSparkPrimitive",
+      "CFxSpritePrimitive",
+      "CFxTessMeshPrimitive",
+      "CFxTextPrimitive",
+      "CFxWeatherFXPrimitive"
+    ],
+    "0x00012F40": [
+      "CFxModelPrimitive"
+    ],
+    "0x00016180": [
+      "CFxManager"
+    ],
+    "0x00016650": [
+      "CFxManager"
+    ],
+    "0x00019C20": [
+      "CFxManager"
+    ],
+    "0x0001BF90": [
+      "CFxManager"
+    ],
+    "0x0001CC20": [
+      "CFxParticleCloudPrimitive"
+    ],
+    "0x0001CEB0": [
+      "CFxAmbientLightPrimitive",
+      "CFxCameraShakePrimitive",
+      "CFxCylinderPrimitive",
+      "CFxDLightPrimitive",
+      "CFxFloorCrack",
+      "CFxLightningPrimitive",
+      "CFxLinePrimitive",
+      "CFxModelPrimitive",
+      "CFxOrientedSpritePrimitive",
+      "CFxParticleCloudPrimitive",
+      "CFxPrimitiveBase",
+      "CFxPunchTrailPrimitive",
+      "CFxScreenFlashPrimitive",
+      "CFxSparkPrimitive",
+      "CFxSpritePrimitive",
+      "CFxTessMeshPrimitive",
+      "CFxTextPrimitive",
+      "CFxWeatherFXPrimitive"
+    ],
+    "0x0001D1C0": [
+      "CFxDLightPrimitive"
+    ],
+    "0x0001D560": [
+      "CFxWeatherFXPrimitive"
+    ],
+    "0x00020FF0": [
+      "CFxLinePrimitive"
+    ],
+    "0x00026C50": [
+      "CActionEntity",
+      "CActor",
+      "CAffectableHarmEntity",
+      "CCameraMagnetEntity",
+      "CDoorEntity",
+      "CEnableEntity",
+      "CGameEntity",
+      "CGuidedProjectileEntity",
+      "CHarmEntity",
+      "CHarmLightningEntity",
+      "CInventoryEntity",
+      "CLightEntity",
+      "CMonsterSpawnerEntity",
+      "CMoverEntity",
+      "CMusicEntity",
+      "CPhysicalEntity",
+      "CPlayerStartEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CRemoveEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CScriptTriggerEntity",
+      "CSpawnerEntity",
+      "CSpeakerEntity",
+      "CTileEntity",
+      "CWaterEntity",
+      "CWaypointEntity",
+      "CZoneLinkEntity"
+    ],
+    "0x00026D00": [
+      "H::VEActivePowerupEffect::VCGameEntity::?$CEventArgs",
+      "M::VEFirstAct::VCActionEntity::?$CEventArgs",
+      "VCEntityID::VEAct::VCActionEntity::?$CEventArgs",
+      "VCEntityID::VERemove::VCTileEntity::?$CEventArgs",
+      "VCEntityID::VESpawnMonster::VCMonsterSpawnerEntity::?$CEventArgs",
+      "VEAnimStartOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEAnimStopOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEDeadThink::VCActor::?$COnlyOneEvent",
+      "VEDelayedDamage::VCPhysicalEntity::?$COnlyOneEvent",
+      "VEFade::VCGameEntity::?$COnlyOneEvent",
+      "VEFireOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEFirstEquipment::VCActor::?$COnlyOneEvent",
+      "VEFirstLevelUp::VCActor::?$COnlyOneEvent",
+      "VEFxSpawn::VCActionEntity::?$COnlyOneEvent",
+      "VEGameOver::VCActor::?$COnlyOneEvent",
+      "VEHaltOne::VCGameEntity::?$COnlyOneEvent",
+      "VEMoveOne::VCGameEntity::?$COnlyOneEvent",
+      "VERecover::VCPhysicalEntity::?$COnlyOneEvent",
+      "VERotateOne::VCScanEntity::?$COnlyOneEvent",
+      "VEScanOne::VCScanEntity::?$COnlyOneEvent",
+      "VEStopPulsing::VCGameEntity::?$COnlyOneEvent",
+      "VEThinkOne::VCActor::?$COnlyOneEvent"
+    ],
+    "0x000270E0": [
+      "CActionEntity",
+      "CLightEntity",
+      "CPlayerStartEntity",
+      "CSpawnerEntity",
+      "CSpeakerEntity",
+      "CWaypointEntity"
+    ],
+    "0x00027130": [
+      "CActionEntity"
+    ],
+    "0x0002E2F0": [
+      "VEAnimStartOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEAnimStopOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEDeadThink::VCActor::?$COnlyOneEvent",
+      "VEDelayedDamage::VCPhysicalEntity::?$COnlyOneEvent",
+      "VEFade::VCGameEntity::?$COnlyOneEvent",
+      "VEFireOne::VCScanTurretEntity::?$COnlyOneEvent",
+      "VEFirstEquipment::VCActor::?$COnlyOneEvent",
+      "VEFirstLevelUp::VCActor::?$COnlyOneEvent",
+      "VEFxSpawn::VCActionEntity::?$COnlyOneEvent",
+      "VEGameOver::VCActor::?$COnlyOneEvent",
+      "VEHaltOne::VCGameEntity::?$COnlyOneEvent",
+      "VEMoveOne::VCGameEntity::?$COnlyOneEvent",
+      "VERecover::VCPhysicalEntity::?$COnlyOneEvent",
+      "VERotateOne::VCScanEntity::?$COnlyOneEvent",
+      "VEScanOne::VCScanEntity::?$COnlyOneEvent",
+      "VEStopPulsing::VCGameEntity::?$COnlyOneEvent",
+      "VEThinkOne::VCActor::?$COnlyOneEvent"
+    ],
+    "0x0002E3C0": [
+      "CAffectableHarmEntity",
+      "CCameraMagnetEntity",
+      "CDoorEntity",
+      "CEnableEntity",
+      "CGameEntity",
+      "CGuidedProjectileEntity",
+      "CHarmEntity",
+      "CHarmLightningEntity",
+      "CInventoryEntity",
+      "CMonsterSpawnerEntity",
+      "CMoverEntity",
+      "CMusicEntity",
+      "CPhysicalEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CRemoveEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CScriptTriggerEntity",
+      "CTileEntity",
+      "CWaterEntity",
+      "CZoneLinkEntity"
+    ],
+    "0x0002E500": [
+      "CActor",
+      "CAffectableHarmEntity",
+      "CCameraMagnetEntity",
+      "CDoorEntity",
+      "CEnableEntity",
+      "CGameEntity",
+      "CGuidedProjectileEntity",
+      "CHarmEntity",
+      "CHarmLightningEntity",
+      "CInventoryEntity",
+      "CMonsterSpawnerEntity",
+      "CMoverEntity",
+      "CMusicEntity",
+      "CPhysicalEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CRemoveEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CScriptTriggerEntity",
+      "CTileEntity",
+      "CWaterEntity",
+      "CZoneLinkEntity"
+    ],
+    "0x0002EDB0": [
+      "CActor"
+    ],
+    "0x0002EDD0": [
+      "CActor"
+    ],
+    "0x0002F380": [
+      "VEDisableDamageFlash::VCActor::?$CEvent"
+    ],
+    "0x0002F560": [
+      "VCPhysicalEntity::VCActor::?$CEntityFactory"
+    ],
+    "0x0002F620": [
+      "CActor"
+    ],
+    "0x000324D0": [
+      "CActor"
+    ],
+    "0x00033870": [
+      "CActor"
+    ],
+    "0x00046B20": [
+      "CAffectableHarmEntity"
+    ],
+    "0x00046DD0": [
+      "CAffectableHarmEntity"
+    ],
+    "0x0004A800": [
+      "CCamera"
+    ],
+    "0x0004AB40": [
+      "CCamera"
+    ],
+    "0x0004ADB0": [
+      "CCamera"
+    ],
+    "0x0004EA70": [
+      "CCamera"
+    ],
+    "0x000504E0": [
+      "CCamera"
+    ],
+    "0x00051F20": [
+      "CCamera"
+    ],
+    "0x00054150": [
+      "CCharacters"
+    ],
+    "0x000542C0": [
+      "CStatRules"
+    ],
+    "0x00054CB0": [
+      "CCharacters"
+    ],
+    "0x00054F60": [
+      "CCharacters"
+    ],
+    "0x00055090": [
+      "CCharacters"
+    ],
+    "0x000552A0": [
+      "CCharacters"
+    ],
+    "0x00056A50": [
+      "CCharacters"
+    ],
+    "0x0005CB90": [
+      "CCombatSystem"
+    ],
+    "0x0005E6C0": [
+      "CConversationSystem"
+    ],
+    "0x00066210": [
+      "VCPhysicalEntity::VCDoorEntity::?$CEntityFactory"
+    ],
+    "0x000667E0": [
+      "VCGameEntity::VCEnableEntity::?$CEntityFactory",
+      "VCGameEntity::VCZoneLinkEntity::?$CEntityFactory"
+    ],
+    "0x00066C80": [
+      "CEntity"
+    ],
+    "0x00068990": [
+      "CEntityDefinitions"
+    ],
+    "0x000694B0": [
+      "CEntityDefinitions"
+    ],
+    "0x000694D0": [
+      "CEntityDefinitions"
+    ],
+    "0x0006F400": [
+      "CGame"
+    ],
+    "0x0006F510": [
+      "CGame"
+    ],
+    "0x0006F570": [
+      "CGame"
+    ],
+    "0x0006F5B0": [
+      "CGame"
+    ],
+    "0x0006F5C0": [
+      "CGame"
+    ],
+    "0x00070340": [
+      "CGame"
+    ],
+    "0x00070350": [
+      "CGame"
+    ],
+    "0x00070D30": [
+      "CGame"
+    ],
+    "0x000715A0": [
+      "CGame"
+    ],
+    "0x000728E0": [
+      "CGame"
+    ],
+    "0x00072970": [
+      "CGame"
+    ],
+    "0x00076070": [
+      "CActor",
+      "CAffectableHarmEntity",
+      "CCameraMagnetEntity",
+      "CDoorEntity",
+      "CEnableEntity",
+      "CGameEntity",
+      "CGuidedProjectileEntity",
+      "CHarmEntity",
+      "CHarmLightningEntity",
+      "CInventoryEntity",
+      "CMonsterSpawnerEntity",
+      "CMoverEntity",
+      "CMusicEntity",
+      "CPhysicalEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CRemoveEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CScriptTriggerEntity",
+      "CTileEntity",
+      "CWaterEntity",
+      "CZoneLinkEntity"
+    ],
+    "0x00076C90": [
+      "CActor",
+      "CAffectableHarmEntity",
+      "CCameraMagnetEntity",
+      "CDoorEntity",
+      "CEnableEntity",
+      "CGameEntity",
+      "CGuidedProjectileEntity",
+      "CHarmEntity",
+      "CHarmLightningEntity",
+      "CInventoryEntity",
+      "CMonsterSpawnerEntity",
+      "CMoverEntity",
+      "CMusicEntity",
+      "CPhysicalEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CRemoveEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CScriptTriggerEntity",
+      "CTileEntity",
+      "CWaterEntity",
+      "CZoneLinkEntity"
+    ],
+    "0x00076F20": [
+      "VEFade::VCGameEntity::?$COnlyOneEvent"
+    ],
+    "0x0007A260": [
+      "CGameSound"
+    ],
+    "0x0007A860": [
+      "CGameSound"
+    ],
+    "0x0007BF00": [
+      "CProjectileEntity"
+    ],
+    "0x0007CDA0": [
+      "CHarmEntity",
+      "CHarmLightningEntity"
+    ],
+    "0x0007CE00": [
+      "VCHarmEntity::VCHarmLightningEntity::?$CEntityFactory"
+    ],
+    "0x0007CF50": [
+      "CHarmLightningEntity"
+    ],
+    "0x0007D3C0": [
+      "CInventoryEntity"
+    ],
+    "0x0007D5B0": [
+      "VCPhysicalEntity::VCInventoryEntity::?$CEntityFactory"
+    ],
+    "0x0007E0A0": [
+      "CInventorySystem"
+    ],
+    "0x0007E0B0": [
+      "CInventorySystem"
+    ],
+    "0x0007E8E0": [
+      "CInventorySystem"
+    ],
+    "0x0007EAA0": [
+      "CInventorySystem"
+    ],
+    "0x0007EBE0": [
+      "CInventorySystem"
+    ],
+    "0x0007F490": [
+      "CInventorySystem"
+    ],
+    "0x0007FEE0": [
+      "VCActionEntity::VCLightEntity::?$CEntityFactory"
+    ],
+    "0x00084380": [
+      "CMissionMgr"
+    ],
+    "0x00086770": [
+      "CMonsterSpawnerEntity"
+    ],
+    "0x000869F0": [
+      "CMonsterSpawnerEntity"
+    ],
+    "0x00087340": [
+      "CMonsterSpawnerEntity"
+    ],
+    "0x000875D0": [
+      "CMoverEntity"
+    ],
+    "0x000894C0": [
+      "CMultipartManager"
+    ],
+    "0x000894E0": [
+      "CMultipartManager"
+    ],
+    "0x0008A230": [
+      "CMultiplayer"
+    ],
+    "0x0008BF50": [
+      "COptions"
+    ],
+    "0x0008C070": [
+      "COptions"
+    ],
+    "0x0008C560": [
+      "COptions"
+    ],
+    "0x0008DE20": [
+      "CPathGrid"
+    ],
+    "0x0008DFE0": [
+      "CPathGrid"
+    ],
+    "0x0008E120": [
+      "CPath"
+    ],
+    "0x0008F330": [
+      "CPathGrid"
+    ],
+    "0x00090C50": [
+      "CPath"
+    ],
+    "0x00090F50": [
+      "CActor",
+      "CAffectableHarmEntity",
+      "CDoorEntity",
+      "CGuidedProjectileEntity",
+      "CInventoryEntity",
+      "CMoverEntity",
+      "CPhysicalEntity",
+      "CPowerTriggerEntity",
+      "CProjectileEntity",
+      "CProjectileTornadoEntity",
+      "CScanEntity",
+      "CScanTurretEntity",
+      "CTileEntity"
+    ],
+    "0x00092C20": [
+      "VERotateOne::VCScanEntity::?$COnlyOneEvent"
+    ],
+    "0x00093C40": [
+      "VCActionEntity::VCPlayerStartEntity::?$CEntityFactory"
+    ],
+    "0x000942C0": [
+      "CPowerTriggerEntity"
+    ],
+    "0x00099B90": [
+      "CPythonGameInterface"
+    ],
+    "0x000A1530": [
+      "CStaticQuery"
+    ],
+    "0x000A1770": [
+      "CStaticQuery"
+    ],
+    "0x000A1940": [
+      "CStaticQuery"
+    ],
+    "0x000A2260": [
+      "CStaticQuery"
+    ],
+    "0x000A22F0": [
+      "CStaticQuery"
+    ],
+    "0x000A2390": [
+      "CStaticQuery"
+    ],
+    "0x000A3EB0": [
+      "CRequire",
+      "CStatLevel"
+    ],
+    "0x000A53D0": [
+      "CSaveLoad"
+    ],
+    "0x000A5480": [
+      "CSaveLoad"
+    ],
+    "0x000A5510": [
+      "CSaveLoad"
+    ],
+    "0x000A7325": [
+      "IConversationSystem"
+    ],
+    "0x000A9700": [
+      "VCPhysicalEntity::VCScanEntity::?$CEntityFactory"
+    ],
+    "0x000A9B50": [
+      "VEFireOne::VCScanTurretEntity::?$COnlyOneEvent"
+    ],
+    "0x000AA000": [
+      "CScheduler"
+    ],
+    "0x000AA240": [
+      "CScheduler"
+    ],
+    "0x000AA640": [
+      "CScriptTriggerList"
+    ],
+    "0x000AD600": [
+      "CShadowMgr"
+    ],
+    "0x000ADC30": [
+      "VCActionEntity::VCSpeakerEntity::?$CEntityFactory"
+    ],
+    "0x000B35D0": [
+      "ITalent"
+    ],
+    "0x000B9AF0": [
+      "CWeaponMode"
+    ],
+    "0x000B9CE0": [
+      "CWeaponMode"
+    ],
+    "0x000BDFD0": [
+      "CWorld"
+    ],
+    "0x000BE1D0": [
+      "CWorld"
+    ],
+    "0x000BF1A0": [
+      "CZoneLinkEntity"
+    ],
+    "0x000BF5D0": [
+      "VCGameEntity::VCZoneLinkEntity::?$CEntityFactory"
+    ],
+    "0x000C9270": [
+      "CFloatVariable"
+    ],
+    "0x000CEDA0": [
+      "CCEAIHotSpot",
+      "CCEBoltOn",
+      "CCECameraShake",
+      "CCECharacterSound",
+      "CCECount",
+      "CCEEffectFile",
+      "CCEEffectTrail",
+      "CCEFootStep",
+      "CCEForceInvisible",
+      "CCEInvulnerable",
+      "CCEOtherEvent",
+      "CCERemove",
+      "CCERenderFX",
+      "CCEResurrect",
+      "CCERumble",
+      "CCESetChargeData",
+      "CCESetConstantBeamData",
+      "CCESetLyingOnGround",
+      "CCESetSkin",
+      "CCESetVelocity",
+      "CCESkinSegment",
+      "CCESlide",
+      "CCESound",
+      "CCESpawnActor",
+      "CCEStopMovement",
+      "CCEUse",
+      "CCEVictim",
+      "CCEVictimRelease",
+      "CCEVictimThrow",
+      "CCEXtreme",
+      "CCombatNodeEvent",
+      "CDisplay"
+    ],
+    "0x000CFEA0": [
+      "CCEAtk"
+    ],
+    "0x000D0BD0": [
+      "CCEAtkGrab"
+    ],
+    "0x000D3F70": [
+      "CCEAtkSpawn"
+    ],
+    "0x000D7E00": [
+      "CCESound"
+    ],
+    "0x000D8590": [
+      "CCESetVelocity"
+    ],
+    "0x000D8E50": [
+      "CCEOtherEvent"
+    ],
+    "0x000D9580": [
+      "CCHClingWallIdle"
+    ],
+    "0x000D9590": [
+      "CCHClingWallBackflip"
+    ],
+    "0x000DA2D0": [
+      "CCHStun"
+    ],
+    "0x000DA390": [
+      "CCHFlyMove"
+    ],
+    "0x000DA3A0": [
+      "CCHClingWallDecide",
+      "CCHFlyGuardDecide",
+      "CCHGuardDecide"
+    ],
+    "0x000DA3C0": [
+      "CCHFlying"
+    ],
+    "0x000DA6C0": [
+      "CCHBounceMove"
+    ],
+    "0x000DAAF0": [
+      "CCHSkating"
+    ],
+    "0x000DC530": [
+      "CCHAirGrabPickupThrow",
+      "CCHClingWallIdle",
+      "CCHGrabThrowAlly"
+    ],
+    "0x000DC540": [
+      "CCHAirGrabPickupIdle"
+    ],
+    "0x000DDCD0": [
+      "CCHConstantBeam"
+    ],
+    "0x000DEE40": [
+      "CCHPickupEasy"
+    ],
+    "0x000E0C40": [
+      "CCHTeleportFrenzyDash"
+    ],
+    "0x000E0C70": [
+      "CCHTeleportStomp"
+    ],
+    "0x000E0E20": [
+      "CCHThrownLoop"
+    ],
+    "0x000E54B0": [
+      "CCECharacterSound",
+      "CCEResurrect",
+      "CCESound"
+    ],
+    "0x000E5940": [
+      "CCEAIHotSpot",
+      "CCEAction",
+      "CCEBoltOn",
+      "CCECameraShake",
+      "CCECharacterSound",
+      "CCECount",
+      "CCEEffectFile",
+      "CCEEffectTrail",
+      "CCEFootStep",
+      "CCEForceInvisible",
+      "CCEInvulnerable",
+      "CCEOtherEvent",
+      "CCERemove",
+      "CCERenderFX",
+      "CCEResurrect",
+      "CCERumble",
+      "CCESetChargeData",
+      "CCESetConstantBeamData",
+      "CCESetLyingOnGround",
+      "CCESetSkin",
+      "CCESetVelocity",
+      "CCESkinSegment",
+      "CCESlide",
+      "CCESound",
+      "CCESpawnActor",
+      "CCEStopMovement",
+      "CCEUse",
+      "CCEVictim",
+      "CCEVictimRelease",
+      "CCEVictimThrow",
+      "CCEXtreme"
+    ],
+    "0x000E7B90": [
+      "ratl::$03::$0GA::VCCombatNodeHandler::$0A::V?$handle_str::?$map_is",
+      "ratl::ratl::storage::ratl::Vtree_node::$0GA::$0A::V?$handle_str::U?$value_semantics_node::?$tree_base"
+    ],
+    "0x000E8BE0": [
+      "CCombatStyles"
+    ],
+    "0x000E99F0": [
+      "CCombatStyles"
+    ],
+    "0x000EB230": [
+      "CFightStyle"
+    ],
+    "0x000EB320": [
+      "CFightStyle"
+    ],
+    "0x000EB4F0": [
+      "CFightStyle"
+    ],
+    "0x000F0D80": [
+      "CAIFlyNoNavAttackHandler"
+    ],
+    "0x000F22B0": [
+      "CAIFlyingCreatures"
+    ],
+    "0x000F3A90": [
+      "CAISentinelIdleHandler"
+    ],
+    "0x000F3AD0": [
+      "CAIFlyNoNavIdleHandler"
+    ],
+    "0x000F4B50": [
+      "CPatternManager"
+    ],
+    "0x000F6160": [
+      "CPatternNodeMoveTo"
+    ],
+    "0x000F81B0": [
+      "CAI"
+    ],
+    "0x000F81D0": [
+      "CAI"
+    ],
+    "0x000F81F0": [
+      "CAI"
+    ],
+    "0x000F8220": [
+      "CAI"
+    ],
+    "0x000F8240": [
+      "CAI"
+    ],
+    "0x000F82C0": [
+      "CAI"
+    ],
+    "0x000F83D0": [
+      "CAI"
+    ],
+    "0x000F8410": [
+      "CAI"
+    ],
+    "0x000F8460": [
+      "CAI"
+    ],
+    "0x000F8480": [
+      "CAI"
+    ],
+    "0x000F84A0": [
+      "CAI"
+    ],
+    "0x000F84E0": [
+      "CAI"
+    ],
+    "0x000F85B0": [
+      "CAI"
+    ],
+    "0x000F85C0": [
+      "CAI"
+    ],
+    "0x000F8610": [
+      "CAI"
+    ],
+    "0x000F8860": [
+      "CAI"
+    ],
+    "0x000F8920": [
+      "CAI"
+    ],
+    "0x000F89E0": [
+      "CAI"
+    ],
+    "0x000F8A00": [
+      "CAI"
+    ],
+    "0x000F8A20": [
+      "CAI"
+    ],
+    "0x000F8A70": [
+      "CAI"
+    ],
+    "0x000F8AF0": [
+      "CAI"
+    ],
+    "0x000F8B40": [
+      "CAI"
+    ],
+    "0x000F8B90": [
+      "CAI"
+    ],
+    "0x000F8DC0": [
+      "CAI"
+    ],
+    "0x000F8EB0": [
+      "CAI"
+    ],
+    "0x000F9000": [
+      "CAI"
+    ],
+    "0x000F9450": [
+      "CAI"
+    ],
+    "0x000F9590": [
+      "CAI"
+    ],
+    "0x000F9770": [
+      "CAI"
+    ],
+    "0x000FD0A0": [
+      "CAIThought"
+    ],
+    "0x000FE300": [
+      "CAIAffectorIdleHandler",
+      "CAIArtilleryIdleHandler",
+      "CAIBrawlerIdleHandler",
+      "CAIFlyNoNavIdleHandler",
+      "CAIHeroIdleHandler",
+      "CAISentinelIdleHandler",
+      "CAIShadesIdleHandler",
+      "CAISupportIdleHandler"
+    ],
+    "0x0011C200": [
+      "CUIHandler"
+    ],
+    "0x0011CF00": [
+      "CBuildConfigSystem",
+      "CConfigSystem"
+    ],
+    "0x0011D090": [
+      "CBuildConfigSystem",
+      "CConfigSystem"
+    ],
+    "0x0011D430": [
+      "CBuildConfigSystem"
+    ],
+    "0x0011D930": [
+      "CFileBundleMgr"
+    ],
+    "0x0011D950": [
+      "CFileBundleMgr"
+    ],
+    "0x0011D970": [
+      "CFileBundleMgr"
+    ],
+    "0x0011D990": [
+      "CFileBundleMgr"
+    ],
+    "0x0011D9C0": [
+      "CFileBundleMgr"
+    ],
+    "0x0011D9D0": [
+      "CFileBundleMgr"
+    ],
+    "0x0011ED90": [
+      "CMemoryCardXBox"
+    ],
+    "0x0011EDA0": [
+      "CMemoryCardXBox"
+    ],
+    "0x0011F170": [
+      "CMemoryCardXBox"
+    ],
+    "0x0011FC00": [
+      "CMemoryCardXBox"
+    ],
+    "0x001203D0": [
+      "CMemoryCardXBox"
+    ],
+    "0x00120E30": [
+      "CMotionPathPrecacher"
+    ],
+    "0x00120E40": [
+      "CTexturePrecacher"
+    ],
+    "0x00120E50": [
+      "CXmlCharacterPrecacher",
+      "CXmlPrecacher",
+      "CXmlResidentPrecacher",
+      "CXmlZonePrecacher"
+    ],
+    "0x00120EA0": [
+      "CIGBPrecacher"
+    ],
+    "0x00120F70": [
+      "CXmlResidentPrecacher"
+    ],
+    "0x00120FE0": [
+      "CAnimDBPrecacher",
+      "CCombatToggle",
+      "CFXTemplatePrecacher",
+      "CIGBPrecacher",
+      "CMotionPathPrecacher",
+      "CScriptPrecacher",
+      "CXmlCharacterPrecacher",
+      "CXmlFightstylePrecacher",
+      "CXmlPrecacher",
+      "CXmlResidentPrecacher",
+      "CXmlZonePrecacher"
+    ],
+    "0x00123C20": [
+      "CFileMgr"
+    ],
+    "0x00124E90": [
+      "CFileMgr"
+    ],
+    "0x00127830": [
+      "TiXmlText"
+    ],
+    "0x00127B40": [
+      "TiXmlComment"
+    ],
+    "0x0012F3A0": [
+      "MyTrace"
+    ],
+    "0x00132870": [
+      "CModel"
+    ],
+    "0x00133B20": [
+      "CModelTransform"
+    ],
+    "0x00133BB0": [
+      "CModelTransform"
+    ],
+    "0x00135130": [
+      "CRigidAnimCtrl"
+    ],
+    "0x00135300": [
+      "CRigidAnimCtrl"
+    ],
+    "0x001368F0": [
+      "CModelActor"
+    ],
+    "0x00136A20": [
+      "CModelActor"
+    ],
+    "0x00136D10": [
+      "CModelActor"
+    ],
+    "0x00136D40": [
+      "CModelActor"
+    ],
+    "0x00136DB0": [
+      "CModelActor"
+    ],
+    "0x00136DE0": [
+      "CModelActor"
+    ],
+    "0x00137020": [
+      "CModel"
+    ],
+    "0x00137F20": [
+      "$0CM::$0DGM::VIModel::?$CSafeResMgrI"
+    ],
+    "0x00138B80": [
+      "CModelActor"
+    ],
+    "0x00139F80": [
+      "CModelAttributes"
+    ],
+    "0x0013C330": [
+      "SActorModelPolicy"
+    ],
+    "0x0013CE40": [
+      "CMotionPathCache"
+    ],
+    "0x0013F920": [
+      "IAlchemyObjectPool"
+    ],
+    "0x0013FDD0": [
+      "$0EA::USAABoxTraits::?$CAlchemyObjectPool"
+    ],
+    "0x001400F0": [
+      "$0EA::USGroupTraits::?$CAlchemyObjectPool"
+    ],
+    "0x00140590": [
+      "$0EA::USTransformTraits::?$CAlchemyObjectPool"
+    ],
+    "0x00140B10": [
+      "$0CA::USAlphaFunctionAttrTraits::?$CAlchemyObjectPool"
+    ],
+    "0x001419C0": [
+      "$0CA::USTextureBindAttrTraits::?$CAlchemyObjectPool"
+    ],
+    "0x001420D0": [
+      "$0EA::USAABoxTraits::?$CAlchemyObjectPool"
+    ],
+    "0x001436E0": [
+      "CHUDPlayfield",
+      "CPlayfield",
+      "CUIPlayfield",
+      "CUIPlayfieldBackground",
+      "CZonePlayfield"
+    ],
+    "0x00145930": [
+      "CScene"
+    ],
+    "0x00145C90": [
+      "CScene"
+    ],
+    "0x001466C0": [
+      "CTexture"
+    ],
+    "0x00147370": [
+      "$07::$0MA::VITexture::?$CSafeResMgrI"
+    ],
+    "0x001474C0": [
+      "CTextureCache"
+    ],
+    "0x00148430": [
+      "CUIFrame"
+    ],
+    "0x001494D0": [
+      "$04$0GGI::VIUIFrame::?$CSafeResMgrI"
+    ],
+    "0x0014A6D0": [
+      "CZonePlayfield"
+    ],
+    "0x0014A6E0": [
+      "CZonePlayfield"
+    ],
+    "0x0014ADB0": [
+      "CZonePlayfield"
+    ],
+    "0x0014BF40": [
+      "CZonePlayfield"
+    ],
+    "0x0014C820": [
+      "CZonePlayfield"
+    ],
+    "0x0014C830": [
+      "CZonePlayfield"
+    ],
+    "0x0014D6A0": [
+      "CZonePlayfield"
+    ],
+    "0x00151AB0": [
+      "CSoundSystem"
+    ],
+    "0x00151B80": [
+      "CSoundSystem"
+    ],
+    "0x00153290": [
+      "CFontMgr"
+    ],
+    "0x00153FF0": [
+      "CHud"
+    ],
+    "0x001540A0": [
+      "CHudOverlay"
+    ],
+    "0x00155DA0": [
+      "CHud"
+    ],
+    "0x00158670": [
+      "CHud"
+    ],
+    "0x001586B0": [
+      "CDisplay",
+      "CHud"
+    ],
+    "0x001586D0": [
+      "CHud"
+    ],
+    "0x00159F40": [
+      "CHudCharacter"
+    ],
+    "0x0015E200": [
+      "CHudCombo"
+    ],
+    "0x0015E8D0": [
+      "CHudInputMap"
+    ],
+    "0x0015F2C0": [
+      "CHudMessage"
+    ],
+    "0x0015FC70": [
+      "CHudOverlay"
+    ],
+    "0x00163900": [
+      "CMenu",
+      "CMenuBlackbird",
+      "CMenuCodex",
+      "CMenuCredits",
+      "CMenuDangerRoom",
+      "CMenuEquipShop",
+      "CMenuImageViewer",
+      "CMenuItemShop",
+      "CMenuMMLost",
+      "CMenuMain",
+      "CMenuMovie",
+      "CMenuObjectives",
+      "CMenuOptions",
+      "CMenuOptionsController",
+      "CMenuPause",
+      "CMenuPersonal",
+      "CMenuPlayers",
+      "CMenuReviewPaths",
+      "CMenuTrivia"
+    ],
+    "0x00165230": [
+      "CMenuBlackbird"
+    ],
+    "0x0016CEA0": [
+      "CMenuBlackbird"
+    ],
+    "0x0016D240": [
+      "CMenuCodex"
+    ],
+    "0x0016DC20": [
+      "CMenuCodex"
+    ],
+    "0x0016DE10": [
+      "CMenuCodex"
+    ],
+    "0x0016EA90": [
+      "CMenuCredits"
+    ],
+    "0x00170C20": [
+      "CMenuDangerRoom"
+    ],
+    "0x001716F0": [
+      "CMenuDangerRoom"
+    ],
+    "0x00171E80": [
+      "CMenuItemShop"
+    ],
+    "0x001720F0": [
+      "CMenuEquipShop"
+    ],
+    "0x00172A30": [
+      "CMenuImageViewer",
+      "CMenuPersonal"
+    ],
+    "0x00172D10": [
+      "CMenuItem",
+      "CMenuItemActorModel",
+      "CMenuItemBinary",
+      "CMenuItemCharacters",
+      "CMenuItemList",
+      "CMenuItemListBox",
+      "CMenuItemListCodex",
+      "CMenuItemListCycle",
+      "CMenuItemModel",
+      "CMenuItemSlider",
+      "CMenuItemText",
+      "CMenuItemTextBox"
+    ],
+    "0x001778C0": [
+      "CMenuItemListCycle"
+    ],
+    "0x00178C20": [
+      "CMenuItemListBox",
+      "CMenuItemListCodex"
+    ],
+    "0x00179060": [
+      "CMenuItemListBox",
+      "CMenuItemListCodex"
+    ],
+    "0x0017A7F0": [
+      "CMenuItemModel"
+    ],
+    "0x0017AAB0": [
+      "CMenuEquipShop",
+      "CMenuItemShop"
+    ],
+    "0x0017B060": [
+      "CMenuEquipShop",
+      "CMenuItemShop"
+    ],
+    "0x0017D790": [
+      "CMenuItemBinary",
+      "CMenuItemCharacters",
+      "CMenuItemList",
+      "CMenuItemListBox",
+      "CMenuItemListCodex",
+      "CMenuItemListCycle",
+      "CMenuItemSlider",
+      "CMenuItemText"
+    ],
+    "0x0017E710": [
+      "CMenuMMLost"
+    ],
+    "0x0017E7C0": [
+      "CMenuMain"
+    ],
+    "0x0017E840": [
+      "CMenuMain"
+    ],
+    "0x001801C0": [
+      "CMenuReviewPaths"
+    ],
+    "0x001801D0": [
+      "CMenuReviewPaths"
+    ],
+    "0x00180CA0": [
+      "CMenuReviewPaths"
+    ],
+    "0x00180E20": [
+      "CMenuMgr"
+    ],
+    "0x00180F60": [
+      "CMenuMgr"
+    ],
+    "0x00181290": [
+      "CMenuMgr"
+    ],
+    "0x001812A0": [
+      "CMenuMgr"
+    ],
+    "0x001822D0": [
+      "CMenuMgr"
+    ],
+    "0x00182670": [
+      "CMenuMgr"
+    ],
+    "0x00183530": [
+      "CMenuMgr"
+    ],
+    "0x00183900": [
+      "CMenuMgr"
+    ],
+    "0x00183B60": [
+      "CMenuMgr"
+    ],
+    "0x00184D10": [
+      "CMenuMgr"
+    ],
+    "0x00184FD0": [
+      "CMenuMgr"
+    ],
+    "0x00186CF0": [
+      "CPopupDialog"
+    ],
+    "0x00186D30": [
+      "CPopupDialog"
+    ],
+    "0x00186D70": [
+      "CPopupDialog"
+    ],
+    "0x001872E0": [
+      "CPopupDialog"
+    ],
+    "0x0018A5A0": [
+      "CProcRect"
+    ],
+    "0x0018B480": [
+      "CProcFullScreen"
+    ],
+    "0x0018CB20": [
+      "$09$0GFA::VCTextPane::?$CSafeResMgrI"
+    ],
+    "0x001929C0": [
+      "CStreamWAVFile"
+    ],
+    "0x00193F10": [
+      "CDisplay"
+    ],
+    "0x00193F80": [
+      "CDisplay"
+    ],
+    "0x00194250": [
+      "CDisplay"
+    ],
+    "0x00194890": [
+      "CDisplay"
+    ],
+    "0x00194BF0": [
+      "Rascl::CRuntime"
+    ],
+    "0x0019C070": [
+      "Gap::Sg::igAttrSet",
+      "Gap::Sg::igGroup",
+      "Gap::Sg::igLightSet",
+      "Gap::Sg::igNode",
+      "Raven::SceneLib::igFakePointLightPool",
+      "Raven::SceneLib::ravenDataPumpDriver",
+      "Raven::SceneLib::ravenFakePointLighter",
+      "Raven::SceneLib::ravenMovieNode",
+      "Raven::SceneLib::ravenShaderFx",
+      "Raven::SceneLib::ravenSorterSwitcher"
+    ],
+    "0x0019C1D0": [
+      "Raven::SceneLib::ravenDataPumpDriver"
+    ],
+    "0x0019C240": [
+      "Raven::SceneLib::ravenFakePointLighter"
+    ],
+    "0x001E8C70": [
+      "Raven::SceneLib::ravenZipFile"
+    ],
+    "0x001F0930": [
+      "CCharacters"
+    ],
+    "0x001F0950": [
+      "CDisplay"
+    ],
+    "0x0024E2C0": [
+      "Gap::Sg::igAttrSet",
+      "Gap::Sg::igGeometry",
+      "Gap::Sg::igGroup",
+      "Gap::Sg::igNode",
+      "Raven::SceneLib::igProcGeometry",
+      "Raven::SceneLib::ravenDataPumpDriver",
+      "Raven::SceneLib::ravenFakePointLighter",
+      "Raven::SceneLib::ravenMovieNode",
+      "Raven::SceneLib::ravenShaderFx",
+      "Raven::SceneLib::ravenSorterSwitcher"
+    ],
+    "0x0025EBB0": [
+      "CAnimMotion",
+      "CGame",
+      "TiXmlComment",
+      "TiXmlDeclaration",
+      "TiXmlDocument",
+      "TiXmlElement",
+      "TiXmlNode",
+      "TiXmlText",
+      "TiXmlUnknown"
+    ],
+    "0x002691C0": [
+      "Gap::Sg::igGeometry",
+      "Raven::SceneLib::igProcGeometry"
+    ],
+    "0x0026C280": [
+      "Gap::Sg::igAttrSet",
+      "Gap::Sg::igGeometry",
+      "Gap::Sg::igGroup",
+      "Gap::Sg::igLightSet",
+      "Gap::Sg::igNode",
+      "Raven::SceneLib::igFakePointLightPool",
+      "Raven::SceneLib::igProcGeometry",
+      "Raven::SceneLib::ravenDataPumpDriver",
+      "Raven::SceneLib::ravenFakePointLighter",
+      "Raven::SceneLib::ravenMovieNode",
+      "Raven::SceneLib::ravenShaderFx",
+      "Raven::SceneLib::ravenSorterSwitcher"
+    ],
+    "0x0026C290": [
+      "Gap::Sg::igAttrSet",
+      "Gap::Sg::igGeometry",
+      "Gap::Sg::igGroup",
+      "Gap::Sg::igLightSet",
+      "Gap::Sg::igNode",
+      "Raven::SceneLib::igFakePointLightPool",
+      "Raven::SceneLib::igProcGeometry",
+      "Raven::SceneLib::ravenDataPumpDriver",
+      "Raven::SceneLib::ravenFakePointLighter",
+      "Raven::SceneLib::ravenMovieNode",
+      "Raven::SceneLib::ravenShaderFx",
+      "Raven::SceneLib::ravenSorterSwitcher"
+    ],
+    "0x00290630": [
+      "CMemoryCardXBox"
+    ],
+    "0x00340CF2": [
+      "CCombatNodeEvent",
+      "CControllerButtonNameToAlchemyButtonInfo",
+      "CHudComponent",
+      "CMemory::IMemoryPoolInfo",
+      "CStream",
+      "CVariable",
+      "CXButtonToControllerButtonName",
+      "IAI",
+      "IAIAttackHandler",
+      "IActivePowerupSystem",
+      "IAlchemyObjectPool",
+      "ICacheBase",
+      "IClock",
+      "ICollideHull",
+      "ICombatNode",
+      "IConfigSystem",
+      "IConversationSystem",
+      "IEntityAllocator",
+      "IEntityDef",
+      "IEntityDef::IEntityDefCallback",
+      "IEntityDefinitions",
+      "IEntityFactory",
+      "IEntityVisibility",
+      "IFightStyle",
+      "IFxManager",
+      "IInput",
+      "IMap",
+      "IMemory",
+      "IModel",
+      "IModelComponent",
+      "IMovieManager",
+      "INodeCaches",
+      "IPlayfield",
+      "IPrecacheMgr",
+      "IProcGeometryBuilder",
+      "IProcGeometryGenerator",
+      "IScene",
+      "IScheduler",
+      "IShadowMgr",
+      "ITalent",
+      "ITexture",
+      "ITextureCache",
+      "IUIExtension",
+      "IUIFrame",
+      "IWorld",
+      "IZoneExtension",
+      "TiXmlBase",
+      "TiXmlNode",
+      "VCTextPane::?$ISafeResMgr",
+      "VIModel::?$ISafeResMgr",
+      "VIPlayfield::?$ISafeResMgr",
+      "VITexture::?$ISafeResMgr",
+      "VIUIFrame::?$ISafeResMgr",
+      "ratl::tree_shared"
+    ]
+  }
+}

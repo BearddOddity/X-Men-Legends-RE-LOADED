@@ -412,6 +412,25 @@ allocator - the caller (`recomp_0015.c`, `sub_0020DA95`) doesn't null-check
 the return value and immediately `memcpy`s a string into it, so returning
 0 would just move the crash one instruction later.
 
+> **STALE as of 2026-08-08 (ledger #96/#97). Two claims above are now wrong.**
+>
+> 1. **`ecx` is no longer 0.** Re-measured inside the stub: `ecx` is
+>    `0x01092B58`, a real constant heap pointer, on **all 33 calls**. The
+>    "this is null because the pool is D3D-related" reasoning no longer
+>    holds. A refutation expires when the code under it changes.
+> 2. **"Just hand back a buffer" was not enough.** The function's signature
+>    is `(length, out-ptr, out-ptr)` and the stub ignored **both**
+>    out-parameters. `sub_0020DA95` zeroes those slots, passes them by
+>    address, then forwards them to `sub_0020A360` - the `{owner, refcount}`
+>    block-header initialiser - which therefore wrote its header to guest
+>    VA `0x00`/`0x04` 33 times. Invisible until the page-zero census build
+>    (`RECOMP_TRAP_PAGE_ZERO`) caught it, because guest page 0 is mapped.
+>
+> The stub now writes both out-parameters and allocates `len + 8` so a real
+> 8-byte header sits before the buffer. Result: `reached` 86 → 101,
+> **15 gained / 0 lost**, and the crash stops being a null dereference.
+> See the corrected comment at `sub_001F8890` in `recomp_manual.c`.
+
 With both fixed, boot reaches kernel call #35 plus several real heap
 allocations (previously hung indefinitely after call #31) before hitting
 a new, later crash - see below.

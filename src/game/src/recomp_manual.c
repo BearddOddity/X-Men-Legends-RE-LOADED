@@ -503,6 +503,7 @@ static void sub_001A237D_stub(void)
  * here rather than in the generated recomp_funcs.h so the wiring
  * survives a regeneration.
  */
+extern void sub_00011000(void);
 extern void sub_00011B2B(void);
 extern void sub_00011B35(void);
 extern void sub_00011EC0(void);
@@ -828,6 +829,7 @@ extern void sub_0011B58F(void);
 extern void sub_0011B60F(void);
 extern void sub_0011C44B(void);
 extern void sub_0011C53D(void);
+extern void sub_0011E13C(void);
 extern void sub_0011E13D(void);
 extern void sub_0011FB69(void);
 extern void sub_00120070(void);
@@ -895,6 +897,7 @@ extern void sub_0013CCE0(void);
 extern void sub_0013E974(void);
 extern void sub_0013EECA(void);
 extern void sub_0013EFBA(void);
+extern void sub_0013F920(void);
 extern void sub_0014388F(void);
 extern void sub_001454BD(void);
 extern void sub_00146BDF(void);
@@ -1200,6 +1203,7 @@ extern void sub_00208700(void);
 extern void sub_00208830(void);
 extern void sub_00209280(void);
 extern void sub_00209B70(void);
+extern void sub_00209F19(void);
 extern void sub_00209F50(void);
 extern void sub_0020A020(void);
 extern void sub_0020A2C0(void);
@@ -1214,6 +1218,7 @@ extern void sub_00215B7D(void);
 extern void sub_0021624C(void);
 extern void sub_0021644B(void);
 extern void sub_0021679F(void);
+extern void sub_00216F70(void);
 extern void sub_00218360(void);
 extern void sub_0021837A(void);
 extern void sub_0021A696(void);
@@ -1229,6 +1234,9 @@ extern void sub_0021E3A5(void);
 extern void sub_0021E595(void);
 extern void sub_0021EA41(void);
 extern void sub_0021F41F(void);
+extern void sub_002219A0(void);
+extern void sub_00221B10(void);
+extern void sub_00221E50(void);
 extern void sub_002242D1(void);
 extern void sub_00225EF1(void);
 extern void sub_00227F50(void);
@@ -1573,6 +1581,24 @@ extern void sub_003424E5(void);
 extern void sub_003426D6(void);
 extern void sub_00342708(void);
 extern void sub_0034299D(void);
+extern void sub_00342B10(void);
+extern void sub_00342B3C(void);
+extern void sub_00342B60(void);
+extern void sub_00342C9C(void);
+extern void sub_00342CC0(void);
+extern void sub_00342CE8(void);
+extern void sub_00342D3C(void);
+extern void sub_00342D44(void);
+extern void sub_00342D4C(void);
+extern void sub_00342D54(void);
+extern void sub_00342D5C(void);
+extern void sub_00342D64(void);
+extern void sub_00342D6C(void);
+extern void sub_00342D7F(void);
+extern void sub_00342D98(void);
+extern void sub_00342DA0(void);
+extern void sub_00342DB0(void);
+extern void sub_00342DC4(void);
 extern void sub_00343569(void);
 extern void sub_0034360D(void);
 extern void sub_00343862(void);
@@ -1665,8 +1691,6 @@ extern void sub_00397556(void);
 extern void sub_00397598(void);
 extern void sub_00397618(void);
 extern void sub_00397732(void);
-extern void sub_00221E50(void);
-extern void sub_00216F70(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -1680,6 +1704,7 @@ extern void sub_00345AB0(void);
 
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
+    if (xbox_va == 0x00011000u) return sub_00011000;
     if (xbox_va == 0x00011B2Bu) return sub_00011B2B;
     if (xbox_va == 0x00011B35u) return sub_00011B35;
     if (xbox_va == 0x00011EC0u) return sub_00011EC0;
@@ -2005,6 +2030,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0011B60Fu) return sub_0011B60F;
     if (xbox_va == 0x0011C44Bu) return sub_0011C44B;
     if (xbox_va == 0x0011C53Du) return sub_0011C53D;
+    if (xbox_va == 0x0011E13Cu) return sub_0011E13C;
     if (xbox_va == 0x0011E13Du) return sub_0011E13D;
     if (xbox_va == 0x0011FB69u) return sub_0011FB69;
     if (xbox_va == 0x00120070u) return sub_00120070;
@@ -2072,6 +2098,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0013E974u) return sub_0013E974;
     if (xbox_va == 0x0013EECAu) return sub_0013EECA;
     if (xbox_va == 0x0013EFBAu) return sub_0013EFBA;
+    if (xbox_va == 0x0013F920u) return sub_0013F920;
     if (xbox_va == 0x0014388Fu) return sub_0014388F;
     if (xbox_va == 0x001454BDu) return sub_001454BD;
     if (xbox_va == 0x00146BDFu) return sub_00146BDF;
@@ -2377,6 +2404,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00208830u) return sub_00208830;
     if (xbox_va == 0x00209280u) return sub_00209280;
     if (xbox_va == 0x00209B70u) return sub_00209B70;
+    if (xbox_va == 0x00209F19u) return sub_00209F19;
     if (xbox_va == 0x00209F50u) return sub_00209F50;
     if (xbox_va == 0x0020A020u) return sub_0020A020;
     if (xbox_va == 0x0020A2C0u) return sub_0020A2C0;
@@ -2391,6 +2419,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0021624Cu) return sub_0021624C;
     if (xbox_va == 0x0021644Bu) return sub_0021644B;
     if (xbox_va == 0x0021679Fu) return sub_0021679F;
+    if (xbox_va == 0x00216F70u) return sub_00216F70;
     if (xbox_va == 0x00218360u) return sub_00218360;
     if (xbox_va == 0x0021837Au) return sub_0021837A;
     if (xbox_va == 0x0021A696u) return sub_0021A696;
@@ -2406,6 +2435,9 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0021E595u) return sub_0021E595;
     if (xbox_va == 0x0021EA41u) return sub_0021EA41;
     if (xbox_va == 0x0021F41Fu) return sub_0021F41F;
+    if (xbox_va == 0x002219A0u) return sub_002219A0;
+    if (xbox_va == 0x00221B10u) return sub_00221B10;
+    if (xbox_va == 0x00221E50u) return sub_00221E50;
     if (xbox_va == 0x002242D1u) return sub_002242D1;
     if (xbox_va == 0x00225EF1u) return sub_00225EF1;
     if (xbox_va == 0x00227F50u) return sub_00227F50;
@@ -2750,6 +2782,24 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x003426D6u) return sub_003426D6;
     if (xbox_va == 0x00342708u) return sub_00342708;
     if (xbox_va == 0x0034299Du) return sub_0034299D;
+    if (xbox_va == 0x00342B10u) return sub_00342B10;
+    if (xbox_va == 0x00342B3Cu) return sub_00342B3C;
+    if (xbox_va == 0x00342B60u) return sub_00342B60;
+    if (xbox_va == 0x00342C9Cu) return sub_00342C9C;
+    if (xbox_va == 0x00342CC0u) return sub_00342CC0;
+    if (xbox_va == 0x00342CE8u) return sub_00342CE8;
+    if (xbox_va == 0x00342D3Cu) return sub_00342D3C;
+    if (xbox_va == 0x00342D44u) return sub_00342D44;
+    if (xbox_va == 0x00342D4Cu) return sub_00342D4C;
+    if (xbox_va == 0x00342D54u) return sub_00342D54;
+    if (xbox_va == 0x00342D5Cu) return sub_00342D5C;
+    if (xbox_va == 0x00342D64u) return sub_00342D64;
+    if (xbox_va == 0x00342D6Cu) return sub_00342D6C;
+    if (xbox_va == 0x00342D7Fu) return sub_00342D7F;
+    if (xbox_va == 0x00342D98u) return sub_00342D98;
+    if (xbox_va == 0x00342DA0u) return sub_00342DA0;
+    if (xbox_va == 0x00342DB0u) return sub_00342DB0;
+    if (xbox_va == 0x00342DC4u) return sub_00342DC4;
     if (xbox_va == 0x00343569u) return sub_00343569;
     if (xbox_va == 0x0034360Du) return sub_0034360D;
     if (xbox_va == 0x00343862u) return sub_00343862;
@@ -2842,8 +2892,6 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00397598u) return sub_00397598;
     if (xbox_va == 0x00397618u) return sub_00397618;
     if (xbox_va == 0x00397732u) return sub_00397732;
-    if (xbox_va == 0x00221E50u) return sub_00221E50;
-    if (xbox_va == 0x00216F70u) return sub_00216F70;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;
@@ -2949,19 +2997,56 @@ void sub_0019F765(void)
  * returns a buffer in eax that the caller immediately memcpy's a string
  * into (no null check at the call site - see recomp_0015.c).
  *
- * On real hardware ecx is never null. In our build it IS null, because
- * whatever constructs this pool is D3D-related (D3D isn't recompiled -
- * see DEBUGGING_NOTES.md) and the generated version spins forever walking
- * a linked list through a null pointer. Rather than emulate the real
- * pool's free-list, just hand back a fresh block from the bump allocator
- * - the caller only wants a writable buffer of the right size.
+ * Rather than emulate the real pool's free-list, hand back a fresh block
+ * from the bump allocator - the caller only wants a writable buffer of the
+ * right size.
+ *
+ * THE TWO OUT-PARAMETERS MUST BE WRITTEN (ledger #95/#96). The original
+ * version of this stub read only the length and ignored both out-pointers.
+ * The caller, sub_0020DA95, zeroes those two slots, passes them by address
+ * here, then reads them back and forwards them to sub_0020A360 - the block
+ * header initialiser, which does:
+ *
+ *     MEM32(hdr)     = owner;
+ *     MEM32(hdr + 4) = 1;        // refcount
+ *
+ * With both slots left at 0, all 33 of those header writes went to guest
+ * VA 0x00 and 0x04 instead. They were invisible until the page-zero census
+ * build (#93) caught them, because guest page 0 is mapped.
+ *
+ * Slot roles, derived from sub_0020DA95's push arithmetic and checked
+ * against measured addresses to the byte (#96):
+ *
+ *     MEM32(entry_esp + 0xC)  ->  where to store the BLOCK HEADER address
+ *     MEM32(entry_esp + 8)    ->  where to store the OWNING POOL
+ *
+ * The header is two dwords immediately before the buffer, because that is
+ * where sub_0021ACD0's release path reads them back (`edi = object - 8`,
+ * owner at edi, refcount at edi + 4). So allocate len + 8 and return
+ * base + 8.
+ *
+ * CORRECTION to this comment's own history: it used to say "on real
+ * hardware ecx is never null, in our build it IS null, because whatever
+ * constructs this pool is D3D-related". That was measured true once and is
+ * FALSE NOW - ecx is 0x01092B58, a real constant heap pointer, on all 33
+ * calls (#96). DEBUGGING_NOTES.md still carries the stale claim.
  */
 void sub_001F8890(void)
 {
     uint32_t entry_esp = g_esp;
-    uint32_t len = MEM32(entry_esp + 4);
+    uint32_t len       = MEM32(entry_esp + 4);
+    uint32_t p_owner   = MEM32(entry_esp + 8);
+    uint32_t p_header  = MEM32(entry_esp + 0xC);
 
-    g_eax = xbox_HeapAlloc(len ? len : 4, 4);
+    /* +8 for the {owner, refcount} header the caller's chain expects to
+     * find immediately before the buffer. */
+    uint32_t block = xbox_HeapAlloc((len ? len : 4) + 8, 4);
+    uint32_t buf   = block ? block + 8 : 0;
+
+    if (p_header) MEM32(p_header) = block;
+    if (p_owner)  MEM32(p_owner)  = g_ecx;
+
+    g_eax = buf;
     g_esp = entry_esp + 16;  /* ret 12 */
 }
 
@@ -3144,6 +3229,205 @@ void sub_002085CA(void)
     POP32(g_esp, g_esi);
     POP32(g_esp, g_ebx);
     g_esp += 8;
+}
+
+extern void sub_001186A0(void);
+extern void sub_0011DFE0(void);
+extern void sub_0011DE50(void);
+extern void sub_002041D0(void);
+extern void sub_0011E8E9(void);
+
+/*
+ * sub_0011E7A0 - small-object cache lookup/insert (23 call sites, all in
+ * recomp_0007.c). Same D3D-null pattern as sub_001F84D0/sub_002085CA
+ * above, one step earlier in the chain: `this` (ecx on entry) is 0 because
+ * the object this method operates on is D3D-owned and the D3D/DSOUND/XGRPH
+ * library sections were never disassembled (see "The D3D question" in
+ * DEBUGGING_NOTES.md) - it is never constructed in this build. On real
+ * hardware `this` is never null.
+ *
+ * Traced in ledger #122: with `this` == 0, `edi + 0x16C` (the embedded
+ * bitmap-indexed pool sub_001186A0 searches) is a near-null base, so the
+ * search always walks guest page 0 and only terminates via sub_001186A0's
+ * own step-cap guard (ledger #121). When it *does* come back reporting
+ * "not found" (eax != 0x3FFFFFFF) the function already takes its own clean
+ * exit at loc_0011E8D2 - but when page-0 garbage spuriously looks like a
+ * hit, execution falls through into the insert path and grows the same
+ * null-based pool without bound until the computed node address runs off
+ * into unrelated memory and crashes. A second guard capping that growth
+ * (`ebx > 4096`, ledger-era fix already in recomp_0007.c / manual_edits.json)
+ * exists further down as a last line of defence, but it still pays for up
+ * to 4096 insertions into a pool that can never be real.
+ *
+ * Fix: skip the whole D3D-owned pool lookup/insert when `this` is null and
+ * take the function's own existing "not found" exit directly - the same
+ * outcome the caller already gets on every other "not found" path, just
+ * without walking page 0 or growing a null pool to get there. Kept as a
+ * near-verbatim copy of the generated body (loc_ labels and goto preserved
+ * exactly, same reasoning as sub_001F84D0) rather than reimplemented from
+ * scratch: the control flow here is a real diamond (insert vs. reuse, then
+ * a shared tail), not a simple linear function, so mechanical translation
+ * is safer than manual re-derivation. The `ebx > 4096` guard is kept too,
+ * belt-and-braces, in case `this` ever becomes non-null again some other
+ * still-broken way.
+ */
+void sub_0011E7A0(void)
+{
+    uint32_t ebp;
+
+loc_0011E7A0: ;
+    PUSH32(g_esp, 0xFFFFFFFFu);
+    PUSH32(g_esp, 0x35197A);
+    g_eax = MEM32(g_fs_base);
+    PUSH32(g_esp, g_eax);
+    MEM32(g_fs_base) = g_esp;
+    g_esp = g_esp - 0x10;
+    PUSH32(g_esp, g_ebx);
+    PUSH32(g_esp, ebp);
+    PUSH32(g_esp, g_esi);
+    PUSH32(g_esp, g_edi);
+    g_edi = g_ecx;
+    MEM32(g_esp + 0x10) = 0;
+
+    /* Manual guard (not in original x86): see the function header comment
+     * above - `this` (g_edi) is a D3D-owned object that is never
+     * constructed in this build, so it is always null here. Take the
+     * function's own "not found" exit instead of searching/growing a pool
+     * rooted at a near-null address. Stack depth at this point matches the
+     * depth loc_0011E8D2 expects on every other path that reaches it,
+     * because the sub_001186A0 call below is self-cleaning (`ret 12`). */
+    if (g_edi == 0) goto loc_0011E8D2;
+
+    g_ecx = MEM32(g_edi + 0x170);
+    g_eax = MEM32(g_esp + 0x30);
+    ebp = g_edi + 0x16C;
+    PUSH32(g_esp, g_ecx);
+    g_edx = g_esp + 0x18;
+    PUSH32(g_esp, g_edx);
+    g_ecx = ebp;
+    MEM32(g_esp + 0x1C) = g_eax;
+    PUSH32(g_esp, 0);
+    sub_001186A0();
+
+loc_0011E7E7: ;
+    if (CMP_NE(g_eax, 0x3FFFFFFF)) goto loc_0011E8D2;
+
+loc_0011E7F2: ;
+    if (CMP_NE(ebp, ebp)) goto loc_0011E8D2;
+
+loc_0011E7FA: ;
+    g_ebx = MEM32(g_edi + 0x168);
+    g_edx = g_edi + 4;
+    g_ebx++;
+    /* Manual guard (not in original x86): unbounded-growth cap, carried
+     * over from the generated version - see the function header comment
+     * above. */
+    if (g_ebx > 4096) goto loc_0011E8D2;
+
+    g_eax = g_ebx;
+    g_eax--;
+    g_ecx = g_eax;
+    g_ecx = (uint32_t)((int32_t)g_ecx >> 5);
+    g_esi = g_edx + g_ecx * 4 + 0x160;
+    MEM32(g_edx + 0x164) = g_ebx;
+    g_ecx = g_eax;
+    g_ecx = g_ecx & 0x1F;
+    g_ebx = 1;
+    g_ebx = g_ebx << LO8(g_ecx);
+    g_ecx = MEM32(g_esi);
+    g_eax = g_eax << 4;
+    g_ecx = g_ecx | g_ebx;
+    g_eax = g_eax + g_edx;
+    MEM32(g_esi) = g_ecx;
+    g_esi = g_eax;
+    MEM32(g_esp + 0x18) = g_esi;
+    MEM32(g_esp + 0x1C) = g_esi;
+    MEM32(g_esp + 0x28) = 0;
+    if ((g_eax == 0)) goto loc_0011E885;
+
+loc_0011E844: ;
+    g_eax = MEM32(g_esp + 0x34);
+    g_edx = MEM32(g_esp + 0x38);
+    PUSH32(g_esp, g_eax);
+    PUSH32(g_esp, 0);
+    PUSH32(g_esp, g_edx);
+    PUSH32(g_esp, g_eax);
+    g_eax = g_esp + 0x24;
+    PUSH32(g_esp, g_eax);
+    PUSH32(g_esp, 0);
+    sub_0011DFE0();
+
+loc_0011E85B: ;
+    g_eax = MEM32(g_eax);
+    g_esp = g_esp + 0xC;
+    g_ebx = 1;
+    g_ecx = g_esp;
+    MEM8(g_esp + 0x30) = LO8(g_ebx);
+    MEM32(g_esp + 0x18) = g_ebx;
+    MEM32(g_esp + 0x3C) = g_esp;
+    MEM32(g_ecx) = g_eax;
+    if (TEST_Z(g_eax, g_eax)) goto loc_0011E87C;
+
+loc_0011E879: ;
+    MEM32(g_eax + 4) = MEM32(g_eax + 4) + 1;
+
+loc_0011E87C: ;
+    g_ecx = g_esi;
+    PUSH32(g_esp, 0);
+    sub_0011DE50();
+
+loc_0011E883: ;
+    goto loc_0011E88A;
+
+loc_0011E885: ;
+    g_ebx = 1;
+
+loc_0011E88A: ;
+    MEM32(g_esp + 0x28) = 0xFFFFFFFFu;
+    if (TEST_Z(MEM8(g_esp + 0x10), LO8(g_ebx))) goto loc_0011E8BA;
+
+loc_0011E898: ;
+    g_eax = MEM32(g_esp + 0x14);
+    g_ecx = g_eax;
+    if (TEST_Z(g_eax, g_eax)) goto loc_0011E8BA;
+
+loc_0011E8A2: ;
+    g_esi = MEM32(g_eax + 4);
+    g_eax = g_eax + 4;
+    g_esi--;
+    g_edx = g_esi;
+    MEM32(g_eax) = g_esi;
+    if (TEST_NZ(g_edx, 0x7FFFFF)) goto loc_0011E8BA;
+
+loc_0011E8B5: ;
+    PUSH32(g_esp, 0);
+    sub_002041D0();
+
+loc_0011E8BA: ;
+    g_ecx = MEM32(g_edi + 0x168);
+    g_ecx = g_ecx << 4;
+    g_edx = MEM32(g_ecx + g_edi + -12);
+    g_ecx = g_ecx + g_edi + -12;
+    { uint32_t _icall_esp = g_esp;
+    PUSH32(g_esp, 0);
+#define eax g_eax /* RECOMP_ICALL_SAFE assumes the generated-code register aliases */
+    RECOMP_ICALL_SAFE(MEM32(g_edx + 0xC), _icall_esp);
+#undef eax
+    }
+
+loc_0011E8CE: ;
+    if (TEST_NZ(LO8(g_eax), LO8(g_eax))) { g_seh_ebp = ebp; sub_0011E8E9(); return; }
+
+loc_0011E8D2: ;
+    SET_LO8(g_eax, 0);
+    g_ecx = MEM32(g_esp + 0x20);
+    MEM32(g_fs_base) = g_ecx;
+    POP32(g_esp, g_edi);
+    POP32(g_esp, g_esi);
+    POP32(g_esp, ebp);
+    POP32(g_esp, g_ebx);
+    g_esp = g_esp + 0x1C;
+    g_esp += 16;
 }
 
 /* ── ICALL failure logging ─────────────────────────────────── */

@@ -89,11 +89,17 @@ which is what this port is ultimately recreating.
 **The Xbox build is on disk**, which was the recommended target. Both
 reference binaries now exist:
 
-| binary | path | size | notes |
+Paths below are post-cleanup (toolbox reorganised 2026-08-08 into
+`games\` and `zip files\`):
+
+| binary | path under `D:\My Games\Xbox recomp tools\` | size | notes |
 |---|---|---|---|
-| **XML2 Xbox** (primary) | `Xbox recomp tools\XML2-Xbox\extracted\X-Men Legends II - Rise of Apocalypse (USA, Europe)\default.xbe` | 5.46 MB | **use this** |
-| XML2 PC (secondary) | `Xbox recomp tools\X-Men-Legends-II-Rise-of-Apocalypse_NoCD_Win_EN\XMen2.exe` | 2.98 MB | 32-bit x86 PE, NoCD-patched |
-| XML2 PS2 | `Xbox recomp tools\X-Men Legends II - Rise of Apocalypse (USA).7z` | — | **useless**, MIPS not x86 |
+| **XML2 Xbox** (primary) | `games\XML2-Xbox\extracted\X-Men Legends II - Rise of Apocalypse (USA, Europe)\default.xbe` | 5.46 MB | **use this** |
+| XML2 PC (secondary) | `games\X-Men-Legends-II-Rise-of-Apocalypse_NoCD_Win_EN\XMen2.exe` | 2.98 MB | 32-bit x86 PE, NoCD-patched |
+| XML2 PS2 | `zip files\X-Men Legends II - Rise of Apocalypse (USA).7z` | — | **useless**, MIPS not x86; extract deleted, archive kept |
+
+Source archives all live in `zip files\`. The redundant extracted Xbox ISO
+was deleted after extraction (re-derivable from the `.7z` in minutes).
 
 Extraction route, recorded because neither step is obvious:
 

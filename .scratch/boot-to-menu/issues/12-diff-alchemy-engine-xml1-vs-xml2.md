@@ -6,12 +6,68 @@
 > higher than against a PC build fighting a different compiler *and*
 > different libraries. The PC binary stays as a secondary reference only.
 >
-> **The go/no-go is already largely answered, and it is GO.** Measured
-> directly from RTTI class-name sets (ticket 11): the two Xbox binaries
-> share **499 of XML1's 563 classes — 88.6%** — and every single
-> memory/allocator class appears in both. The codebases are near-identical
-> at the class level. What remains is the function-level work, not the
-> question of whether it is worth doing.
+> **Go/no-go: QUALIFIED GO — narrower than first claimed.** Corrected
+> 2026-08-08 after actually running the RTTI parser over both binaries.
+>
+> The earlier "88.6%" was raw type-descriptor *string* overlap. Restricting
+> to classes that actually carry a vtable, and comparing vtable shape:
+>
+> ```
+> classes with vtables    XML1 726    XML2 881    shared 549 (75.6% of XML1)
+> shared classes whose vtables have IDENTICAL method counts:  173 / 549 (31.5%)
+> ```
+>
+> **The allocator classes are among those that DIFFER**, which is precisely
+> the opposite of what the optimistic reading assumed:
+>
+> | class | XML1 methods | XML2 methods |
+> |---|---|---|
+> | `CMemory` | 12 | 13 |
+> | `CMemory::IMemoryPoolInfo` | 44 | 47 |
+> | `CMemory::SXMenMemoryPoolInfo` | 34 | 36 |
+> | `IAlchemyObjectPool` | 91 | 110 |
+> | `CEntityAllocator` | 5 | 6 |
+>
+> XML2's engine gained virtual methods, so **slot-by-slot transfer is not
+> safe** for these classes: XML1 slot N and XML2 slot N are not the same
+> method once a virtual is inserted anywhere above N.
+>
+> **THE ABOVE NUMBERS WERE WRONG — corrected below.** The `CBlock` 41-vs-1
+> reading was not a real class change, it was the detector failing, exactly
+> as suspected. Root cause: the XBE marks *every* section executable
+> including `.rdata` and `.data`, so the vtable walk ran off the end of each
+> table into read-only data. Fixed in `rtti_names.py` (`CODE_SECTIONS`).
+>
+> **Corrected measurement:**
+>
+> ```
+> shared classes with vtables                     549
+> identical vtable shape                          329  (59.9%)   [was 31.5%]
+> ```
+>
+> | class | XML1 | XML2 | |
+> |---|---|---|---|
+> | `CBlock` | 1 | 1 | SAME (was a bogus 41 vs 1) |
+> | `CMemory` | 12 | 13 | DIFF |
+> | `CMemory::IMemoryPoolInfo` | 9 | 10 | DIFF |
+> | `IAlchemyObjectPool` | 2 | 3 | DIFF |
+> | `CEntityAllocator` | 5 | 6 | DIFF |
+>
+> **The divergence finding survives the fix, and now has a coherent story.**
+> Every memory class gained *exactly one* virtual method in XML2 — a uniform
+> +1 is what a shared base class acquiring one virtual looks like, propagated
+> to derived classes. That is credible engine evolution rather than detector
+> noise, so the conclusion stands: slot-by-slot transfer is unsafe for these
+> classes, and `slot N` in XML1 is not `slot N` in XML2 below the insertion
+> point.
+>
+> What survives, and what this ticket should therefore do:
+> - **Class identity transfers** (549 shared names) — safe and useful.
+> - **Slot-by-slot method transfer does NOT transfer wholesale** — it needs
+>   per-class verification, starting by tightening the vtable-end detection
+>   so the counts can be trusted at all.
+> - Do not plan on this cracking the allocator wall. Ticket 02 remains the
+>   route there.
 
 Status: open
 Type: task
