@@ -599,7 +599,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
 #endif
 
 /*
- * RECOMP_ESP_WATCH - esp range check around an INDIRECT call.
+ * RECOMP_ICALL_WATCH - ABI check around an INDIRECT call.
  *
  * RECOMP_CHECK_ABI's recomp_esp_escape() only wraps RECOMP_ABI_CALL, i.e.
  * direct calls. Running it for the first time (ledger #79) produced a useful
@@ -614,20 +614,33 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
  * epilogue owed more (ledger #71 found two such stubs owing 12 and 36 bytes,
  * and safe_stub still reads 8 every run).
  *
+ * It also checks ebx/esi/edi, which RECOMP_ABI_CALL checks for direct calls
+ * and nothing checked for indirect ones. That gap is not theoretical: the
+ * page-zero census (docs/PAGE_ZERO_CENSUS.md) shows sub_00209650 null-checking
+ * edi correctly ONCE, before its loop, then calling through a function pointer
+ * each iteration and reading guest 0 on every later pass - edi is callee-saved
+ * in the real x86 ABI, so the original code was entitled to assume it survived
+ * that call. 19,390 reads of the null page come from that one register.
+ *
  * Compiles to nothing without RECOMP_CHECK_ABI, so normal builds are
  * untouched.
  */
 #ifdef RECOMP_CHECK_ABI
 void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
-#define RECOMP_ESP_WATCH(va, call) do { \
+void recomp_abi_violation_va(uint32_t target_va,
+                             uint32_t ebx0, uint32_t esi0, uint32_t edi0);
+#define RECOMP_ICALL_WATCH(va, call) do { \
     uint32_t _esp_b = g_esp; \
+    uint32_t _abi_b = g_ebx, _abi_s = g_esi, _abi_d = g_edi; \
     call; \
     if ((g_esp < RECOMP_ESP_LO || g_esp > RECOMP_ESP_HI) && \
         (_esp_b >= RECOMP_ESP_LO && _esp_b <= RECOMP_ESP_HI)) \
         recomp_esp_escape_va((va), _esp_b); \
+    if (g_ebx != _abi_b || g_esi != _abi_s || g_edi != _abi_d) \
+        recomp_abi_violation_va((va), _abi_b, _abi_s, _abi_d); \
 } while (0)
 #else
-#define RECOMP_ESP_WATCH(va, call) do { call; } while (0)
+#define RECOMP_ICALL_WATCH(va, call) do { call; } while (0)
 #endif
 
 /**
@@ -659,7 +672,7 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); RECOMP_ESP_WATCH(_va, _fn()); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_ICALL_WATCH(_va, _fn()); } \
     else { recomp_icall_fail_log(_va); g_esp += 4; eax = 0; } \
 } while(0)
 
@@ -696,7 +709,7 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); RECOMP_ESP_WATCH(_va, _fn()); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_ICALL_WATCH(_va, _fn()); } \
     else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 
@@ -717,7 +730,7 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
      * must still never leave the stack range, which is all ESP_WATCH tests, \
      * so the check stays sound and covers the tail-jump chains that #79 \
      * could not rule out. */ \
-    if (_fn) { recomp_mark_reached(_tva); RECOMP_ESP_WATCH(_tva, _fn()); } \
+    if (_fn) { recomp_mark_reached(_tva); RECOMP_ICALL_WATCH(_tva, _fn()); } \
 } while(0)
 
 /* ================================================================

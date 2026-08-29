@@ -49,3 +49,8 @@ abi_stdout.txt
 build_page0/
 src/game/page0_stdout.txt
 src/game/page0_stderr.txt
+
+# Redundant seed_list copies taken before a bulk edit; seed_list.json is the
+# tracked one and git already holds its history
+src/game/seed_list.json.bak-*
+src/game/seed_list.json.with-*

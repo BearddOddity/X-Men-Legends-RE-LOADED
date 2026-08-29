@@ -39,6 +39,7 @@
 
 /* xboxrecomp runtime headers */
 #include <xbox/xboxrecomp.h>
+#include "xbox_page_zero_trap.h"
 
 /*
  * If xboxrecomp.h is not an umbrella header in your setup, include
@@ -456,6 +457,52 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before)
     fflush(stderr);
 }
 
+/*
+ * A callee reached through an INDIRECT call returned with ebx, esi or edi
+ * changed. The direct-call equivalent is recomp_abi_violation() above.
+ *
+ * This is not a cosmetic difference. sub_00209650 null-checks edi once, before
+ * its loop, and then calls through a function pointer on every iteration:
+ *
+ *     loc_00209655: edi = eax; if (TEST_Z(edi, edi)) goto <exit>;
+ *     loc_00209666: eax = MEM32(edi);           <- reads guest 0 forever after
+ *                   icall MEM32(eax + esi * 4);
+ *
+ * edi is callee-saved in the real x86 ABI, so the original code was entitled to
+ * assume it survived that call. If it does not, the guard never runs again and
+ * every later iteration dereferences whatever edi decayed to. The page-zero
+ * census attributes 19,390 reads of the null page to that single instruction -
+ * 87% of all guest page-0 traffic. See docs/PAGE_ZERO_CENSUS.md.
+ *
+ * Reported once per target VA, like recomp_esp_escape_va: the first offender
+ * would otherwise hide the rest. A name is not available for an indirect
+ * target, and the VA is the more useful identifier anyway.
+ *
+ * Lifter fragments are expected to trip this - a fragment's pushes can be
+ * matched by a pop in a sibling, so in isolation it looks unbalanced while the
+ * pair is fine. Cross-check against find_reg_clobbers.py before believing it.
+ */
+void recomp_abi_violation_va(uint32_t target_va,
+                             uint32_t ebx0, uint32_t esi0, uint32_t edi0)
+{
+    enum { SEEN_MAX = 64 };
+    static uint32_t seen[SEEN_MAX];
+    static unsigned seen_n;
+
+    for (unsigned i = 0; i < seen_n; i++)
+        if (seen[i] == target_va)
+            return;
+    if (seen_n < SEEN_MAX)
+        seen[seen_n++] = target_va;
+
+    fprintf(stderr, "[ABI-ICALL] sub_%08X did not restore:", target_va);
+    if (g_ebx != ebx0) fprintf(stderr, "  ebx %08X->%08X", ebx0, g_ebx);
+    if (g_esi != esi0) fprintf(stderr, "  esi %08X->%08X", esi0, g_esi);
+    if (g_edi != edi0) fprintf(stderr, "  edi %08X->%08X", edi0, g_edi);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+}
+
 /* ── VEH crash handler ─────────────────────────────────────── */
 
 /*
@@ -794,6 +841,13 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
             g_ebx, g_esi, g_edi);
         fprintf(stderr, "  Xbox VA of fault: 0x%08X\n",
             (uint32_t)(fault_addr - (uintptr_t)g_xbox_mem_offset));
+
+        /* The boot normally ends in a crash, so xbox_MemoryLayoutShutdown()
+         * never runs and the page-zero census would lose its summary table -
+         * the per-site read/write counts that rank which null dereference
+         * matters. Print it here instead. No-op without
+         * -DRECOMP_TRAP_PAGE_ZERO. */
+        xbox_PageZeroTrapShutdown();
 
         /*
          * TODO: Add game-specific diagnostics here. Examples:

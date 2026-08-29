@@ -84,26 +84,57 @@ This is the same indirect-dispatch failure recorded in
 [BLOCKER_005BB700.md](BLOCKER_005BB700.md), seen from the other side: bogus
 targets read out of page 0 feed straight into the failed-icall count.
 
-## Open contradiction — do not skip this
+## Resolved: a callee-saved register does not survive the icall
 
-`sub_00209650` null-checks the pointer before it uses it:
+`sub_00209650` null-checks the pointer before it uses it, and the check is
+correct — the compiler's own listing confirms it:
 
-```c
-loc_00209655: edi = eax; if (TEST_Z(edi, edi)) goto loc_002096A8;
-loc_00209666: eax = MEM32(edi);              /* +0x22b, reads guest 0 */
+```
+001aa  mov  eax, [r12+r14]      ; eax = g_eax
+001ae  mov  [r14+r15], eax      ; g_edi = eax        (r15 = OFFSET g_edi)
+001b2  test eax, eax
+001b4  je   loc_002096A8        ; exits on zero
 ```
 
-`TEST_Z` is operand-based and correct (`((a) & (b)) == 0`), so this is not a
-flags-model bug. Yet the read at `+0x22b` lands on guest 0 every time, which
-means `edi == 0` at a point the guard should have made unreachable.
+The guard is not bypassed. It simply **runs once, before the loop**, and
+`+0x22b` is inside the loop body — `jl $loc_00209666` at `+0x3a3` is the
+back-edge. Each iteration then calls through a function pointer:
 
-Both cannot be true. Either the basic block at `+0x22b` is not the one this
-source line maps to — the offsets do not follow source order, and the single
-`MEM32(edi + 4)` read of guest `0x4` sits at `+0x3b9`, *after* both hot sites,
-so the optimiser has reordered blocks — or the guard is being bypassed. The
-scaled read at `+0x244` is certain from the `lea`; the exact source line for
-`+0x22b` is not yet pinned down. Resolve this before treating the C above as
-the fix site.
+```c
+loc_00209655: edi = eax; if (TEST_Z(edi, edi)) goto loc_002096A8;  /* once */
+loc_00209666: eax = MEM32(edi);                    /* +0x22b, reads guest 0 */
+              icall MEM32(eax + esi * 4);          /* +0x244 */
+loc_0020966B: esi++; if (CMP_L(esi, ebx)) goto loc_00209666;
+```
+
+`edi` is callee-saved in the real x86 ABI, so the original code was entitled to
+assume it survived that call. It does not. Nothing re-checks it, so every later
+iteration dereferences whatever `edi` decayed to.
+
+`RECOMP_CHECK_ABI` could not see this: `RECOMP_ABI_CALL` checks `ebx/esi/edi`
+on **direct** calls, while the indirect path checked `esp` alone. Extending it
+(`RECOMP_ICALL_WATCH`, reported by `recomp_abi_violation_va`) found 14 indirect
+callees that fail to restore a callee-saved register, against 21 direct ones:
+
+```
+[ABI-ICALL] sub_00342D98 did not restore:  esi 01091B4C->01091B30  edi 01091B50->00000000
+[ABI-ICALL] sub_002225F0 did not restore:  ebx 00000003->01096C50  esi 00000000->00000001  edi 01096C50->00000000
+[ABI-ICALL] sub_000CC200 did not restore:  ebx 01096C50->FFFFFFFF  esi 00004BBF->0035197A  edi 00000000->00000004
+```
+
+**`edi` is clobbered to exactly `0` and `4`** — the two values the census
+independently recorded at the two sites in this function (`+0x22b` reads guest
+`0`, `+0x3b9` reads guest `0x4`). Two unrelated measurements agreeing on the
+same pair is what makes this a diagnosis rather than a story.
+
+Reproduce with `src/game/build_abi.bat && src/game/run_abi.bat`.
+
+Caveat carried over from the direct-call version: lifter fragments are expected
+to trip this, because a fragment's pushes can be matched by a pop in a sibling,
+so in isolation it looks unbalanced while the pair is fine. Cross-check a name
+against `find_reg_clobbers.py` before treating it as the culprit. The
+`sub_00342D3C`–`sub_00342D98` cluster in particular is six near-adjacent
+addresses, which is the shape of a thunk family rather than six real bugs.
 
 ## The crash site reads page 0 too
 
