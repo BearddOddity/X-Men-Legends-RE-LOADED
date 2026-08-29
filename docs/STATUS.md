@@ -285,3 +285,57 @@ Theories discarded along the way, each by measurement rather than argument: the
 allocation failing, the store to `0x5BC508` being skipped, the registry being
 null, register corruption writing the `-1`, a failed virtual call, and a
 registry "ready" flag gating a minimal construction path.
+
+
+## The contradiction, confirmed by paired probes
+
+Probing object *creation* and object *construction* in the same run settles it.
+`[NEWDESC]` fires where `sub_00222708` has just allocated, `[CTORON]` on entry
+to `sub_00216EE0`:
+
+```
+created     : 01091AB0 01096BB8 01097498 01097518 01097728 010977C0 01097858
+constructed : the same seven, plus 00F7FD98 (a stack object from sub_00219A10)
+```
+
+Seven created, seven constructed — that path is airtight. **`01098358` and
+`01098550` appear in neither list.** They carry vtable `0x003F5D88` without ever
+passing through an instruction that writes it, and the third writer,
+`sub_0022229A`, runs zero times.
+
+Two hypotheses remain, both untested:
+
+1. **A clone.** A `memcpy` of a constructed descriptor would copy the vtable
+   while carrying whatever the source held in the later fields.
+2. **An embedded copy.** `esi` may point into a larger structure that contains a
+   descriptor by value, in which case these are not standalone objects at all.
+
+The next probe is the allocator: catch the block containing `0x01098358` at
+birth with a native backtrace, which names whoever produces it.
+
+### The boot chain, from one backtrace
+
+The `--where` probe gave the whole path in a single frame list, which is worth
+recording as the canonical route from entry point to the wall:
+
+```
+sub_001A1C97   XBE entry point
+sub_0019F22E   CreateThread
+sub_0019F196   thread wrapper          (hand-written in recomp_manual.c)
+sub_001A1C23   CRT startup             (hand-written in recomp_manual.c)
+sub_00011E40   static initialisers
+sub_00239E50   registry singleton      (initialiser 3 of 11)
+sub_0023666F
+sub_002366BC
+sub_00209650   container walker
+sub_002221E0
+sub_002235D0   registration driver
+sub_00222708   descriptor constructor
+```
+
+**Correction.** An earlier note here called `sub_0019F196` "not lifted". It is
+hand-written in `recomp_manual.c` as `static void` and registered in
+`recomp_lookup_manual`; a grep for `^void` missed the `static`. It runs, as this
+backtrace shows. The substantive point stands and is if anything stronger: two
+of the twelve frames on the critical path exist only because someone wrote them
+by hand, because nothing in the binary calls them directly.

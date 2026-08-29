@@ -1981,5 +1981,19 @@
     "message": "Narrowed the -1 to a contradiction worth recording: the full descriptor ctor sub_00216EE0 runs on exactly 8 descriptors and NOT on the two failing ones, yet every static path that sets their vtable reaches that ctor unconditionally",
     "note": "Probe [CTORRAN] on sub_00216EE0 entry lists 8 descriptors (00F7FD98, 01091AB0, 01096BB8, 01097498, 01097518, 01097728, 010977C0, 01097858). The failing 01098358 and 01098550 are absent, and sit at HIGHER addresses - allocated after construction stopped. That confirms the ctor never ran on them, matching their +8=FFFFFFFF (the ctor writes 0 there). THE CONTRADICTION: only three sites write vtable 0x003F5D88 - 0x00216EFC inside the ctor itself, 0x002222B5 in sub_0022229A, and 0x00222729 in sub_00222708. sub_0022229A is unreachable this run (probe [REGFLAG] on its only entry sub_00222270 got ZERO hits), and sub_00222708 runs 'mov [esi],0x3f5d88' then reaches 'call 0x216ee0' with NO branch between. So an object cannot hold that vtable without the ctor having run, yet two do. Something outside these three paths is producing them - a memcpy/clone of a constructed descriptor is the leading candidate and is untested. ALSO RULED OUT: nothing writes -1 to any object +0x20; all 40 such writes in .text target [esp+0x20], which are SEH scope slots. The -1 is residue in memory never written, not a sentinel. Probes stripped, rebuilt, unchanged at 434/92/415.",
     "commit": "c3d62d5"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "The two failing descriptors are created by NONE of the three vtable-writing sites: sub_00222708 makes 7 objects and the ctor runs on all 7, sub_0022229A runs zero times, and neither failing object appears in either list",
+    "note": "Paired probes [NEWDESC] on sub_00222708's post-allocation point and [CTORON] on sub_00216EE0 entry. Created: 01091AB0 01096BB8 01097498 01097518 01097728 010977C0 01097858. Constructed: the same 7 plus 00F7FD98 (a stack object from sub_00219A10, the other ctor caller). The failing 01098358 and 01098550 are in neither list, so they carry vtable 0x003F5D88 without passing through any instruction that writes it. Leading hypothesis is now a memcpy/clone of a constructed descriptor, or esi pointing into a larger structure that embeds one - both untested. ALSO CORRECTED: I earlier reported sub_0019F196 as 'not lifted'. It is hand-written in recomp_manual.c as 'static void' and registered at recomp_lookup_manual line 3835; my grep for '^void' missed the static. The backtrace confirms it runs, and gives the full boot chain in one frame list: sub_001A1C97 -> sub_0019F22E -> sub_0019F196 -> sub_001A1C23 -> sub_00011E40 -> sub_00239E50 -> sub_0023666F -> sub_002366BC -> sub_00209650 -> sub_002221E0 -> sub_002235D0 -> sub_00222708. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "66a08af"
   }
 ]
