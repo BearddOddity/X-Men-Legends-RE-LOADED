@@ -31,6 +31,18 @@ if(RECOMP_CHECK_ABI)
     message(STATUS "RECOMP_CHECK_ABI is ON - callee-save checking enabled")
 endif()
 
+# Make guest VA 0x0-0xFFF PAGE_NOACCESS and census every access to it, instead
+# of letting a null dereference quietly read a mapped zero page. Ledger #84,
+# #88 and #92 all stayed invisible because page 0 answers. Resumes after each
+# hit, so one boot yields the whole list. Diagnostic only; changes timing, so
+# never measure coverage on it. Use a SEPARATE build dir:
+#   cmake -S . -B build_page0 -DRECOMP_TRAP_PAGE_ZERO=ON
+option(RECOMP_TRAP_PAGE_ZERO "trap and census accesses to guest page 0" OFF)
+if(RECOMP_TRAP_PAGE_ZERO)
+    add_compile_definitions(RECOMP_TRAP_PAGE_ZERO)
+    message(STATUS "RECOMP_TRAP_PAGE_ZERO is ON - guest page 0 is unmapped")
+endif()
+
 # ── xboxrecomp toolkit ──────────────────────────────────────────
 #
 # Option A: xboxrecomp as a subdirectory (simplest)

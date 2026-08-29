@@ -13,6 +13,7 @@
  */
 
 #include "xbox_memory_layout.h"
+#include "xbox_page_zero_trap.h"
 #include "kernel.h"
 #include <stdio.h>
 #include <string.h>
@@ -585,12 +586,21 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
                 (int)((mirrors_ok + 1) * g_memory_size / (1024 * 1024)));
     }
 
+    /* Opt-in diagnostic, last of all: everything above writes to low memory
+     * during setup and must not be trapped. Compiles to nothing without
+     * -DRECOMP_TRAP_PAGE_ZERO. */
+    xbox_PageZeroTrapInit(g_memory_base);
+
     fprintf(stderr, "xbox_MemoryLayoutInit: complete\n");
     return TRUE;
 }
 
 void xbox_MemoryLayoutShutdown(void)
 {
+    /* Disarm before anything is unmapped, and print the census. No-op without
+     * -DRECOMP_TRAP_PAGE_ZERO. */
+    xbox_PageZeroTrapShutdown();
+
     if (g_kernel_memory) {
         VirtualFree(g_kernel_memory, 0, MEM_RELEASE);
         g_kernel_memory = NULL;

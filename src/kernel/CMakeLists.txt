@@ -20,6 +20,7 @@ set(KERNEL_SOURCES
     kernel_thunks.c
     kernel_bridge.c
     xbox_memory_layout.c
+    xbox_page_zero_trap.c
 )
 
 add_library(xbox_kernel STATIC ${KERNEL_SOURCES})
