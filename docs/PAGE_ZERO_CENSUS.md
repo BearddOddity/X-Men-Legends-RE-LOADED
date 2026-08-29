@@ -369,3 +369,70 @@ knows the damage may belong further down.
 **Read every ABI-ICALL line as naming a subtree, not a function.** Three of the
 reported violators so far — `sub_002225F0`, `sub_0020B850`, and by extension
 anything ending in `jmp` — are pass-throughs whose own code is faithful.
+
+## Stepping back: the register hunt was chasing symptoms
+
+Following `sub_0020B850` into what it actually does:
+
+```
+0020B850  mov  eax, [0x5bb930]     ; a registry/type pointer
+0020B861  push 0x3e226c            ; the string "_data"
+0020B866  push eax
+0020B867  mov  ecx, esi            ; this = [ [0x5bc2fc] + 0x28 ]
+0020B869  call 0x1e8800            ; -> a name lookup: [ecx+0xc] count, [ecx+8] array
+```
+
+`0x005BB930` sits in the **BSS tail**, so it starts as zero, and no instruction
+in the code section stores to it or takes its address as an immediate. It is
+read 32 times. That is the `0x005BB700` shape from
+[BLOCKER_005BB700.md](BLOCKER_005BB700.md) a second time.
+
+So it is not one global. Measured across the lifted code:
+
+| | |
+|---|---|
+| `0x5Bxxxx` globals referenced by lifted code | 1,770 |
+| **read but never written by any lifted code** | **613** |
+| reads of those globals | 3,123 |
+
+Then, sweeping the XBE's code section for stores and asking whether a writer
+exists in the *binary* even though none was lifted:
+
+| store found within | globals covered | still none |
+|---|---|---|
+| exact address | 60 | 553 |
+| ±4 | 360 | 253 |
+| ±0x10 | 514 | 99 |
+| ±0x40 | 564 | 49 |
+
+Exact matching badly under-counts, and `0x005BB700` is the proof: the blocker
+documents its writer as `mov [eax*4 + 0x5bb704], ecx` — an indexed store at a
+*different* displacement, so an exact match misses it. Read the ±0x10/±0x40 rows
+as the honest ones: **roughly 500 of the 613 sit in structures the binary does
+write, from code that was never lifted.**
+
+That reframes this whole investigation. The callee-saved corruption is real and
+worth fixing, but it is downstream. The wall is that several hundred globals —
+registries, type tables, subsystem pointers — are never initialised, because the
+code that initialises them is only reachable through indirect dispatch the
+recompiler never followed. Functions then run against NULL registries, produce
+NULL or small-integer objects, and those propagate into the register and page-0
+symptoms recorded above.
+
+`BLOCKER_005BB700.md` already named the durable fix, and this is the measurement
+that says how much it is worth: **treat data-referenced function pointers as lift
+roots.** It reached 609 functions when applied to code runs with prologues; the
+same idea applied to the initialiser and factory tables is what would populate
+these globals.
+
+### Does this need decompiling?
+
+For the immediate mechanical questions — which callee clobbers a register, what
+a call site resolves to — no. Runtime instruments (`RECOMP_ICALL_WATCH`, the
+page-zero census) answer those faster and more reliably, and twice now they have
+corrected a static conclusion.
+
+For *why*, yes, and it paid here: reading `0x3e226c` as the string `"_data"` and
+recognising `sub_001E8800` as a name lookup over a `[ecx+8]/[ecx+0xc]` container
+is what turned "a callback clobbers esi" into "the type registry was never
+built". That question was not answerable from a register trace.
