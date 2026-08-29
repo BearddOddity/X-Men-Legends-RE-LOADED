@@ -1925,5 +1925,19 @@
     "message": "THE SMALL INTEGERS ARE CALLEE-SAVED CORRUPTION, and systemic: sub_002235D0's type-setup callback icall at loc_00223736 has FOUR of eleven callbacks failing to preserve esi - cb=002002B0 turns 01097498 into 4, cb=0021B890 turns 01098D08 into 0x17, plus two more that swap in other heap pointers. Nothing ever minted 4 or 0x17 as an object",
     "note": "Ledger #149. No behaviour change - diagnosis only; probes stripped, rebuilt, deterministic 2 of 2 at 226 kernel calls / 272 failed icalls / 95 heap allocs / 8 safe stubs, crash unchanged, manual_edits 1066/1066. (1) A five-point bisect across sub_002235D0 (loc_0022360D, loc_00223658, loc_002236B1, loc_002236EC, loc_00223736) found esi healthy at every one - all eleven values at loc_00223736 are real heap objects - while loc_00223738, the very next label, already carried 4 and 0x17. Between them lies exactly one thing: `if (MEM32(esp+0x13C) == 0) goto loc_00223738` else fall through to loc_00223736's icall through MEM32(esp+0x138), the caller-supplied setup callback (arg 8 per #116). (2) PAIRED PRE/POST PROBE, printed in full: cb=001EA570, 00219A10, 0021BAC0 and four calls with cb=0 all PRESERVE esi; cb=002002B0 turns 01097498 into 00000004, cb=0021B890 turns 01098D08 into 00000017, cb=001F3370 turns 01098638 into 01098728, cb=0021BB80 turns 010988F8 into 01098A68. Four of eleven fail. (3) SO THE PREMISE OF #143-#146 WAS WRONG: nothing ever constructs 4 or 0x17 and passes it as an object. They are simply whatever those callbacks left in esi. Two leave small integers and two leave other heap pointers - the latter are equally wrong and equally silent, and would corrupt a different object instead of crashing. (4) NOT ONE FIX: the four differ. sub_0021B890 does push esi in its prologue, so its loss is deeper - a callee, or an _icall_esp rollback of the #145 kind. sub_002002B0 never pushes esi at all and opens with `esp -= 0x10`, so either the original genuinely does not touch esi and a callee does, or its prologue is mis-lifted. (5) WHY NOW: sub_0021B890 and sub_0021BB80 are both among the eleven functions #142 newly reached, so this was unreachable before that fix. (6) FOURTH INSTANCE THIS SESSION of callee-saved corruption after #130, #142 and #145 - now the dominant bug class, with translator.py's _fixup_icall_esp_save still the generator-level suspect. NEXT: take the four callbacks one at a time, sub_002002B0 first since it produces the fatal 4 - probe esi at entry and every return path, and diff the lifted prologue/epilogue against the disassembly. Do NOT guard sub_002235D0's use of esi; expecting a callee to preserve it is correct.",
     "commit": "01848a0"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Seed 512 data-referenced function pointers: the wall moves off sub_001FBA90 for the first time. Boot now dies inside static-initialiser call #3, sub_00239E50, the refcounted singleton that gates the type registry",
+    "note": "Deterministic 2 of 2. Kernel calls 226->434. Coverage DOWN (callsites 437->415, reached 159->146, heap 95->92) and distinct ordinals FLAT at 17 - recorded as mixed, per the Phase B precedent where a dip was progress off garbage. Bisect of sub_00011E40 with per-call probes: calls 1 and 2 (sub_0011DD40, sub_001E8DE0) return; call 3 sub_00239E50 never returns. That function is operator new(0x3A0) + ctor 0x002154F0 + store to 0x5BC508; the ctor is a 182-byte leaf making zero calls, so the fault is in the allocation/registration below it, and the store to 0x5BC508 never runs - which is why every later reader sees NULL. Probes stripped and rebuilt before measuring.",
+    "commit": "be6ec5e"
   }
 ]

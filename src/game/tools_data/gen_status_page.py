@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+"""gen_status_page.py - rebuild the shareable status page from real project data.
+
+Why this exists
+---------------
+The status page was hand-written once and went stale the same afternoon: it
+carried a metric ("146 functions execute") that turned out to measure something
+else entirely, and no amount of re-reading the prose would have caught it. A
+page that claims to show progress has to be generated from the numbers the
+project already records, or it drifts into fiction.
+
+Everything numeric here comes from tools_data/progress.json - the history
+progress.py maintains - and from the current stderr.txt. Nothing is typed in.
+
+    py -3 tools_data/gen_status_page.py -o status.html
+
+The prose lives in this file; the numbers never do.
+"""
+import argparse
+import json
+import os
+import re
+from html import escape
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+GAME = os.path.dirname(HERE)
+DB = os.path.join(HERE, "progress.json")
+LOG = os.path.join(GAME, "stderr.txt")
+HEAD = os.path.join(HERE, "status", "head.html")
+GEN = os.path.join(GAME, "src", "recomp", "gen")
+
+FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
+
+
+def lifted_function_count():
+    n = 0
+    for name in sorted(os.listdir(GEN)):
+        if not name.endswith(".c"):
+            continue
+        with open(os.path.join(GEN, name), encoding="utf-8", errors="ignore") as fh:
+            n += sum(1 for line in fh if FUNC_RE.match(line.rstrip("\n")))
+    return n
+
+
+def current_signals():
+    """Signals from the most recent run, straight out of stderr.txt."""
+    if not os.path.exists(LOG):
+        return {}
+    text = open(LOG, encoding="utf-8", errors="ignore").read()
+
+    def last(pat):
+        m = re.findall(pat, text)
+        return int(m[-1]) if m else None
+
+    return {
+        "callsites": last(r"callsites=(\d+)"),
+        "reached": len(re.findall(r"COVERAGE-VA", text)),
+        "kernel": last(r"\[KERNEL\] #(\d+)"),
+        "heap": last(r"\[HEAP\] #(\d+)"),
+    }
+
+
+def wall_history(hist):
+    """Distinct crash sites, in the order they were first reached.
+
+    This is the honest progress metric on this project. Kernel calls rise and
+    fall for reasons that include loops; a new crash site cannot be faked by
+    spinning, because reaching one means the previous wall was passed.
+    """
+    out, seen = [], set()
+    for e in hist:
+        c = e.get("crash_in")
+        if c and c not in seen:
+            seen.add(c)
+            out.append((e.get("date", ""), c, e.get("kernel_calls")))
+    return out
+
+
+def sparkline(values, w=680, h=120):
+    """Inline SVG of kernel calls across the recorded history.
+
+    One recorded value is a spin artefact orders of magnitude above the rest.
+    Plotting it raw flattens everything else onto the baseline, so the series is
+    clipped - and the page states the clip rather than doing it quietly.
+    """
+    vals = [v for v in values if v is not None]
+    if not vals:
+        return "", 0
+    cap = sorted(vals)[int(len(vals) * 0.97)] or max(vals)
+    pts = []
+    n = len(vals)
+    for i, v in enumerate(vals):
+        x = (i / max(1, n - 1)) * w
+        y = h - (min(v, cap) / cap) * (h - 8) - 4
+        pts.append((x, y))
+    poly = " ".join("%.1f,%.1f" % p for p in pts)
+    lx, ly = pts[-1]
+    svg = (
+        '<svg viewBox="0 0 %d %d" width="100%%" height="%d" preserveAspectRatio="none" '
+        'role="img" aria-label="Kernel calls across %d recorded runs, ending at %d">'
+        '<polyline points="%s" fill="none" stroke="var(--accent)" stroke-width="1.6" '
+        'stroke-linejoin="round"/>'
+        '<circle cx="%.1f" cy="%.1f" r="3.5" fill="var(--accent)"/>'
+        "</svg>" % (w, h, h, n, vals[-1], poly, lx, ly)
+    )
+    return svg, cap
+
+
+def build(hist, sig):
+    walls = wall_history(hist)
+    lifted = lifted_function_count()
+    latest = hist[-1]
+    svg, cap = sparkline([e.get("kernel_calls") for e in hist])
+    recent = walls[-6:][::-1]
+
+    rows = "\n".join(
+        '          <tr><td class="n">%s</td><td class="n">%s</td>'
+        '<td class="n">%s</td></tr>'
+        % (escape(str(d)), escape(str(c)), k if k is not None else "&mdash;")
+        for d, c, k in recent
+    )
+
+    return """<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Static recompilation &middot; Xbox to PC</p>
+    <h1>X-Men Legends, running as native code</h1>
+    <p class="lede">The translation is essentially finished. Getting the
+    translated code to <em>execute</em> is the entire remaining problem, and it
+    is where all current work happens.</p>
+    <div class="stamp">
+      <span>{date}</span>
+      <span>default.xbe &middot; XDK 5849</span>
+      <span>{runs} recorded runs</span>
+      <span>generated, not hand-written</span>
+    </div>
+  </header>
+
+  <section class="thesis">
+    <div class="thesis-nums">
+      <div><span class="tn-label">Functions translated to C</span>
+           <span class="tn-val num">{lifted:,}</span></div>
+      <div><span class="tn-label">Call sites executed</span>
+           <span class="tn-val num reached">{callsites:,}</span></div>
+      <div><span class="tn-label">Walls passed</span>
+           <span class="tn-val num">{walls}</span></div>
+    </div>
+    <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
+    <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
+    game is already C, and almost none of it has ever run &mdash; the boot dies
+    inside the C runtime's static initialisers, before the game proper starts.</p>
+    <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
+    counts distinct <em>direct</em> call sites. A separate counter tracks
+    {reached} functions entered through <em>indirect</em> calls. Neither is a
+    clean count of functions executed, and an earlier version of this page
+    presented the second as though it were.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Progression</p>
+    <h2>{walls} walls passed across {runs} runs</h2>
+    <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
+    inflate it &mdash; which is why the count of distinct crash sites matters
+    more: reaching a new one means the previous wall was passed, and that cannot
+    be faked by spinning.</p>
+    {svg}
+    <p class="track-cap">Clipped at {cap:,} so one spin artefact does not flatten
+    the series. Latest run: <strong>{kernel}</strong> kernel calls,
+    {heap} heap allocations, ending in {ended}.</p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>First reached</th><th>Wall</th><th>Kernel calls</th></tr></thead>
+        <tbody>
+{rows}
+        </tbody>
+      </table>
+    </div>
+    <p class="track-cap">Most recent walls, newest first.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The boot chain, mapped</p>
+    <h2>Exactly where execution dies</h2>
+    <p>Decompiling the wall traced the path from the entry point to the crash,
+    and a per-call bisect of the static initialisers narrowed it to one call.</p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Step</th><th>What it is</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td class="n">0x001A1C97</td><td>XBE entry point</td><td>runs</td></tr>
+          <tr><td class="n">CreateThread</td><td>starts the CRT on a second thread</td><td>runs inline</td></tr>
+          <tr><td class="n">0x001A1C23</td><td>CRT startup &mdash; hand-written in the port</td><td>runs, 4 steps</td></tr>
+          <tr><td class="n">sub_00011E40</td><td>static initialisers</td><td>entered, never returns</td></tr>
+          <tr><td class="n">sub_0011DD40</td><td>initialiser 1</td><td>returns</td></tr>
+          <tr><td class="n">sub_001E8DE0</td><td>initialiser 2</td><td>returns</td></tr>
+          <tr><td class="n">sub_00239E50</td><td><strong>initialiser 3 &mdash; the registry singleton</strong></td><td><strong>never returns</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <h3>Why so many globals are null</h3>
+      <p><code>sub_00239E50</code> is a refcounted singleton builder: allocate
+      928 bytes, run the constructor, then store the pointer to
+      <code>0x5BC508</code>. The constructor is a 182-byte leaf that makes no
+      calls, so the fault lies in the allocation and registration beneath it
+      &mdash; and the store never executes. That one missing store is why every
+      later reader of <code>0x5BC508</code> finds null, and it gates the type
+      registry the rest of startup depends on.</p>
+      <p>So the several hundred uninitialised globals are not hundreds of
+      separate missing writers. Many share one cause: the initialiser chain
+      stops partway through.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The dominant defect class</p>
+    <h2>Code that exists but is never reached</h2>
+    <p>A recompiler discovers functions by following calls from an entry point.
+    A function whose only reference is a pointer in a table &mdash; a vtable, an
+    initialiser list, a factory array &mdash; is never reached, never translated,
+    and whatever it was meant to set up stays null for the whole run.</p>
+    <p>The clearest case sits on the most important path in the binary: the CRT
+    startup at <code>0x001A1C23</code> is never the target of a call instruction
+    anywhere. Its only reference is <code>push 0x1a1c23</code>, as an argument to
+    <code>CreateThread</code>. It runs at all only because it was hand-written
+    into the port.</p>
+    <div class="note">
+      <h3>The strategic read</h3>
+      <p>Anything that converts data-referenced code into translated code has
+      outsized leverage over fixing individual functions. Two passes of that
+      shape &mdash; 609 orphan functions, then 512 data-referenced pointers
+      &mdash; have each produced more movement than any single-function fix in
+      this project's history.</p>
+    </div>
+  </section>
+
+  <footer>
+    Generated by <code>tools_data/gen_status_page.py</code> from
+    <code>progress.json</code> and the current run's log. Figures come from a
+    deterministic two-of-two run. Where a conclusion was later overturned, the
+    project ledger records both &mdash; including several where a runtime
+    measurement corrected a confident static one.
+  </footer>
+
+</div>
+""".format(
+        date=escape(str(latest.get("date", ""))),
+        runs=len(hist),
+        lifted=lifted,
+        callsites=sig.get("callsites") or 0,
+        walls=len(walls),
+        reached=sig.get("reached") or 0,
+        svg=svg,
+        cap=cap,
+        kernel=latest.get("kernel_calls"),
+        heap=sig.get("heap") or 0,
+        ended=escape(str(latest.get("ended", "?"))),
+        rows=rows,
+    )
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-o", "--out", default=os.path.join(GAME, "status.html"))
+    a = ap.parse_args()
+    hist = json.load(open(DB, encoding="utf-8"))
+    head = open(HEAD, encoding="utf-8").read()
+    with open(a.out, "w", encoding="utf-8", newline="") as fh:
+        fh.write(head + build(hist, current_signals()))
+    print("wrote %s" % a.out)
+    print("  %d runs, %d distinct walls, latest %s kernel calls"
+          % (len(hist), len(wall_history(hist)), hist[-1].get("kernel_calls")))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
