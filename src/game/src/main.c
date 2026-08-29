@@ -40,6 +40,7 @@
 /* xboxrecomp runtime headers */
 #include <xbox/xboxrecomp.h>
 #include "xbox_page_zero_trap.h"
+#include "xbox_watch.h"
 
 /*
  * If xboxrecomp.h is not an umbrella header in your setup, include
@@ -843,6 +844,12 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         if (fault_addr >= 0xFD000000 && fault_addr < 0xFE000000) {
             return EXCEPTION_CONTINUE_SEARCH;
         }
+
+        /* Report the watchpoint here as well as at shutdown: this process
+         * normally dies on a crash, so the shutdown report never runs and the
+         * "were writes missed?" line - the one that says whether the log can
+         * be trusted - would never be seen. No-op without RECOMP_WATCH_GUEST. */
+        xbox_WatchShutdown();
 
         print_rip("[CRASH] Access violation at", ep->ContextRecord->Rip);
         fprintf(stderr, ", fault addr=0x%llX (%s)\n",

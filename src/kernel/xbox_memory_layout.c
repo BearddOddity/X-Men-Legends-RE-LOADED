@@ -14,6 +14,7 @@
 
 #include "xbox_memory_layout.h"
 #include "xbox_page_zero_trap.h"
+#include "xbox_watch.h"
 #include "kernel.h"
 #include <stdio.h>
 #include <string.h>
@@ -591,6 +592,11 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
      * -DRECOMP_TRAP_PAGE_ZERO. */
     xbox_PageZeroTrapInit(g_memory_base);
 
+    /* Same placement and same reason: everything above writes to guest
+     * memory during setup and must not be trapped. No-op unless
+     * -DRECOMP_WATCH_GUEST and RECOMP_WATCH are both set. */
+    xbox_WatchInit(g_memory_base);
+
     fprintf(stderr, "xbox_MemoryLayoutInit: complete\n");
     return TRUE;
 }
@@ -600,6 +606,7 @@ void xbox_MemoryLayoutShutdown(void)
     /* Disarm before anything is unmapped, and print the census. No-op without
      * -DRECOMP_TRAP_PAGE_ZERO. */
     xbox_PageZeroTrapShutdown();
+    xbox_WatchShutdown();
 
     if (g_kernel_memory) {
         VirtualFree(g_kernel_memory, 0, MEM_RELEASE);

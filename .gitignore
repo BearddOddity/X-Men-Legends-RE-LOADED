@@ -54,3 +54,8 @@ src/game/page0_stderr.txt
 # tracked one and git already holds its history
 src/game/seed_list.json.bak-*
 src/game/seed_list.json.with-*
+
+# Guest watchpoint diagnostic build and its output
+build_watch/
+src/game/watch_stdout.txt
+src/game/watch_stderr.txt

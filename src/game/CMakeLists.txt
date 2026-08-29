@@ -37,6 +37,20 @@ endif()
 # hit, so one boot yields the whole list. Diagnostic only; changes timing, so
 # never measure coverage on it. Use a SEPARATE build dir:
 #   cmake -S . -B build_page0 -DRECOMP_TRAP_PAGE_ZERO=ON
+# Watch one guest address and report every write to it, with a backtrace.
+# Answers "who wrote this?" including through memcpy, memset, the allocator or
+# any computed pointer - none of which a grep for a store with the right
+# displacement can see. The address comes from the RECOMP_WATCH environment
+# variable, so one build answers many questions instead of a rebuild per guess.
+# Diagnostic only; it changes timing. Use a SEPARATE build dir:
+#   cmake -S . -B build_watch -DRECOMP_WATCH_GUEST=ON
+#   set RECOMP_WATCH=0x01098358+0x20
+option(RECOMP_WATCH_GUEST "watch one guest address and report writers" OFF)
+if(RECOMP_WATCH_GUEST)
+    add_compile_definitions(RECOMP_WATCH_GUEST)
+    message(STATUS "RECOMP_WATCH_GUEST is ON - set RECOMP_WATCH=0xVA+0xOFF to arm")
+endif()
+
 option(RECOMP_TRAP_PAGE_ZERO "trap and census accesses to guest page 0" OFF)
 if(RECOMP_TRAP_PAGE_ZERO)
     add_compile_definitions(RECOMP_TRAP_PAGE_ZERO)
