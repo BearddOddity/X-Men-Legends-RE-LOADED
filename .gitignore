@@ -43,3 +43,9 @@ stderr.txt
 stdout.txt
 abi_stderr.txt
 abi_stdout.txt
+
+# Page-zero census diagnostic build and its output (DIAGNOSTIC ONLY -
+# never measure coverage or progress on it; see docs/PAGE_ZERO_CENSUS.md)
+build_page0/
+src/game/page0_stdout.txt
+src/game/page0_stderr.txt
