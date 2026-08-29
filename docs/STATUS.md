@@ -192,3 +192,41 @@ Recorded rather than quietly edited, because each looked solid at the time:
 The registry is built correctly. What is missing is the assignment of one
 object's adjust field, which is a registration that has not run — the same
 class, one level further in.
+
+
+## What the -1 actually is
+
+Two candidate explanations, both testable, and the probes killed the one I
+favoured.
+
+**Not register corruption.** The descriptor constructor `sub_00216EE0` opens
+with `xor ebx, ebx` at `0x00216EE1` and writes `[esi+0x20] = ebx` at
+`0x00216F32`. If that constructor runs, the field is **always** 0 — a clobbered
+`ebx` cannot put `-1` there, whatever else the callee-saved bug is doing
+elsewhere.
+
+**Not a failed virtual call either.** The slot at `[vtable+0xCC]` resolves to
+`0x001EC5E0`, and that function *is* lifted — it is one of the 512
+data-referenced pointers seeded earlier the same day. The icall succeeds, so its
+`0` return is legitimate behaviour, and `adjust = -1` is the sole defect.
+
+**It is an unfinished object.** Three descriptors sharing vtable `0x003F5D88`
+pass through this path:
+
+| descriptor | +0x20 | +0x8 | +0x1c | +0x28 | state |
+|---|---|---|---|---|---|
+| `01091AB0` | `00000000` | `00000000` | `011D5008` | `01096B88` | fully constructed |
+| `01098550` | `00000000` | `FFFFFFFF` | `0121D008` | `00000000` | partial |
+| `01098358` | `FFFFFFFF` | `FFFFFFFF` | `00000000` | `00000000` | barely started |
+
+The full constructor sets `+8` to zero. Both failing descriptors carry
+`FFFFFFFF` there, so it ran on **neither** — they came through the minimal path
+at `0x002222B5`, which sets only `+0x1c` and `+0x60` and never touches `+0x20`.
+The `0` on `01098550` and the `-1` on `01098358` are both heap residue; one
+happened to land on zeroed memory.
+
+So the fatal object is not corrupted. It is **unfinished** — the initialisation
+that would have filled `+0x1c`, `+0x20` and `+0x28` never ran. Same class as
+every other wall, one level further in, and it is why a guard written for null
+does not save the caller: an unfinished object holds whatever the allocator
+last left there, and that is rarely zero.

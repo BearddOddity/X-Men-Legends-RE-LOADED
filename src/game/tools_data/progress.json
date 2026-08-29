@@ -1953,5 +1953,19 @@
     "message": "Isolated the fatal call at sub_0020E547: of 11 calls to sub_002096B0, the first 10 are healthy and the 11th has adjust=[esi+0x20]=0xFFFFFFFF on object 0x01098358. The registry at 0x5BC508 is VALID (0x01086000) throughout - three earlier claims this session were wrong",
     "note": "REFUTES three of my own claims: (1) operator new(0x3A0) for the registry does NOT fail - probe [REGALLOC] shows it returns 0x01086000; (2) the store MEM32(0x5BC508)=eax is NOT skipped - it sits at loc_00239EA8, before the registration calls, not after them; (3) 0x5BC508 is NOT null at the crash - probe shows registry=01086000 on all 11 calls. The eax=0 in the crash register dump is the VALUE BEING STORED by 'mov [esi+ecx],eax', not the registry pointer, and I misread it as the latter. THE ACTUAL CAUSE, two faults combining: object 0x01098358 has -1 in its adjust field at +0x20 while every other object has 0, and the virtual call through [edx+0xCC] returns 0, so this = 0 + (-1) = -1. The caller guards with a zero-only 'je', which -1 sails through - a guard written for null does not catch a sentinel. Probes stripped, rebuilt, verified unchanged at 434/92/415.",
     "commit": "057b71c"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Adjust=-1 is heap residue, not register corruption: the fatal descriptor 0x01098358 was never fully constructed. Field evidence shows the full ctor sub_00216EE0 ran on neither failing descriptor",
+    "note": "REFUTES my own register-corruption theory for this field: sub_00216EE0 does 'xor ebx,ebx' at 0x00216EE1 before writing [esi+0x20]=ebx at 0x00216F32, so if that ctor runs the field is ALWAYS 0 - a clobbered ebx cannot produce -1 here. Probe [DESCFULL] compares three descriptors sharing vtable 0x003F5D88: 01091AB0 adj=0 f8=0 f1c=011D5008 f28=01096B88 (fully constructed); 01098550 adj=0 f8=FFFFFFFF f1c=0121D008 f28=0 (partial); 01098358 adj=FFFFFFFF f8=FFFFFFFF f1c=0 f28=0 (barely started). The full ctor sets +8 to 0, and both failing descriptors carry FFFFFFFF there, so it ran on neither - they came through the minimal path at 0x002222B5 which sets only +0x1c and +0x60 and leaves +0x20 untouched. ALSO SETTLED: the virtual call is not failing. Probe [VSLOT] shows slot 0xCC resolving to 0x001EC5E0, which IS lifted - it is one of the 512 data-referenced pointers seeded earlier today, so its 0 return is legitimate behaviour and adjust=-1 is the sole defect. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "39624bf"
   }
 ]
