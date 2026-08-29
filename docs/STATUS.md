@@ -151,3 +151,44 @@ So the ~613 uninitialised globals are not 613 separate missing writers. Many
 share one cause: the initialiser chain that would fill them stops partway
 through. Finding where inside `sub_00011E40` it dies is now the single
 highest-value question in the project.
+
+
+## The fatal call, isolated
+
+A per-call bisect of `sub_00011E40` put the death in initialiser 3,
+`sub_00239E50`. Probing inside it isolated the exact call. `sub_0020E547` calls
+`sub_002096B0` eleven times; the first ten are healthy and the eleventh is the
+crash:
+
+```
+[LASTTHIS] this=01098650 adjust=00000000 esi=01098550 registry=01086000   ok
+[LASTTHIS] this=FFFFFFFF adjust=FFFFFFFF esi=01098358 registry=01086000   crash
+```
+
+Two faults combine, and neither is the one previously assumed:
+
+1. **`[esi+0x20]` is `0xFFFFFFFF`** on object `0x01098358`. Every other object
+   passing through this path has `0`. That field is an adjust/offset the
+   registration assigns; `-1` is the unassigned sentinel.
+2. **The virtual call through `[edx+0xCC]` returns `0`**, so
+   `this = 0 + (-1) = -1`.
+
+The caller guards with `je` — a **zero-only** test. A guard written to catch
+null does not catch a sentinel, so `-1` passes and is dereferenced.
+
+### Three claims in this document were wrong
+
+Recorded rather than quietly edited, because each looked solid at the time:
+
+- *"`operator new` for the registry fails."* It does not. Probe `[REGALLOC]`
+  shows `operator_new(0x3A0)` returning `0x01086000`.
+- *"The store to `0x5BC508` never executes."* It does. The store sits at
+  `loc_00239EA8`, **before** the registration calls, not after them.
+- *"`0x5BC508` is NULL at the crash."* It is not — `registry=01086000` on all
+  eleven calls. The `eax=0` in the crash register dump is the *value being
+  stored* by `mov [esi+ecx], eax`, not the registry pointer. Misreading one
+  register produced two follow-on conclusions.
+
+The registry is built correctly. What is missing is the assignment of one
+object's adjust field, which is a registration that has not run — the same
+class, one level further in.
