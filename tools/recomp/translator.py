@@ -30,9 +30,40 @@ def _fixup_icall_esp_save(lines):
 
     Scans backwards from each RECOMP_ICALL_SAFE line to find consecutive
     PUSH32 lines (the arg pushes), then inserts a save before the first.
+
+    The backward walk must STOP at a prologue callee-saved register push.
+    RECOMP_ICALL_SAFE restores g_esp = _icall_esp when the target cannot be
+    resolved; if the capture sits above the prologue saves, that rollback
+    discards them and the epilogue's POP32s read the wrong slots. Ledger #145
+    traced a real crash to exactly this in sub_001EA770 - four saved registers
+    thrown away, handing the caller a corrupted esi.
+
+    A push is a prologue save (stop) rather than an argument (keep walking)
+    when it is that register's FIRST push in the function and the function
+    pops it again. The pop alone is not enough to tell them apart: a function
+    that saves edi in its prologue and later passes edi to a virtual call has
+    a matching pop in both cases, which is how four argument pushes were once
+    rewritten as saves. See docs/PAGE_ZERO_CENSUS.md.
     """
     import re
     result = []
+
+    # Prologue saves: first push of each callee-saved register, when that
+    # register is also popped somewhere in the function.
+    _CALLEE_SAVED = ("ebx", "ebp", "esi", "edi")
+    _PUSH_RE = re.compile(r"^PUSH32\(esp, (\w+)\);$")
+    _POP_RE = re.compile(r"^POP32\(esp, (\w+)\)")
+    _popped = set()
+    for line in lines:
+        m = _POP_RE.match(line.strip())
+        if m:
+            _popped.add(m.group(1))
+    _prologue_save_idx = {}
+    for i, line in enumerate(lines):
+        m = _PUSH_RE.match(line.strip())
+        if m and m.group(1) in _CALLEE_SAVED and m.group(1) in _popped:
+            _prologue_save_idx.setdefault(m.group(1), i)
+    _stop_at = set(_prologue_save_idx.values())
     # Find indices of all ICALL_SAFE lines
     icall_indices = []
     for i, line in enumerate(lines):
@@ -57,6 +88,11 @@ def _fixup_icall_esp_save(lines):
                 continue
             # Check if this is a PUSH32 line (arg push)
             if stripped.startswith('PUSH32(esp,'):
+                # A prologue callee-saved register save is NOT an argument.
+                # Stop above it so a failed ICALL unwinds only the arguments
+                # and leaves the saved registers intact for the epilogue.
+                if j in _stop_at:
+                    break
                 first_push_idx = j
                 j -= 1
                 continue

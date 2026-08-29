@@ -28,8 +28,18 @@ Detection
 ---------
 A leading run of PUSH32 of callee-saved registers (ebx/ebp/esi/edi) inside an
 icall block, where the enclosing function's epilogue contains a matching POP32
-of the same register. The epilogue pop is what distinguishes a save from an
-argument that happens to live in ebx.
+of the same register, AND the push is that register's first in the function.
+
+The epilogue pop on its own does not distinguish a save from an argument that
+happens to live in ebx: if a function saves edi in its prologue and later passes
+edi as an argument to a virtual call, the pop exists in both cases. Requiring
+the first push is what separates them - the prologue save comes first, every
+later push of that register is an argument.
+
+Without that condition this tool rewrote four argument pushes as if they were
+saves (sub_00209650 x2, sub_002235D0, sub_00236500). A failed ICALL then
+restored esp to *after* the argument, leaking it, and the following POP32 took
+the register back from the wrong slot. See docs/PAGE_ZERO_CENSUS.md.
 
 This reports a shape, not a proven bug - review each site before editing. Bulk
 sweeps have caused regressions in this tree before (see DEBUGGING_NOTES.md).
@@ -75,6 +85,17 @@ def scan():
             popped = {m.group(1) for l in body if (m := POP.match(l))}
             if not popped:
                 continue
+            # The FIRST push of a callee-saved register is the prologue save;
+            # any later push of that same register is a call argument that
+            # happens to live in it. `popped` alone cannot tell them apart,
+            # because the epilogue pop belongs to the prologue save either
+            # way - which is how four argument pushes were once rewritten as
+            # if they were saves. See docs/PAGE_ZERO_CENSUS.md.
+            first_push = {}
+            for j, l in enumerate(body):
+                m = PUSH.match(l)
+                if m and m.group(1) in CALLEE_SAVED:
+                    first_push.setdefault(m.group(1), j)
             for off, line in enumerate(body):
                 if not SAVE.search(line):
                     continue
@@ -88,7 +109,8 @@ def scan():
                     if not m:
                         continue
                     reg = m.group(1)
-                    if reg in CALLEE_SAVED and reg in popped:
+                    if (reg in CALLEE_SAVED and reg in popped
+                            and first_push.get(reg) == j):
                         saves.append(reg)
                     else:
                         break  # first non-save push ends the leading run

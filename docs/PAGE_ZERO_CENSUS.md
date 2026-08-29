@@ -238,3 +238,44 @@ of the three pushes only the entry one is a register save, and the other two are
 call arguments (one cleaned by `esp = esp + 4`, one by the callee). It emits
 **6,321+ findings** overall, so treat it as a lead generator, not a verdict.
 The runtime check is the trustworthy instrument here.
+
+## Fixed at the generator, which is where ledger #145 said it belonged
+
+Ledger #145 recorded the real remedy and left it open:
+
+> The real remedy is translator.py's `_fixup_icall_esp_save`, which cannot
+> distinguish an argument push from a callee-saved register save - still unfixed.
+
+`_icall_esp` has to sit **below** the prologue's callee-saved pushes and
+**above** the argument pushes. Both mistakes have shipped here, in opposite
+directions:
+
+| where the capture went | what breaks |
+|---|---|
+| too high, above the prologue saves | a failed ICALL rolls `g_esp` back past the saves, and the epilogue's `POP32`s read the wrong slots — ledger #145, `sub_001EA770` |
+| too low, below an argument push | a failed ICALL leaves the argument on the stack, and the following `POP32` takes the register from the wrong slot — `sub_00209650` `loc_0020969D` |
+
+The generator produced the first. `find_icall_esp_saves.py --fix` corrected some
+of those and produced the second on four sites, because it classified a push as
+a save whenever the epilogue popped that register — and the epilogue pops it
+either way when a register is saved in the prologue *and* later passed as an
+argument.
+
+The discriminator both tools now use: a push is a prologue save only if it is
+that register's **first** push in the function and the function pops it again.
+Every later push of the same register is an argument.
+
+Audit of the whole tree found exactly **9** sites with the capture below a
+callee-saved push — 5 genuine prologue saves, 4 misapplied to arguments
+(`sub_00209650` ×2, `sub_002235D0`, `sub_00236500`). The 4 are corrected, and
+`tools/recomp/test_icall_esp_fixup.py` covers the boundary in both directions.
+
+Generated sources are gitignored, so the durable fix had to be in
+`translator.py` — a hand edit to `src/recomp/gen/*.c` does not survive a
+re-lift.
+
+**Measured: no behaviour change.** 226 kernel calls, 95 heap allocations, crash
+unchanged at `sub_001FBA90+0x76`. Kept on the same precedent as ledger #145,
+which was also coverage-neutral: the sites are real defects on paths the boot
+does not currently fail on, and leaving a known-wrong capture in place because
+it has not bitten yet is how #145's crash survived as long as it did.
