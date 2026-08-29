@@ -230,3 +230,58 @@ that would have filled `+0x1c`, `+0x20` and `+0x28` never ran. Same class as
 every other wall, one level further in, and it is why a guard written for null
 does not save the caller: an unfinished object holds whatever the allocator
 last left there, and that is rarely zero.
+
+
+## Where the search stands, including what does not add up
+
+Chasing what should have assigned the descriptor's fields narrowed the question
+a long way and then hit a genuine contradiction, recorded here rather than
+resolved by guesswork.
+
+**Established.** The full descriptor constructor `sub_00216EE0` runs on exactly
+eight descriptors in this boot:
+
+```
+00F7FD98  01091AB0  01096BB8  01097498  01097518  01097728  010977C0  01097858
+```
+
+The two failing descriptors, `01098358` and `01098550`, are **not among them**,
+and both sit at higher addresses — allocated after construction stopped. That
+matches their `+8 = FFFFFFFF`, since the constructor writes `0` there.
+
+**Also established: the `-1` is never written.** All 40 dword writes of
+`0xFFFFFFFF` to a `+0x20` offset in `.text` target `[esp + 0x20]` — SEH scope
+slots, not object fields. So `-1` at `[desc+0x20]` is residue in memory that was
+never written, not a sentinel some code set.
+
+**The contradiction.** Only three instructions in the binary write the vtable
+`0x003F5D88`:
+
+| site | in | reaches the ctor? |
+|---|---|---|
+| `0x00216EFC` | `sub_00216EE0` — the constructor itself | is the ctor |
+| `0x002222B5` | `sub_0022229A` | never runs — see below |
+| `0x00222729` | `sub_00222708` | yes, unconditionally |
+
+`sub_0022229A` is reachable only as the `je` target inside `sub_00222270`, and a
+probe on `sub_00222270`'s entry got **zero hits** this run. `sub_00222708` sets
+the vtable and then reaches `call 0x216ee0` with no branch in between:
+
+```
+00222729  mov [esi], 0x3f5d88
+0022272F  mov dword ptr [esi+0x1c], 0
+00222736  mov ecx, esi
+00222738  mov dword ptr [esi+0x60], 0
+0022273F  call 0x216ee0          <- unconditional
+```
+
+So no object should be able to carry that vtable without the constructor having
+run on it — and two demonstrably do. Something outside these three paths is
+producing them. A memcpy or clone of an already-constructed descriptor is the
+leading candidate, since it would copy the vtable while carrying the source's
+later field values, but it is untested.
+
+Theories discarded along the way, each by measurement rather than argument: the
+allocation failing, the store to `0x5BC508` being skipped, the registry being
+null, register corruption writing the `-1`, a failed virtual call, and a
+registry "ready" flag gating a minimal construction path.

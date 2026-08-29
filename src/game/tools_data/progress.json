@@ -1967,5 +1967,19 @@
     "message": "Adjust=-1 is heap residue, not register corruption: the fatal descriptor 0x01098358 was never fully constructed. Field evidence shows the full ctor sub_00216EE0 ran on neither failing descriptor",
     "note": "REFUTES my own register-corruption theory for this field: sub_00216EE0 does 'xor ebx,ebx' at 0x00216EE1 before writing [esi+0x20]=ebx at 0x00216F32, so if that ctor runs the field is ALWAYS 0 - a clobbered ebx cannot produce -1 here. Probe [DESCFULL] compares three descriptors sharing vtable 0x003F5D88: 01091AB0 adj=0 f8=0 f1c=011D5008 f28=01096B88 (fully constructed); 01098550 adj=0 f8=FFFFFFFF f1c=0121D008 f28=0 (partial); 01098358 adj=FFFFFFFF f8=FFFFFFFF f1c=0 f28=0 (barely started). The full ctor sets +8 to 0, and both failing descriptors carry FFFFFFFF there, so it ran on neither - they came through the minimal path at 0x002222B5 which sets only +0x1c and +0x60 and leaves +0x20 untouched. ALSO SETTLED: the virtual call is not failing. Probe [VSLOT] shows slot 0xCC resolving to 0x001EC5E0, which IS lifted - it is one of the 512 data-referenced pointers seeded earlier today, so its 0 return is legitimate behaviour and adjust=-1 is the sole defect. Probes stripped, rebuilt, unchanged at 434/92/415.",
     "commit": "39624bf"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Narrowed the -1 to a contradiction worth recording: the full descriptor ctor sub_00216EE0 runs on exactly 8 descriptors and NOT on the two failing ones, yet every static path that sets their vtable reaches that ctor unconditionally",
+    "note": "Probe [CTORRAN] on sub_00216EE0 entry lists 8 descriptors (00F7FD98, 01091AB0, 01096BB8, 01097498, 01097518, 01097728, 010977C0, 01097858). The failing 01098358 and 01098550 are absent, and sit at HIGHER addresses - allocated after construction stopped. That confirms the ctor never ran on them, matching their +8=FFFFFFFF (the ctor writes 0 there). THE CONTRADICTION: only three sites write vtable 0x003F5D88 - 0x00216EFC inside the ctor itself, 0x002222B5 in sub_0022229A, and 0x00222729 in sub_00222708. sub_0022229A is unreachable this run (probe [REGFLAG] on its only entry sub_00222270 got ZERO hits), and sub_00222708 runs 'mov [esi],0x3f5d88' then reaches 'call 0x216ee0' with NO branch between. So an object cannot hold that vtable without the ctor having run, yet two do. Something outside these three paths is producing them - a memcpy/clone of a constructed descriptor is the leading candidate and is untested. ALSO RULED OUT: nothing writes -1 to any object +0x20; all 40 such writes in .text target [esp+0x20], which are SEH scope slots. The -1 is residue in memory never written, not a sentinel. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "c3d62d5"
   }
 ]
