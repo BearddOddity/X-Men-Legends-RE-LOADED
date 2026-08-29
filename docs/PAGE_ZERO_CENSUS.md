@@ -279,3 +279,93 @@ unchanged at `sub_001FBA90+0x76`. Kept on the same precedent as ledger #145,
 which was also coverage-neutral: the sites are real defects on paths the boot
 does not currently fail on, and leaving a known-wrong capture in place because
 it has not bitten yet is how #145's crash survived as long as it did.
+
+## Correcting ledger #149: sub_002002B0 is innocent
+
+Ledger #149 named four callbacks that fail to preserve `esi`, and put
+`sub_002002B0` first because it produces the fatal `4`:
+
+> cb=002002B0 turns 01097498 into 4 ... sub_002002B0 never pushes esi at all and
+> opens with `esp -= 0x10`, so either the original genuinely does not touch esi
+> and a callee does, or its prologue is mis-lifted.
+
+Neither branch of that disjunction holds. Disassembled from the XBE, all eleven
+instructions:
+
+```
+002002B0  sub    esp, 0x10
+002002B3  xor    eax, eax
+002002B5  mov    [esp + 8], eax
+002002B9  mov    [esp + 0xc], eax
+002002BD  mov    eax, [0x5bc508]
+002002C2  mov    ecx, [eax + 0x394]
+002002C8  mov    [esp + 4], 1
+002002D0  mov    [esp], 0x3eef28
+002002D7  mov    eax, [esp + ecx]
+002002DA  add    esp, 0x10
+002002DD  ret
+```
+
+The lift is faithful, byte for byte. The function contains **no call
+instruction at all**, so it has no callee, and it never reads or writes `esi`.
+It cannot be the source. It is reached in the current build
+(`[COVERAGE-VA] 0x002002B0`) and `RECOMP_ICALL_WATCH` does not flag it.
+
+There is no manual override for `0x2002B0` either, so the lifted function is
+what runs.
+
+## The same signature, from sub_0020B850
+
+`01097498 -> 00000004` — #149's exact before and after values — is reported
+against `sub_0020B850`, called from `sub_002235D0+0x1365`. `0x20B850` is also
+one of the eleven callbacks `sub_002225B0` pushes, so this is the same table.
+
+Its prologue and epilogue are balanced in the original. `pop edi` sits *before*
+the branch and is shared by both exits; each exit then pops `esi` and `ebx`:
+
+```
+0020B855  push ebx / push esi / push edi
+...
+0020B8BA  pop  edi              <- shared by both paths
+0020B8BB  jne  0x20b8ca
+0020B8BD  mov  ecx, esi
+0020B8BF  pop  esi / pop ebx
+0020B8C1  jmp  0x2041d0         <- TAIL CALL
+0020B8CA  pop  esi / pop ebx / ret
+```
+
+The lifter reproduces this correctly, splitting each branch target into a
+fragment (`sub_0020B8C6`, `sub_0020B8CA`) that carries the remaining pops.
+
+**The tail call is the attribution trap.** `jmp 0x2041d0` transfers to
+`sub_002041D0` — the function ledger #143 pinned as the site of the fatal
+`esi = esi - MEM32(eax + 0x20)`. A register comparison taken after
+`sub_0020B850` returns is therefore measuring across `sub_002041D0` as well, and
+blames the thunk for its callee's damage. The same trap as `sub_002225F0`
+earlier in this document: both "violators" are pass-throughs.
+
+### Tail calls are unchecked by both ABI instruments
+
+The lifter emits a tail call as a bare call:
+
+```c
+loc_0020B8BD: ;
+    POP32(esp, esi);
+    POP32(esp, ebx);
+    g_seh_ebp = ebp; sub_002041D0(); return;   /* tail jmp 0x002041D0 */
+```
+
+Not `RECOMP_ABI_CALL`, so the direct checker never sees it; and not an icall, so
+`RECOMP_ICALL_WATCH` never sees it either. That is why `sub_002041D0` — the
+function two separate ledger entries identify as the crash site — has never
+appeared in an ABI report.
+
+Wrapping tail calls is not obviously right: a tail call legitimately hands its
+frame to the callee, so a post-return comparison spans the whole remaining
+chain, which is what produces the misattribution in the first place. The useful
+change is for a report to say when its target ends in a tail call, so the reader
+knows the damage may belong further down.
+
+**Read every ABI-ICALL line as naming a subtree, not a function.** Three of the
+reported violators so far — `sub_002225F0`, `sub_0020B850`, and by extension
+anything ending in `jmp` — are pass-throughs whose own code is faithful.
