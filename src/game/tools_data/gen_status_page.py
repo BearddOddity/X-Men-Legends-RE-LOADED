@@ -254,14 +254,34 @@ def build(hist, sig):
       <p>Probing all 235 allocator calls made this unambiguous: the healthy ones
       request 12, 16, 52 bytes; the fatal one requests <code>0xFFFFFFFE</code>.
       Nothing in the chain is misbehaving &mdash; not the allocator, not the null
-      check, not the create path. One object was never initialised, and that
-      single fact produces the absurd size, the null return and the bad pointer.</p>
+      check, not the create path. One object was never initialised.</p>
     </div>
 
-    <p>Tracing where that descriptor comes from: it is handed over as a field of
-    an owner object, whose class is default-constructed with that field set to
-    <strong>null</strong>. Something assigns the bad pointer afterwards, and
-    finding that assignment is the one remaining unknown.</p>
+    <p class="eyebrow" style="margin-top:.6rem">And where that object comes from</p>
+    <h3>The chain runs back to a wall documented weeks ago</h3>
+    <p>A software watchpoint &mdash; reading the value after every recompiled call,
+    because page-protection watchpoints cannot see writes that land while the page
+    is unprotected &mdash; named the function that installs the bad descriptor. It
+    is a type lookup whose fallback path is dead:</p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Link</th><th>Consequence</th></tr></thead>
+        <tbody>
+          <tr><td>The subsystem registrar is never called &mdash; its only reference is a <strong>data</strong> pointer, not a call</td><td>registry count stays at <strong>1</strong></td></tr>
+          <tr><td>The type lookup falls back to the previously-registered subsystem, which needs <strong>2 or more</strong></td><td>that branch is dead code</td></tr>
+          <tr><td>A type this subsystem does not own cannot be inherited</td><td>lookup returns an uninitialised descriptor</td></tr>
+          <tr><td>Its size and prefix are both <code>-1</code></td><td>allocation asks for 4&nbsp;GB, returns null</td></tr>
+          <tr><td><code>0 + (-1) = -1</code> passes the null check</td><td>the boot writes through <code>-1</code> and dies</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The fix belongs at the top of that chain. Every function below it is
+    faithful to the original and none of them should be guarded. It is also the
+    <strong>third</strong> time the same defect class &mdash; code reachable only
+    through a data pointer, so never translated &mdash; has produced the active
+    wall.</p>
   </section>
 
   <section>
