@@ -2107,5 +2107,19 @@
     "message": "Chain complete: -1 is the constructor's 'size unknown' marker, and sub_00216FD0 fills the real size during type registration. The fatal descriptor is manufactured by the lookup path instead of found among the registered types, so it never reaches the filler",
     "note": "Watched a HEALTHY descriptor's size field (0x01097498+0x48) with the software poll and got both writes with backtraces. Write 1, 00000000 -> FFFFFFFF, from sub_00216EE0+0x2e3 - the descriptor constructor itself writes -1 as 'size not yet known', under sub_00222708. Write 2, FFFFFFFF -> 00000010, from sub_00216FD0+0x741 under sub_002235D0 -> sub_002225B0 - the registration driver filling the real size. So -1 is a deliberate marker, not residue, and the fatal descriptor simply never reaches write 2. WHY: the 7 healthy descriptors are built by sub_00222708 and then sized by registration; 01098358 is manufactured by the LOOKUP path (FUN_002226e0 with the registry ready-flag set, calling sub_0020E520 to create an instance of the descriptor type) and nothing sizes it afterwards. Also checked and cleared this round: the class-construct vfunc at slot 0x24 resolves and IS lifted for every object (0013D370 for the descriptor class, 001EAED0 for the owner class), so no failed icall is involved - and sub_0013D370 is an empty function, which is why construction alone never sets the size. The vtable being NULL at sub_002096B0 entry is also faithful: its first statement installs the vtable from [desc+0x5c] at the offset in [registry+0x394]. Probes stripped, rebuilt, unchanged at 434/92/415, crash RVA 0xECD5C5.",
     "commit": "e60533c"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Found the ordering: sub_00236500 sets the registry ready-flag after the FIRST type-module registration and before the other ~24, so every later registration takes the create-instance path and produces a blank descriptor that registration must then fill",
+    "note": "Watched the ready flag at [0x5BC508]+0 (guest 0x01086000) with the software poll: it flips 0 -> 1 exactly once, in straight-line code inside sub_002366BC, a fragment of sub_00236500, and the decompilation shows the sequence plainly - FUN_00209650(&LAB_002221e0) runs with the flag clear, then '*param_1 = 1', then roughly 24 further FUN_00209650 registrations run with it set. That is the ORIGINAL's own sequence, so it must work on hardware: the create-instance path is expected to hand back a blank descriptor which the registration then populates, and sub_00216FD0 is the function that populates the size. It does so for descriptors reached through sub_002235D0. The fatal one is reached through sub_00223960 -> FUN_002226e0 and stored by sub_002263F0, which sets owner+0x34=1 but never sizes it. sub_00223960 caches in DAT_005bc1ac, which is BSS and null, so the type it wants was not registered during the flag-clear window. DAT_0046a684 is 6, a pool index rather than a type name, so the type is not identifiable from that argument. NOT YET ANSWERED: why descriptors reached via sub_002263F0 are never sized while those via sub_002235D0 are. Probes stripped, rebuilt, unchanged at 434/92/415, crash RVA 0xECD5C5.",
+    "commit": "39c668e"
   }
 ]

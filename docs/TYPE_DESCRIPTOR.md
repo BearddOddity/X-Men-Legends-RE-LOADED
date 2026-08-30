@@ -335,11 +335,39 @@ The fatal descriptor gets the first write and never the second:
   installs the vtable, reading the value from `[desc+0x5c]` and the offset from
   `[registry+0x394]`.
 
+## The ordering, from the original's own code
+
+Watching the ready flag at `[0x5BC508]+0` shows it flip `0 -> 1` exactly once,
+inside `sub_002366BC` — a fragment of `sub_00236500`. The decompilation shows
+the sequence plainly:
+
+```c
+FUN_00209650(&LAB_002221e0);   /* first type module - flag still 0 */
+*param_1 = 1;                  /* the ready flag is set HERE       */
+FUN_00209650(&LAB_00220870);   /* ~24 more modules - flag now 1    */
+FUN_00209650(&LAB_002361a0);
+...
+```
+
+So the first module registers through the **create** path and everything after it
+goes through the **look-up** path. That is the original's own ordering, so it is
+not a bug: the look-up path is *expected* to hand back a blank descriptor which
+the registration then populates, and `sub_00216FD0` is what populates the size.
+
+It does so for descriptors reached through `sub_002235D0`. The fatal one is
+reached through `sub_00223960` → `FUN_002226e0`, stored by `sub_002263F0` — which
+sets `owner+0x34 = 1` and never sizes it.
+
+`sub_00223960` caches its result in `DAT_005bc1ac`, which is BSS and null, so the
+type it wants was not registered during the flag-clear window. Its argument
+`DAT_0046a684` is `6`, a memory-pool index rather than a type name, so the type
+cannot be identified from the call site alone.
+
 ## Open
 
-Why does a type reach the look-up path before its registration has run? The
-look-up manufactures a blank descriptor when it should have found a registered
-one, and nothing sizes what it manufactures.
+**Why are descriptors reached via `sub_002263F0` never sized, when those via
+`sub_002235D0` are?** Both take the look-up path and both get a blank; only one
+gets populated afterwards.
 
-The fix is an ordering or registration question, not a defect in any function on
-the path. Every function examined here is faithful to the original.
+That is the whole remaining question. Everything else on this path is understood
+and faithful, and nothing on it should be guarded.
