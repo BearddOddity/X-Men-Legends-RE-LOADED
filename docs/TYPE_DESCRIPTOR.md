@@ -178,13 +178,65 @@ it. The page-unprotect window is hiding the write — the tool says so rather th
 letting the log be believed, which is what it is for, but it means a different
 instrument is needed here.
 
+## Answered: the descriptor comes from a dead fallback path
+
+The page-protection watchpoint could not see the write. A **software poll** —
+read the watched dword after every recompiled call, report a change with the
+callee's name — found it in three hits:
+
+```
+[WATCH-POLL] #1 guest 0x01098300 changed 00000000 -> 00010424 across sub_001F3680
+[WATCH-POLL] #2 guest 0x01098300 changed 00010424 -> 00000000 across icall sub_00211530
+[WATCH-POLL] #3 guest 0x01098300 changed 00000000 -> 01098358 across icall sub_001E9380
+```
+
+`FUN_001e9380` is a type-descriptor lookup:
+
+```c
+iVar2 = *(int *)((int)this + param_1 * 0x90 + 0x14);   /* my slot for this type */
+if (iVar2 == 0) {                                       /* not present */
+  if ((flags & 0x4000000) != 0) {
+    (**(code **)(*(int *)this + 200))(&param_1, param_1);   /* build it (vfunc 0xC8) */
+    return *(int *)((int)this + iVar1 * 0x90 + 0x14);
+  }
+  iVar1 = DAT_005bc544;                                 /* the subsystem registry COUNT */
+  if (1 < DAT_005bc544) {                               /* needs at least two */
+      ... find self in &DAT_005bb704, then ask the one registered before me ...
+  }
+}
+```
+
+Probed at runtime: **`DAT_005bc544 == 1`**. The fallback requires `1 < count`, so
+with a single registered subsystem **that entire branch is dead code**. A type
+this subsystem does not own cannot be inherited from the one before it, and the
+lookup yields a descriptor that nothing ever initialised.
+
+### This is BLOCKER_005BB700
+
+`DAT_005bc544` is the count and `&DAT_005bb704` the table from
+[BLOCKER_005BB700.md](BLOCKER_005BB700.md) — the four-entry subsystem registry
+whose writer, `SubsystemRegistry_Register` at `0x00216210`, never runs because
+its only reference is a **data** pointer rather than a call.
+
+**This corrects an earlier note in this repository**, which said the registry was
+"a real defect but not implicated in this crash". That was based on
+`FUN_001f5c20` never being called — but that is a *different* consumer of the
+same registry. This one is on the path.
+
 ## Open
 
-**What assigns `owner->+0x38`?** The owner is default-constructed with NULL, the
-copy constructor never runs, and the watchpoint cannot see the write. The next
-approach is a static sweep for stores to `+0x38` in functions that handle the
-`0x003F7EA0` class, rather than another runtime probe.
+The chain is now complete from the crash back to a documented root cause:
 
-Everything downstream of that assignment is understood and faithful: the
-allocator, the null check, the create path and the descriptor layout. Nothing in
-this chain should be guarded.
+```
+SubsystemRegistry_Register never runs   (its only reference is data)
+  -> registry count stays 1
+  -> FUN_001e9380's fallback needs >= 2, so it is dead
+  -> a type resolves to a descriptor nothing initialised
+  -> size and prefix are both -1
+  -> allocate(size + prefix) asks for 0xFFFFFFFE, returns NULL
+  -> this = 0 + (-1) = -1, passes the null check
+  -> FUN_002096b0 writes through -1 and the boot dies
+```
+
+The fix is at the top of that chain, not the bottom. Nothing below it should be
+guarded — every function in the chain is faithful to the original.

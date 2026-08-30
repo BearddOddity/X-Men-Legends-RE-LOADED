@@ -25,4 +25,13 @@ void xbox_WatchInit(void *memory_base);
 /* Disarm and print the hit count. Call before anything is unmapped. */
 void xbox_WatchShutdown(void);
 
+/* Compare the watched value against the last seen one and report a change,
+ * naming `site` and printing a backtrace. Called after every recompiled call
+ * in a RECOMP_WATCH_GUEST build. Catches writes the page watchpoint cannot -
+ * memcpy, memset, and anything landing while the page is unprotected. */
+void xbox_WatchPoll(const char *site);
+
+/* The same, for an indirect call: names the target VA instead of a symbol. */
+void xbox_WatchPollVA(uint32_t va);
+
 #endif /* XBOX_WATCH_H */

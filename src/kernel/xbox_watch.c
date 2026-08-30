@@ -49,6 +49,8 @@
 #ifndef RECOMP_WATCH_GUEST
 
 void xbox_WatchInit(void *memory_base) { (void)memory_base; }
+void xbox_WatchPoll(const char *site) { (void)site; }
+void xbox_WatchPollVA(uint32_t va) { (void)va; }
 void xbox_WatchShutdown(void) { }
 
 #else
@@ -72,6 +74,8 @@ static int       g_armed;
 static int       g_stepping;
 static uint64_t  g_hits;
 static uint32_t  g_last_value;
+static uint32_t  g_poll_last;
+static uint64_t  g_polls;
 
 static void watch_protect(DWORD protect)
 {
@@ -193,8 +197,10 @@ void xbox_WatchInit(void *memory_base)
         return;
     }
 
-    if (g_watch_len >= 4)
+    if (g_watch_len >= 4) {
         memcpy(&g_last_value, g_watch, 4);
+        g_poll_last = g_last_value;
+    }
 
     DWORD old;
     if (!VirtualProtect(g_page, g_page_len, PAGE_READONLY, &old)) {
@@ -213,6 +219,56 @@ void xbox_WatchInit(void *memory_base)
     fprintf(stderr, "[WATCH] this is a DIAGNOSTIC build - do not measure "
                     "coverage or progress on it\n");
     fflush(stderr);
+}
+
+/*
+ * Software poll, called after every recompiled call when RECOMP_WATCH is set.
+ *
+ * The page-protection watchpoint above cannot see a write that lands while the
+ * page is unprotected - which it must be while a faulting instruction retires -
+ * and on 2026-08-29 it missed the write that mattered twice, reporting MISSED
+ * WRITES both times. This is the blunt instrument that cannot be fooled: read
+ * the value after every call and report when it changes. It names the callee
+ * that changed it, which is the question being asked.
+ *
+ * Slow by construction. Diagnostic builds only.
+ */
+void xbox_WatchPoll(const char *site)
+{
+    uint32_t now;
+
+    if (!g_watch || g_watch_len < 4)
+        return;
+    memcpy(&now, g_watch, 4);
+    if (now == g_poll_last)
+        return;
+
+    g_polls++;
+    fprintf(stderr, "[WATCH-POLL] #%llu guest 0x%08X changed %08X -> %08X "
+                    "across %s\n",
+            (unsigned long long)g_polls, g_watch_va, g_poll_last, now, site);
+    g_poll_last = now;
+
+    void *frames[WATCH_FRAMES];
+    USHORT got = CaptureStackBackTrace(1, WATCH_FRAMES, frames, NULL);
+    for (USHORT i = 0; i < got; i++) {
+        uintptr_t a = (uintptr_t)frames[i];
+        if (a >= g_image_base && a < g_image_base + 0x08000000ull)
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", i,
+                    (unsigned long long)(a - g_image_base));
+    }
+    fflush(stderr);
+}
+
+/* Same poll, for an indirect call, which has no symbol - name the target VA.
+ * sub_002235D0 reached the write through one of these, and a poll on direct
+ * calls alone attributed it to the whole driver. */
+void xbox_WatchPollVA(uint32_t va)
+{
+    char site[32];
+    _snprintf(site, sizeof site, "icall sub_%08X", va);
+    site[sizeof site - 1] = 0;
+    xbox_WatchPoll(site);
 }
 
 void xbox_WatchShutdown(void)
