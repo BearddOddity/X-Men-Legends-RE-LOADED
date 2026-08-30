@@ -2037,5 +2037,19 @@
     "message": "ROOT CAUSE: the descriptor is entirely uninitialised. Its instance size (+0x48) and allocation prefix (+0x20) are BOTH -1, so the create path asks the allocator for 0xFFFFFFFE bytes, gets NULL, and computes this = 0 + (-1) = -1. One fault, not two - the allocator is behaving correctly",
     "note": "Ghidra made this findable in a few queries. FUN_0020e520 is create-an-instance: allocate desc->size48 + desc->prefix20 through the context's vtable slot 0xCC, hand back raw+prefix, initialise via FUN_002096b0. Slot 0xCC is a thunk (sub_001EC5E0) forwarding to slot 0x1AC, which is sub_00211530 - a full MSVC-style debug heap. Probing every one of its 235 calls: the healthy ones use ctx=01088A90 with sane sizes (0xC, 0x10, 0x34...), and the LAST call before the crash is ctx=01218000 size=FFFFFFFE. Since size = field_48 + prefix and prefix = -1, field_48 is -1 too. The allocator is asked for ~4GB, correctly fails, returns 0. REFUTES my own framing from earlier today that this was 'two independent faults' and that 'a failing allocator during type registration is worth chasing on its own merits' - there is no allocator bug, and the budget check is not involved either: probed +0x98 limit = FFFFFFFF and +0x9C nolimit = FFFFFFFF, so the budget path is bypassed entirely. Also ruled out: FUN_001f5c20, the fallback allocator-context getter that reads the 0x005BB700 subsystem registry, is never called this run (zero probe hits), so the empty registry is not implicated here. Single root cause: a descriptor that never ran its constructor, arriving from the +0x3c forwarding chain. Probes stripped, rebuilt, unchanged at 434/92/415.",
     "commit": "e934282"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Traced the bad descriptor to an owner object's field, and refuted my own +0x3c forwarding-chain explanation: fwd is 0 on every descriptor, so that loop never runs. The descriptor arrives already broken, passed in as [owner+0x38] by sub_0020E960",
+    "note": "REFUTES the previous entry's claim that the descriptor 'arrives from the +0x3c forwarding chain'. Probe [CHAIN] on sub_0020E520 entry across 18 calls shows fwd[+0x3c]=00000000 for ALL descriptors including the fatal one, so the while loop is never entered. The descriptor is simply the ecx argument, already carrying size48=FFFFFFFF prefix20=FFFFFFFF. Backtrace names the immediate caller sub_0020E960+0x243, whose disassembly shows 'mov ecx,[edi+0x38]; push eax; call 0x20e520' - so the descriptor comes from an owner object's field. Probe [OWNER] over 37 calls: every owner shares vtable 0x003F7EA0, healthy ones point at registered descriptors (01097498, 01097518, 01091AB0, 01096BB8) and the fatal owner 010982C8 points at the unregistered 01098358. Two constructors write that vtable. sub_0021B060 is a COPY constructor that copies +0x38 from another instance - probed, runs ZERO times this boot. sub_0021C3F0 is the default constructor and sets +0x38 to NULL (param_1[0xe]=0). So the owner starts with a null descriptor and something ASSIGNS 0x01098358 afterwards; that assignment is the remaining unknown. Guest watchpoint on 0x010982C8+0x38 reported MISSED WRITES - it saw 8 writes, none installing the value, and the field ends holding it, so its page-unprotect window is hiding the write. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "8653861"
   }
 ]

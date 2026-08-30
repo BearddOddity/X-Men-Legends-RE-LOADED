@@ -143,16 +143,48 @@ Ruled out along the way, each by measurement:
   context-getter that reads it, is never called this boot — zero probe hits. The
   empty registry is a real defect but is not implicated in this crash.
 
+## Chain of custody, and a correction
+
+The previous revision said the bad descriptor "arrives from the `+0x3c`
+forwarding chain". **It does not.** Probing `FUN_0020e520` across all 18 calls
+shows `fwd[+0x3c] = 00000000` on every descriptor, including the fatal one, so
+that `while` loop never executes. The descriptor is simply the incoming
+argument, already carrying `size=-1, prefix=-1`.
+
+The real chain, each step measured:
+
+| step | what | how established |
+|---|---|---|
+| `sub_0020E960+0x243` | `mov ecx,[edi+0x38]; call 0x20e520` — the descriptor comes from an **owner object's field** | backtrace |
+| owner class | all owners share vtable `0x003F7EA0` | probe over 37 calls |
+| healthy owners | point at registered descriptors (`01097498`, `01097518`, `01091AB0`, `01096BB8`) | probe |
+| **fatal owner `010982C8`** | points at the unregistered `01098358` | probe |
+| `sub_0021B060` | a **copy** constructor that copies `+0x38` from another instance | decompiled; probed, runs **zero** times |
+| `sub_0021C3F0` | the **default** constructor — sets `+0x38` to **NULL** (`param_1[0xe] = 0`) | decompiled |
+
+So the owner is default-constructed with a null descriptor, and something
+**assigns** `0x01098358` to it afterwards. That assignment is the last unknown.
+
+### The watchpoint could not catch it
+
+`RECOMP_WATCH=0x010982C8+0x38` reported:
+
+```
+guest 0x01098300: 8 access(es) reported, last seen 00000000, actually 01098358  <-- MISSED WRITES
+```
+
+Eight writes seen, none of them installing the value, and the field ends holding
+it. The page-unprotect window is hiding the write — the tool says so rather than
+letting the log be believed, which is what it is for, but it means a different
+instrument is needed here.
+
 ## Open
 
-One question remains, and it is the same one the rest of this document circles:
-**why does a descriptor reach the create path without having run its
-constructor?**
+**What assigns `owner->+0x38`?** The owner is default-constructed with NULL, the
+copy constructor never runs, and the watchpoint cannot see the write. The next
+approach is a static sweep for stores to `+0x38` in functions that handle the
+`0x003F7EA0` class, rather than another runtime probe.
 
-It arrives from the `+0x3c` forwarding chain in `FUN_0020e520` rather than from
-`sub_00222708`, which is measured — probes at the constructor's entry and at its
-vtable store both list eight objects and exclude this one. Whatever the `+0x3c`
-chain returns has never been initialised.
-
-The fix is upstream of everything in this file. Nothing here should be guarded:
-the allocator, the null check and the create path are all faithful.
+Everything downstream of that assignment is understood and faithful: the
+allocator, the null check, the create path and the descriptor layout. Nothing in
+this chain should be guarded.
