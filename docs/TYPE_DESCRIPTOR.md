@@ -223,20 +223,58 @@ its only reference is a **data** pointer rather than a call.
 `FUN_001f5c20` never being called — but that is a *different* consumer of the
 same registry. This one is on the path.
 
+## The wall is a bootstrap ordering problem
+
+Measured precisely. Of **123** type lookups in a boot, exactly **one** fails:
+
+```
+[LOOK2] idx=00000002 slot14=00000000 flags=00000000 regcount=00000001
+```
+
+Dumping the pool slots at each lookup says why:
+
+```
+[SLOTS] 01087000  all eight slots 00000000     <- the failing lookup
+[SLOTS] 01087000  all eight slots 01088A90     <- every later lookup
+```
+
+A backtrace on that first lookup shows it comes from `sub_00216251` — **inside
+`SubsystemRegistry_Register` itself**. While constructing the very first memory
+pool the registrar calls `vfunc 0x58`, which calls back into the type lookup for
+type 2, *before any slot has been stored*. Its own loop then fills slots 1–3 and
+8+ by copying slot 0, and 4–7 with pools of their own.
+
+On hardware the lookup's fallback to a **previously registered** subsystem
+covers exactly this bootstrap window. Here only one subsystem ever registers —
+probed: a single invocation, `this=01087000`, count `0 -> 1` — so `1 < count` is
+false and the fallback is dead code.
+
+So the fix is not in the descriptor, the allocator, or the create path. It is
+that the registry has one entry where the original had more.
+
+## A failed experiment, recorded
+
+`0x005BC51C` is a `char *` the registrar `strcmp`s against `"igArenaMemoryPool"`
+and `"igMallocMemoryPool"` to choose which pool class to construct. It has
+**5 readers and 0 writers** — a genuinely uninitialised global of the usual
+kind, and NULL falls through to the arena path.
+
+Setting it to `"igMallocMemoryPool"` looked like a clean candidate fix. It was
+applied next to the TLS-index fix, and the write was verified to land
+(`poolname_ptr=003F5C68`, first bytes `igMa`).
+
+**The result was identical** — 434 kernel calls, 92 heap allocations, 415 call
+sites, same crash — because all three branches of that `if` call the same
+`vfunc 0x58` before allocating. The pool type does not avoid the bootstrap
+lookup at all.
+
+Reverted. There is no measured benefit and no evidence the game wants the malloc
+pool, and a speculative global write with neither would be a false fix sitting
+in the tree. The uninitialised global is still real and still worth fixing
+eventually; it is simply not this wall.
+
 ## Open
 
-The chain is now complete from the crash back to a documented root cause:
-
-```
-SubsystemRegistry_Register never runs   (its only reference is data)
-  -> registry count stays 1
-  -> FUN_001e9380's fallback needs >= 2, so it is dead
-  -> a type resolves to a descriptor nothing initialised
-  -> size and prefix are both -1
-  -> allocate(size + prefix) asks for 0xFFFFFFFE, returns NULL
-  -> this = 0 + (-1) = -1, passes the null check
-  -> FUN_002096b0 writes through -1 and the boot dies
-```
-
-The fix is at the top of that chain, not the bottom. Nothing below it should be
-guarded — every function in the chain is faithful to the original.
+Make a second subsystem register before the first one bootstraps, or establish
+what the original registered and when. Everything downstream is faithful and
+none of it should be guarded.

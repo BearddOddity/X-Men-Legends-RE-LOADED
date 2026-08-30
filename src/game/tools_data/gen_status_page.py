@@ -31,6 +31,18 @@ GEN = os.path.join(GAME, "src", "recomp", "gen")
 
 FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 
+# The one-line story, shown at the top where a reader looks first. The metrics
+# below it often do not move for days at a time - diagnosis is not progress in
+# kernel calls - so if this is not updated the whole page looks stale even when
+# the work has moved a long way. Edit it whenever the understanding changes.
+HEADLINE = ("The crash is understood end to end, and the fix is at the far end "
+            "of the chain")
+SUBHEAD = ("A subsystem registrar is never called, because its only reference is "
+           "a data pointer rather than a call. The registry count stays at one, a "
+           "type lookup that needs two or more silently returns an uninitialised "
+           "descriptor, and the boot dereferences -1. Every function in that chain "
+           "is faithful to the original; none of them should be guarded.")
+
 
 def lifted_function_count():
     n = 0
@@ -158,6 +170,19 @@ def build(hist, sig):
       <span>generated, not hand-written</span>
     </div>
   </header>
+
+  <section class="wall" style="border-left-color:var(--blocked)">
+    <div class="wall-row"><span class="tn-label">Where it stands right now</span></div>
+    <h3 style="margin-top:.2rem">{headline}</h3>
+    <p class="track-cap">{subhead}</p>
+    <div class="wall-row" style="margin-top:.4rem">
+      <span>wall <strong>{crash}</strong></span>
+      <span>{kernel} kernel calls</span>
+      <span>{runs} runs</span>
+      <span>{walls} walls passed</span>
+      <span>updated {date}</span>
+    </div>
+  </section>
 
   <section class="thesis">
     <div class="thesis-nums">
@@ -328,6 +353,9 @@ def build(hist, sig):
         heap=sig.get("heap") or 0,
         ended=escape(str(latest.get("ended", "?"))),
         rows=rows,
+        headline=HEADLINE,
+        subhead=SUBHEAD,
+        crash=escape(str(latest.get("crash_in", "?"))),
         **econ,
     )
 
