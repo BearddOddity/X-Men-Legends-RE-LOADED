@@ -2093,5 +2093,19 @@
     "message": "Closed three avenues by measurement without moving the wall: the failed icalls are all garbage rather than missing functions, g_IsEngineRunning is faithful, and the software poll attributes a write to a whole call subtree rather than pinpointing it",
     "note": "NEGATIVE RESULTS, recorded so they are not re-run. (1) FAILED ICALLS ARE SYMPTOMS, NOT CAUSES: 271 distinct unresolved targets, 105 in the code range, and applying the prologue-and-not-inside-a-known-function filter that found the 512 data pointers leaves exactly ONE survivor - 0x0012BA6B, which is unaligned and preceded by real code, so mid-function. The rest are null-derived garbage (0, 1, 2, 0x394, 0xCCCCCCCC, and patterns like 0x0003FFE3 / 0x0007FFE3 / 0x000FFFE3). Separately all 512 plausibility-filter rejects are outside the code range entirely, so the filter is not eating real calls. Seeding will not help this wall. (2) g_IsEngineRunning at 0x005BC548 is set to 1 by sub_00011E40 at 0x00011E60, before the registrar runs, so the registrar's engine-already-running branches are faithful - which is why all eight pool slots hold the same pool. Not a defect. (3) CORRECTS MY OWN ATTRIBUTION: the [WATCH-POLL] instrument fires after a call RETURNS, so it attributes a change to that call's entire dynamic subtree. Reporting the write as 'across icall sub_001E9380' bounds the region; it does not name the writer. sub_001E9380 can return 0 (flags=0, slot empty, regcount=1 so the fallback is dead) while something deeper in its subtree writes owner+0x38. The writer is still unidentified. Failed pool-type experiment from the previous entry remains reverted. Baseline unchanged at 434/92/415, crash RVA 0xECD5C5.",
     "commit": "63f2553"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Chain complete: -1 is the constructor's 'size unknown' marker, and sub_00216FD0 fills the real size during type registration. The fatal descriptor is manufactured by the lookup path instead of found among the registered types, so it never reaches the filler",
+    "note": "Watched a HEALTHY descriptor's size field (0x01097498+0x48) with the software poll and got both writes with backtraces. Write 1, 00000000 -> FFFFFFFF, from sub_00216EE0+0x2e3 - the descriptor constructor itself writes -1 as 'size not yet known', under sub_00222708. Write 2, FFFFFFFF -> 00000010, from sub_00216FD0+0x741 under sub_002235D0 -> sub_002225B0 - the registration driver filling the real size. So -1 is a deliberate marker, not residue, and the fatal descriptor simply never reaches write 2. WHY: the 7 healthy descriptors are built by sub_00222708 and then sized by registration; 01098358 is manufactured by the LOOKUP path (FUN_002226e0 with the registry ready-flag set, calling sub_0020E520 to create an instance of the descriptor type) and nothing sizes it afterwards. Also checked and cleared this round: the class-construct vfunc at slot 0x24 resolves and IS lifted for every object (0013D370 for the descriptor class, 001EAED0 for the owner class), so no failed icall is involved - and sub_0013D370 is an empty function, which is why construction alone never sets the size. The vtable being NULL at sub_002096B0 entry is also faithful: its first statement installs the vtable from [desc+0x5c] at the offset in [registry+0x394]. Probes stripped, rebuilt, unchanged at 434/92/415, crash RVA 0xECD5C5.",
+    "commit": "e60533c"
   }
 ]

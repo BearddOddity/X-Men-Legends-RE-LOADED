@@ -300,13 +300,46 @@ slot empty, `regcount = 1` so the fallback is dead — while something deeper
 inside it writes `owner+0x38`. An earlier section of this document read that
 report as identifying the writer. It does not.
 
+## The `-1` is a marker, and the filler is `sub_00216FD0`
+
+Watching a **healthy** descriptor's size field with the software poll gives both
+writes, with backtraces:
+
+| write | from | meaning |
+|---|---|---|
+| `00000000 -> FFFFFFFF` | `sub_00216EE0+0x2e3` — the descriptor constructor, under `sub_00222708` | "size not yet known" |
+| `FFFFFFFF -> 00000010` | **`sub_00216FD0+0x741`**, under `sub_002235D0` → `sub_002225B0` | the real size, from registration |
+
+So `-1` is written **deliberately** by the constructor as an unset marker, and
+the registration driver fills the real value afterwards. Earlier sections of this
+document called it residue and then a sentinel; it is a marker, and this is the
+measurement that settles it.
+
+The fatal descriptor gets the first write and never the second:
+
+- the **seven healthy** descriptors are built by `sub_00222708` and then sized by
+  registration
+- **`01098358`** is manufactured by the **look-up** path — `FUN_002226e0` with the
+  registry ready-flag set, calling `sub_0020E520` to create an *instance* of the
+  descriptor type — and nothing sizes it afterwards
+
+### Cleared this round
+
+- **No failed icall is involved.** The class-construct vfunc at slot `0x24`
+  resolves for every object and both targets are lifted (`0013D370` for the
+  descriptor class, `001EAED0` for the owner class).
+- **Construction cannot set the size.** `sub_0013D370`, the descriptor class's
+  construct vfunc, is an **empty function** — `return;`. Sizing is registration's
+  job, not the constructor's.
+- **The NULL vtable at `sub_002096B0` entry is faithful.** Its first statement
+  installs the vtable, reading the value from `[desc+0x5c]` and the offset from
+  `[registry+0x394]`.
+
 ## Open
 
-The writer of `owner->+0x38` is still unidentified, now bounded to the subtree of
-one call. Narrowing it further needs the poll called at more points — inside that
-subtree rather than only at its boundary — or a bisect of the calls
-`sub_001E9380` makes.
+Why does a type reach the look-up path before its registration has run? The
+look-up manufactures a blank descriptor when it should have found a registered
+one, and nothing sizes what it manufactures.
 
-Everything downstream of that write is understood and faithful: the descriptor
-layout, the create path, the allocator, the null check. None of it should be
-guarded.
+The fix is an ordering or registration question, not a defect in any function on
+the path. Every function examined here is faithful to the original.
