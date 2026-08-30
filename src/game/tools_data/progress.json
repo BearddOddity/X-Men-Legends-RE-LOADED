@@ -2149,5 +2149,19 @@
     "message": "SECOND WALL: guarding an unfilled field slot advances callsites 435 -> 445 and moves the crash to sub_001EB890+0x1d5. Same defect class one layer up - a type's field array has a count covering slots registration never filled",
     "note": "Deterministic 2 of 2 at 514 kernel / 94 heap / 445 callsites, crash RVA 0xDED4C5 = sub_001EB890+0x1d5, fault 0x8B0146F4. FUN_001ea600 walks a type's fields calling vfunc 0x74 on each: ebx+0xC is the count, ebx+8 the array. At the crash esi=4 with count 6, and field[4] read 0xD3000000 - the array is sized for 6 but registration filled only the inherited 4, so the next line dereferenced garbage for the vtable. GUARD: skip a slot whose pointer is outside [0x00880000, 0x04000000), the same range sub_0020E547 already uses in this tree for the same judgement, jumping to the loop increment. This is the guard-uninitialised-X bypass class already proven here (ledger #1-#3). Kernel calls flat at 514 - expected, since the narrow proxy does not move for a guard that only skips work - while callsites rose 10 and the crash site changed, which is the spin-proof signal. Persisted; manual_edits verify reports 1069/1069. STILL OPEN and unchanged by either bypass: type descriptors reached via sub_002263F0 are never sized, and their field arrays are never populated. Both walls broken today are symptoms of that one defect.",
     "commit": "9e3c8a2"
+  },
+  {
+    "kernel_calls": 514,
+    "failed_icalls": 273,
+    "total_icalls": 24681,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 94,
+    "crash_in": "sub_001EB890+0x1D5",
+    "fault_va": "0x8B0046F4",
+    "date": "2026-08-29",
+    "message": "Wall 42 diagnosed, not guarded: sub_001EB890 is passed an object that is not a string table at all. Its count field holds a pointer and its array field holds 0x680 - the caller's field 0 is bogus, so this is the same under-populated-object defect presenting a third way",
+    "note": "Probed the table shape across all 135 calls. The healthy ones read base=01091B30 count=0x41 start=0x40 array=01091B50 - sane and growing. The fatal one reads base=0109863C count=0x01096D04 start=0x01092B54 array=0x00000680: the count is a POINTER and the array is a small integer, so the object is not a string table. FUN_001eb890 is a binary search over a sorted string table and FUN_001f87a0 removes an entry from one, so this IS supposed to be a table; FUN_0020ef90 passes *(void**)this, its own field 0, which therefore holds the wrong pointer. DELIBERATELY NOT GUARDED: the previous two walls were containers sized but unpopulated, where skipping an entry restores an existing check's intent. This one is a wrong object, and a range check would paper over a propagated bad pointer rather than restore anything - the useful fix is upstream, at whatever leaves field 0 unset. Baseline verified clean after stripping probes at 514 kernel / 94 heap / 445 callsites, crash RVA 0xDED4C5.",
+    "commit": "0165b5a"
   }
 ]

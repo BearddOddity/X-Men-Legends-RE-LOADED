@@ -430,11 +430,37 @@ crashing. That is the guard-uninitialised-X bypass class already proven here
 
 Persisted; `manual_edits.py verify` reports **1069/1069**.
 
+## Third wall, diagnosed and deliberately not guarded
+
+`sub_001EB890+0x1d5`, faulting on `0x8B0146F4`. Probing the table shape across
+all 135 calls:
+
+```
+healthy:  base=01091B30  count=0x41        start=0x40        array=01091B50
+fatal:    base=0109863C  count=0x01096D04  start=0x01092B54  array=0x00000680
+```
+
+The "count" is a **pointer** and the "array" is a small integer, so the object is
+not a string table at all. `FUN_001eb890` is a binary search over a sorted string
+table and `FUN_001f87a0` removes an entry from one, so a table is what it should
+be; `FUN_0020ef90` passes `*(void **)this` — its own **field 0** — which
+therefore holds the wrong pointer.
+
+**Not guarded, on purpose.** The two walls broken above were containers *sized
+but unpopulated*, where skipping an entry restores the intent of a check the
+original already had. This one is a **wrong object**, and a range check there
+would paper over a propagated bad pointer rather than restore anything. The
+useful fix is upstream, at whatever leaves field 0 unset.
+
+That is the line this project should hold on bypasses: restore a check the
+original wrote, never invent one to survive bad data.
+
 ## Open
 
-**Unchanged by either bypass**, and now clearly the single root defect: type
-descriptors reached via `sub_002263F0` are never sized, and their field arrays
-are never populated. Both walls broken today are symptoms of that one problem —
-the guards stop the symptoms from being fatal, they do not populate anything.
+One defect, now seen three ways: objects in the type subsystem are created and
+never populated — descriptors without sizes, field arrays without fields, and now
+a holder whose table pointer was never set. The two guards stop two of those
+being fatal; none of them populates anything.
 
-Next wall: `sub_001EB890+0x1d5`, faulting on `0x8B0146F4`.
+Current wall: `sub_001EB890+0x1d5`. The next move is upstream of it — find what
+should set `field 0` of the object `FUN_0020ef90` is called on.
