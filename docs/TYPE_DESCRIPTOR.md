@@ -109,22 +109,50 @@ constructor.
 That is why probes at both the constructor's entry and its vtable store list
 eight objects and exclude the two failing ones.
 
+## Root cause: the descriptor is entirely uninitialised
+
+Probing every call to the real allocator settles it. `FUN_0020e520` allocates
+`desc->size (+0x48) + desc->prefix (+0x20)` through the context's vtable slot
+`0xCC`; that slot is a thunk (`sub_001EC5E0`) forwarding to slot `0x1AC`, which
+is `sub_00211530` — a full MSVC-style debug heap. Across its **235 calls** this
+boot:
+
+```
+[ALLOCN] ctx=01088A90 size=0000000C     healthy
+[ALLOCN] ctx=01088A90 size=00000010     healthy
+[ALLOCN] ctx=01088A90 size=00000034     healthy
+[ALLOCN] ctx=01218000 size=FFFFFFFE     the fatal one
+```
+
+The request is for **`0xFFFFFFFE` bytes**. Since the size passed is
+`field_48 + prefix` and the prefix is `-1`, **`field_48` is `-1` as well**. The
+allocator is asked for roughly 4 GB, correctly fails, and returns `0`. Then
+`this = 0 + (-1) = -1`, which passes the non-null check and is dereferenced.
+
+**There is one fault, not two.** Earlier notes here framed the `-1` prefix and
+the failing allocator as separate problems worth chasing separately. They are
+the same problem: a descriptor whose fields were never written. Both the absurd
+size and the bad prefix come from that.
+
+Ruled out along the way, each by measurement:
+
+- **The allocator.** It behaves correctly given a 4 GB request.
+- **The heap budget.** `+0x98` (limit) and `+0x9C` (no-limit flag) both read
+  `FFFFFFFF`, so the budget branch is bypassed entirely.
+- **The `0x005BB700` subsystem registry.** `FUN_001f5c20`, the fallback
+  context-getter that reads it, is never called this boot — zero probe hits. The
+  empty registry is a real defect but is not implicated in this crash.
+
 ## Open
 
-The instance the boot dies on is created by `FUN_0020e520`, which is
-"create an instance of this type": follow the `+0x3c` forwarding chain, refuse
-if `+0x1a` is 1, then allocate `size + prefix` through the context's
-`[+0xCC]` and initialise via `FUN_002096b0`.
+One question remains, and it is the same one the rest of this document circles:
+**why does a descriptor reach the create path without having run its
+constructor?**
 
-Two questions remain, and they are separate:
+It arrives from the `+0x3c` forwarding chain in `FUN_0020e520` rather than from
+`sub_00222708`, which is measured — probes at the constructor's entry and at its
+vtable store both list eight objects and exclude this one. Whatever the `+0x3c`
+chain returns has never been initialised.
 
-1. **Why is the prefix `-1`?** Because that descriptor never ran the
-   constructor. It arrives from the `+0x3c` chain rather than from
-   `sub_00222708`, which is measured: probes at the constructor's entry and at
-   its vtable store both list eight objects and exclude this one.
-2. **Why does the allocator return 0?** `[context+0xCC]` is an allocation that
-   fails. On its own that would be handled - a correct prefix of `0` makes the
-   null check catch it. This is the fault worth chasing next, because a failing
-   allocator during type registration is a problem in its own right.
-
-Either fix alone stops the crash. Neither is understood yet.
+The fix is upstream of everything in this file. Nothing here should be guarded:
+the allocator, the null check and the create path are all faithful.

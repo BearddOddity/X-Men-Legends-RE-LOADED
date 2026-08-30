@@ -2023,5 +2023,19 @@
     "message": "Identified [desc+0x20]: it is a base-class pointer adjustment and -1 is the not-a-base sentinel, so it is correct data rather than corruption. The caller's zero-only guard catches a clean cast failure (0+0) but misses this one (0+-1)",
     "note": "Method borrowed from a Ghidra tutorial the user shared - recognise the construct rather than chase the value. The field is ADDED in sub_0020E547 (edi = vcall_result + [esi+0x20]) and SUBTRACTED in sub_002041D0 (esi = esi - [eax+0x20], ledger #143's this-desc[0x20] idiom). Added one way and subtracted the other is a base-subobject displacement carried in a type descriptor, and MSVC RTTI uses -1 as the not-present marker. REFUTES two of my own readings recorded earlier today: 'heap residue nothing ever wrote' and 'an unfinished object'. The guest watchpoint had already refuted the first by reporting MISSED WRITES with the field actually holding FFFFFFFF; this explains what the value means. The failure shape: a dynamic-cast asks for a base pointer then adjusts by the displacement; a clean miss gives 0+0=0 and the caller's je catches it, while this gives 0+(-1)=-1 which is non-zero and passes into a dereference. So the descriptor is fine and the type system is correctly saying the types are unrelated - the fault is upstream, in a registry that does not know the relationship. Same incompletely-populated registry as the ready-flag flip and the [desc+0x3c] forwarding chain.",
     "commit": "6065165"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "ROOT CAUSE: the descriptor is entirely uninitialised. Its instance size (+0x48) and allocation prefix (+0x20) are BOTH -1, so the create path asks the allocator for 0xFFFFFFFE bytes, gets NULL, and computes this = 0 + (-1) = -1. One fault, not two - the allocator is behaving correctly",
+    "note": "Ghidra made this findable in a few queries. FUN_0020e520 is create-an-instance: allocate desc->size48 + desc->prefix20 through the context's vtable slot 0xCC, hand back raw+prefix, initialise via FUN_002096b0. Slot 0xCC is a thunk (sub_001EC5E0) forwarding to slot 0x1AC, which is sub_00211530 - a full MSVC-style debug heap. Probing every one of its 235 calls: the healthy ones use ctx=01088A90 with sane sizes (0xC, 0x10, 0x34...), and the LAST call before the crash is ctx=01218000 size=FFFFFFFE. Since size = field_48 + prefix and prefix = -1, field_48 is -1 too. The allocator is asked for ~4GB, correctly fails, returns 0. REFUTES my own framing from earlier today that this was 'two independent faults' and that 'a failing allocator during type registration is worth chasing on its own merits' - there is no allocator bug, and the budget check is not involved either: probed +0x98 limit = FFFFFFFF and +0x9C nolimit = FFFFFFFF, so the budget path is bypassed entirely. Also ruled out: FUN_001f5c20, the fallback allocator-context getter that reads the 0x005BB700 subsystem registry, is never called this run (zero probe hits), so the empty registry is not implicated here. Single root cause: a descriptor that never ran its constructor, arriving from the +0x3c forwarding chain. Probes stripped, rebuilt, unchanged at 434/92/415.",
+    "commit": "e934282"
   }
 ]
