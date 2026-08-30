@@ -2135,5 +2135,19 @@
     "message": "WALL BROKEN: 434 -> 514 kernel calls, callsites 415 -> 435, heap 92 -> 94, and the crash moves from sub_002096B0+0xd5 to sub_001EA600+0x2c3. An unsized type descriptor now behaves as a clean instantiation failure instead of producing the pointer -1",
     "note": "Deterministic 2 of 2 at 514 kernel / 94 heap / 435 callsites, crash RVA 0xDE0703 = sub_001EA600+0x2c3, fault 0xD3010000. THE GUARD, one line in sub_0020E547 after 'edi = edi + ebx': if (ebx == 0xFFFFFFFFu) { edi = 0; }. ebx is the descriptor prefix from [esi+0x20] and the allocator is asked for [esi+0x48] + ebx. A descriptor created but not yet sized carries -1 in both, so the request is 0xFFFFFFFE, the allocator correctly returns NULL, and the line computes 0 + (-1) = -1 - non-zero, so the following je lets it through and sub_002096B0 writes through -1. With a sized descriptor the same failure gives 0 + 0 = 0 and the je catches it, so the guard restores the behaviour that je was written for rather than inventing one. This is the walls.py method - try a bypass, measure - and it is a BYPASS not a fix: the real defect is that descriptors reached via sub_002263F0 are never sized, which is unchanged and still documented as open. Persisted into manual_edits.json so it survives regeneration; verify reports 1068/1068 placed. CAUTION WORTH RECORDING: running 'manual_edits.py extract' rewrote the store with 1061 entries against 1067 held, silently dropping 6 edits that exist in the store but not in current gen. Restored from git and added the single entry surgically instead. Do not blind-extract after a regeneration or a probe sweep.",
     "commit": "a8f8058"
+  },
+  {
+    "kernel_calls": 514,
+    "failed_icalls": 273,
+    "total_icalls": 24681,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 94,
+    "crash_in": "sub_001EB890+0x1D5",
+    "fault_va": "0x8B0046F4",
+    "date": "2026-08-29",
+    "message": "SECOND WALL: guarding an unfilled field slot advances callsites 435 -> 445 and moves the crash to sub_001EB890+0x1d5. Same defect class one layer up - a type's field array has a count covering slots registration never filled",
+    "note": "Deterministic 2 of 2 at 514 kernel / 94 heap / 445 callsites, crash RVA 0xDED4C5 = sub_001EB890+0x1d5, fault 0x8B0146F4. FUN_001ea600 walks a type's fields calling vfunc 0x74 on each: ebx+0xC is the count, ebx+8 the array. At the crash esi=4 with count 6, and field[4] read 0xD3000000 - the array is sized for 6 but registration filled only the inherited 4, so the next line dereferenced garbage for the vtable. GUARD: skip a slot whose pointer is outside [0x00880000, 0x04000000), the same range sub_0020E547 already uses in this tree for the same judgement, jumping to the loop increment. This is the guard-uninitialised-X bypass class already proven here (ledger #1-#3). Kernel calls flat at 514 - expected, since the narrow proxy does not move for a guard that only skips work - while callsites rose 10 and the crash site changed, which is the spin-proof signal. Persisted; manual_edits verify reports 1069/1069. STILL OPEN and unchanged by either bypass: type descriptors reached via sub_002263F0 are never sized, and their field arrays are never populated. Both walls broken today are symptoms of that one defect.",
+    "commit": "9e3c8a2"
   }
 ]

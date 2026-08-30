@@ -11877,5 +11877,31 @@
   "match": null,
   "anchor": "    if ((edi == 0)) goto loc_0020E590; /* je: equal / zero */",
   "pre": "    edi = edi + ebx;"
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001EA600",
+  "block": [
+   "    /* Manual guard (not in original x86): skip an unfilled field slot.",
+   "     *",
+   "     * ebx+0xC is the type field COUNT and ebx+8 the field array. A type",
+   "     * descriptor that was created but never fully populated has a count that",
+   "     * covers slots the registration never filled, so field[esi] holds whatever",
+   "     * the allocator left there - measured 0xD3000000 at esi=4 with a count of 6",
+   "     * - and the next line dereferences it for the vtable.",
+   "     *",
+   "     * The range is the one sub_0020E547 already uses in this tree for the same",
+   "     * judgement. Skipping to the increment leaves a partially initialised",
+   "     * object rather than a crash, which is what the surrounding code does for",
+   "     * every field it does not know about.",
+   "     *",
+   "     * DIAGNOSTIC BYPASS, per the walls.py method. The real defect is that the",
+   "     * field array is never populated. See docs/TYPE_DESCRIPTOR.md. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) goto loc_001EA62D;"
+  ],
+  "match": null,
+  "anchor": "    edx = MEM32(ecx);",
+  "pre": "    ecx = MEM32(eax + esi * 4);"
  }
 ]

@@ -405,10 +405,36 @@ current `gen/`. Extraction reads `gen/`, so anything not currently applied there
 disappears. Restored from git and the single new entry added surgically instead.
 Do not blind-extract after a regeneration or a probe sweep.
 
+## Second wall, same defect one layer up
+
+| | before | after |
+|---|---|---|
+| call sites | 435 | **445** |
+| crash | `sub_001EA600+0x2c3` | **`sub_001EB890+0x1d5`** |
+
+Deterministic 2 of 2. Kernel calls stayed at 514, which is expected: that proxy
+does not move for a guard whose only effect is to skip work. The changed crash
+site is the signal that cannot be faked.
+
+`FUN_001ea600` walks a type's fields, calling `vfunc 0x74` on each — `ebx+0xC`
+is the count and `ebx+8` the array. At the crash `esi=4` with a count of `6`, and
+`field[4]` read `0xD3000000`: the array is sized for six entries but registration
+filled only the four inherited ones, so the next line dereferenced garbage as a
+vtable.
+
+The guard skips a slot whose pointer falls outside `[0x00880000, 0x04000000)` —
+the range `sub_0020E547` already uses in this tree for the same judgement — and
+jumps to the loop increment, leaving the object partially initialised rather than
+crashing. That is the guard-uninitialised-X bypass class already proven here
+(ledger #1–#3).
+
+Persisted; `manual_edits.py verify` reports **1069/1069**.
+
 ## Open
 
-Unchanged by the bypass: **why are descriptors reached via `sub_002263F0` never
-sized, when those via `sub_002235D0` are?** Both take the look-up path and both
-receive a blank descriptor; only one is populated afterwards.
+**Unchanged by either bypass**, and now clearly the single root defect: type
+descriptors reached via `sub_002263F0` are never sized, and their field arrays
+are never populated. Both walls broken today are symptoms of that one problem —
+the guards stop the symptoms from being fatal, they do not populate anything.
 
-The next wall is `sub_001EA600+0x2c3`, faulting on `0xD3010000`.
+Next wall: `sub_001EB890+0x1d5`, faulting on `0x8B0146F4`.
