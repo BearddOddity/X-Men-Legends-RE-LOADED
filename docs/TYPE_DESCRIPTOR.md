@@ -363,11 +363,52 @@ type it wants was not registered during the flag-clear window. Its argument
 `DAT_0046a684` is `6`, a memory-pool index rather than a type name, so the type
 cannot be identified from the call site alone.
 
+## Wall broken
+
+| | before | after |
+|---|---|---|
+| kernel calls | 434 | **514** |
+| call sites | 415 | **435** |
+| heap allocations | 92 | **94** |
+| crash | `sub_002096B0+0xd5` | **`sub_001EA600+0x2c3`** |
+
+Deterministic 2 of 2. One line, in `sub_0020E547` immediately after
+`edi = edi + ebx`:
+
+```c
+if (ebx == 0xFFFFFFFFu) { edi = 0; }
+```
+
+`ebx` is the descriptor prefix from `[esi+0x20]`, and the allocator is asked for
+`[esi+0x48] + ebx`. A descriptor that has been created but not yet sized carries
+`-1` in both, so the request is `0xFFFFFFFE`, the allocator correctly returns
+NULL, and the line computes `0 + (-1) = -1`. That is non-zero, so the `je` on the
+next line lets it through and `sub_002096B0` writes through `-1`.
+
+With a *sized* descriptor the same allocation failure gives `0 + 0 = 0` and the
+`je` catches it. **The guard restores the behaviour that `je` was written for**
+rather than inventing one — which is why it is a defensible bypass and not a
+papered-over crash.
+
+**It is a bypass, not a fix.** The real defect is unchanged and still open:
+descriptors reached via `sub_002263F0` are never sized. This only stops an
+unsized one from being dereferenced.
+
+Persisted into `manual_edits.json`, so it survives a regeneration —
+`manual_edits.py verify` reports **1068/1068** placed.
+
+### A trap worth recording
+
+`manual_edits.py extract` rewrote the store with **1061** entries against the
+**1067** held, silently dropping six edits that exist in the store but not in the
+current `gen/`. Extraction reads `gen/`, so anything not currently applied there
+disappears. Restored from git and the single new entry added surgically instead.
+Do not blind-extract after a regeneration or a probe sweep.
+
 ## Open
 
-**Why are descriptors reached via `sub_002263F0` never sized, when those via
-`sub_002235D0` are?** Both take the look-up path and both get a blank; only one
-gets populated afterwards.
+Unchanged by the bypass: **why are descriptors reached via `sub_002263F0` never
+sized, when those via `sub_002235D0` are?** Both take the look-up path and both
+receive a blank descriptor; only one is populated afterwards.
 
-That is the whole remaining question. Everything else on this path is understood
-and faithful, and nothing on it should be guarded.
+The next wall is `sub_001EA600+0x2c3`, faulting on `0xD3010000`.

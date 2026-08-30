@@ -11852,5 +11852,30 @@
   ],
   "match": "^void sub_0039788A\\(void\\) \\{ /\\*.*\\*/ \\}$",
   "anchor": null
+ },
+ {
+  "file": "recomp_0015.c",
+  "kind": "insert_before",
+  "function": "sub_0020E547",
+  "block": [
+   "    /* Manual guard (not in original x86): an UNSIZED type descriptor must",
+   "     * behave as a clean instantiation failure, not as the pointer -1.",
+   "     *",
+   "     * ebx is the descriptor prefix from [esi+0x20], and the size passed to the",
+   "     * allocator is [esi+0x48] + ebx. A descriptor that has been created but not",
+   "     * yet sized carries -1 in both, so the allocator is asked for 0xFFFFFFFE,",
+   "     * correctly returns NULL, and this line computes 0 + (-1) = -1. That is",
+   "     * non-zero, so the je below lets it through and sub_002096B0 writes through",
+   "     * -1. With a sized descriptor the same failure gives 0 + 0 = 0 and the je",
+   "     * catches it, so this restores the behaviour the guard was written for.",
+   "     *",
+   "     * DIAGNOSTIC BYPASS, per the walls.py method: measure whether the boot",
+   "     * advances. It does not fix the real defect, which is that this descriptor",
+   "     * is never sized. See docs/TYPE_DESCRIPTOR.md. */",
+   "    if (ebx == 0xFFFFFFFFu) { edi = 0; }"
+  ],
+  "match": null,
+  "anchor": "    if ((edi == 0)) goto loc_0020E590; /* je: equal / zero */",
+  "pre": "    edi = edi + ebx;"
  }
 ]

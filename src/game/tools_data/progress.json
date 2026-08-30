@@ -2121,5 +2121,19 @@
     "message": "Found the ordering: sub_00236500 sets the registry ready-flag after the FIRST type-module registration and before the other ~24, so every later registration takes the create-instance path and produces a blank descriptor that registration must then fill",
     "note": "Watched the ready flag at [0x5BC508]+0 (guest 0x01086000) with the software poll: it flips 0 -> 1 exactly once, in straight-line code inside sub_002366BC, a fragment of sub_00236500, and the decompilation shows the sequence plainly - FUN_00209650(&LAB_002221e0) runs with the flag clear, then '*param_1 = 1', then roughly 24 further FUN_00209650 registrations run with it set. That is the ORIGINAL's own sequence, so it must work on hardware: the create-instance path is expected to hand back a blank descriptor which the registration then populates, and sub_00216FD0 is the function that populates the size. It does so for descriptors reached through sub_002235D0. The fatal one is reached through sub_00223960 -> FUN_002226e0 and stored by sub_002263F0, which sets owner+0x34=1 but never sizes it. sub_00223960 caches in DAT_005bc1ac, which is BSS and null, so the type it wants was not registered during the flag-clear window. DAT_0046a684 is 6, a pool index rather than a type name, so the type is not identifiable from that argument. NOT YET ANSWERED: why descriptors reached via sub_002263F0 are never sized while those via sub_002235D0 are. Probes stripped, rebuilt, unchanged at 434/92/415, crash RVA 0xECD5C5.",
     "commit": "39c668e"
+  },
+  {
+    "kernel_calls": 514,
+    "failed_icalls": 273,
+    "total_icalls": 24699,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 94,
+    "crash_in": "sub_001EA600+0x2C3",
+    "fault_va": "0xD3000000",
+    "date": "2026-08-29",
+    "message": "WALL BROKEN: 434 -> 514 kernel calls, callsites 415 -> 435, heap 92 -> 94, and the crash moves from sub_002096B0+0xd5 to sub_001EA600+0x2c3. An unsized type descriptor now behaves as a clean instantiation failure instead of producing the pointer -1",
+    "note": "Deterministic 2 of 2 at 514 kernel / 94 heap / 435 callsites, crash RVA 0xDE0703 = sub_001EA600+0x2c3, fault 0xD3010000. THE GUARD, one line in sub_0020E547 after 'edi = edi + ebx': if (ebx == 0xFFFFFFFFu) { edi = 0; }. ebx is the descriptor prefix from [esi+0x20] and the allocator is asked for [esi+0x48] + ebx. A descriptor created but not yet sized carries -1 in both, so the request is 0xFFFFFFFE, the allocator correctly returns NULL, and the line computes 0 + (-1) = -1 - non-zero, so the following je lets it through and sub_002096B0 writes through -1. With a sized descriptor the same failure gives 0 + 0 = 0 and the je catches it, so the guard restores the behaviour that je was written for rather than inventing one. This is the walls.py method - try a bypass, measure - and it is a BYPASS not a fix: the real defect is that descriptors reached via sub_002263F0 are never sized, which is unchanged and still documented as open. Persisted into manual_edits.json so it survives regeneration; verify reports 1068/1068 placed. CAUTION WORTH RECORDING: running 'manual_edits.py extract' rewrote the store with 1061 entries against 1067 held, silently dropping 6 edits that exist in the store but not in current gen. Restored from git and added the single entry surgically instead. Do not blind-extract after a regeneration or a probe sweep.",
+    "commit": "a8f8058"
   }
 ]
