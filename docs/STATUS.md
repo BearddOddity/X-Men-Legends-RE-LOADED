@@ -397,3 +397,53 @@ produces them writes that field first.
 **Next:** capture the target of `call [esi+0x3c]` at `0x0020E530`. That function
 is the last unknown in the chain, and it is what hands back an object carrying
 `-1` in its adjust field.
+
+
+## The -1 is a sentinel, not corruption
+
+Prompted by a tutorial's method - compile a construct, then reverse it, to learn
+its shape - the field finally identified itself. `[desc+0x20]` is used in two
+directions:
+
+```
+sub_0020E547    edi = <virtual call result> + [esi+0x20]    ADD
+sub_002041D0    esi = esi - [eax+0x20]                      SUBTRACT
+```
+
+Added converting one way, subtracted converting the other. That is a
+**base-class pointer adjustment**: the offset of a base subobject within a
+derived object, carried in the type descriptor. MSVC's RTTI displacement
+records use `-1` as the "not present" marker, and Alchemy's own type system
+follows the same convention.
+
+So `0xFFFFFFFF` at `+0x20` is **correct data meaning "not a base of this
+type"** - not heap residue, and not an unfinished object. Two earlier readings
+in this document are wrong on that point and are left standing above with this
+correction rather than edited away.
+
+It also explains the shape of the failure exactly. The sequence is a
+dynamic-cast: ask the object for a base pointer, then adjust it by the recorded
+displacement.
+
+| | virtual call | adjust | sum | guard `je` |
+|---|---|---|---|---|
+| cast succeeds | valid pointer | real offset | valid | passes through, correct |
+| cast fails cleanly | `0` | `0` | `0` | **caught** |
+| what happens here | `0` | `-1` | `-1` | **missed** |
+
+The caller tests only the *sum* against zero. A clean failure gives `0 + 0 = 0`
+and is caught; this gives `0 + (-1) = -1`, which is non-zero and sails through
+into a dereference.
+
+**Which moves the question upstream, to where it belonged all along.** The
+descriptor is not broken; the type system is answering "these two types are
+unrelated". On hardware they are related, and the lookup would have returned a
+real displacement. So the fault is that the registry does not know the
+relationship - which is the same incompletely-populated registry this document
+has been circling: the ready flag flipping partway through startup, and
+descriptors arriving from the `[desc+0x3c]` forwarding chain rather than from
+construction.
+
+**Next:** find where the base relationship should be registered. That is a
+write of a real displacement into some descriptor's `+0x20`, and the guest
+watchpoint can catch it directly now that we know what to look for.
