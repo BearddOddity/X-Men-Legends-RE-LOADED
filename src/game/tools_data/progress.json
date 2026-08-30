@@ -2079,5 +2079,19 @@
     "message": "Attempted a fix and it failed, cleanly: the wall is a BOOTSTRAP ORDERING problem, not a missing pool type. The registrar itself does the type lookup that fails, while creating the very first pool, before any slot is filled",
     "note": "Traced the failing lookup precisely. Probe [LOOK2] over 123 lookups: exactly ONE fails, idx=2 slot14=00000000 flags=00000000 regcount=1. Probe [SLOTS] shows why - at that lookup ALL EIGHT pool slots read 00000000, and at every later lookup they all read 01088A90. Probe [EARLY] with a backtrace shows the premature lookup comes from sub_00216251, which is INSIDE SubsystemRegistry_Register: while constructing the very first memory pool it calls vfunc 0x58, which calls back into the type lookup for type 2 before any slot has been stored. The registrar's own loop then fills slots 1-3 and 8+ by copying slot 0, and 4-7 with their own pools. On hardware the lookup's fallback to a PREVIOUSLY REGISTERED subsystem covers this bootstrap window; here only one subsystem ever registers (probe [REGISTER]: exactly one invocation, this=01087000, count 0 -> 1), so 1 < count is false and the fallback is dead. FAILED EXPERIMENT, recorded because the negative is worth as much as the positive: 0x005BC51C is a char* the registrar strcmps against igArenaMemoryPool and igMallocMemoryPool to choose a pool class, and it has 5 readers and 0 writers - a genuinely uninitialised global. Set it to igMallocMemoryPool in recomp_manual.c next to the TLS-index fix. Verified the write landed (probe [POOLNAME]: ptr=003F5C68, first bytes igMa) and the outcome was IDENTICAL - 434/92/415 and the same crash - because all three branches call the same vfunc 0x58 before allocating, so the pool type does not avoid the bootstrap lookup at all. REVERTED rather than left in: no measured benefit and no evidence the game wants the malloc pool. Baseline verified restored at 434/92/415, crash RVA 0xECD5C5.",
     "commit": "b536083"
+  },
+  {
+    "kernel_calls": 434,
+    "failed_icalls": 271,
+    "total_icalls": 22313,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 92,
+    "crash_in": "sub_002096B0+0xD5",
+    "fault_va": "0xFFFFFFFF",
+    "date": "2026-08-29",
+    "message": "Closed three avenues by measurement without moving the wall: the failed icalls are all garbage rather than missing functions, g_IsEngineRunning is faithful, and the software poll attributes a write to a whole call subtree rather than pinpointing it",
+    "note": "NEGATIVE RESULTS, recorded so they are not re-run. (1) FAILED ICALLS ARE SYMPTOMS, NOT CAUSES: 271 distinct unresolved targets, 105 in the code range, and applying the prologue-and-not-inside-a-known-function filter that found the 512 data pointers leaves exactly ONE survivor - 0x0012BA6B, which is unaligned and preceded by real code, so mid-function. The rest are null-derived garbage (0, 1, 2, 0x394, 0xCCCCCCCC, and patterns like 0x0003FFE3 / 0x0007FFE3 / 0x000FFFE3). Separately all 512 plausibility-filter rejects are outside the code range entirely, so the filter is not eating real calls. Seeding will not help this wall. (2) g_IsEngineRunning at 0x005BC548 is set to 1 by sub_00011E40 at 0x00011E60, before the registrar runs, so the registrar's engine-already-running branches are faithful - which is why all eight pool slots hold the same pool. Not a defect. (3) CORRECTS MY OWN ATTRIBUTION: the [WATCH-POLL] instrument fires after a call RETURNS, so it attributes a change to that call's entire dynamic subtree. Reporting the write as 'across icall sub_001E9380' bounds the region; it does not name the writer. sub_001E9380 can return 0 (flags=0, slot empty, regcount=1 so the fallback is dead) while something deeper in its subtree writes owner+0x38. The writer is still unidentified. Failed pool-type experiment from the previous entry remains reverted. Baseline unchanged at 434/92/415, crash RVA 0xECD5C5.",
+    "commit": "63f2553"
   }
 ]

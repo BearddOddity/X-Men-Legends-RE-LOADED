@@ -273,8 +273,40 @@ pool, and a speculative global write with neither would be a false fix sitting
 in the tree. The uninitialised global is still real and still worth fixing
 eventually; it is simply not this wall.
 
+## Avenues closed by measurement
+
+Recorded so they are not re-run.
+
+**The failed indirect calls are symptoms, not causes.** The boot logs 271
+distinct unresolved targets; 105 fall in the code range. Applying the same
+prologue-and-not-inside-a-known-function filter that found the 512 data-referenced
+pointers leaves **one** survivor, `0x0012BA6B`, which is unaligned and preceded
+by real code — mid-function, not an entry point. The rest are null-derived
+garbage: `0`, `1`, `2`, `0x394`, `0xCCCCCCCC`, and runs like `0x0003FFE3`,
+`0x0007FFE3`, `0x000FFFE3`. Separately, all 512 targets rejected by the
+plausibility filter fall **outside** the code range entirely, so the filter is
+not eating real calls. Seeding will not move this wall.
+
+**`g_IsEngineRunning` is faithful.** It lives at `0x005BC548`, and
+`sub_00011E40` sets it to `1` at `0x00011E60`, before the registrar runs. So the
+registrar's "engine already running" branches are the correct ones — which is
+exactly why all eight pool slots end up holding the same pool. Not a defect.
+
+**The software poll bounds a region; it does not name a writer.** It fires after
+a call *returns*, so it attributes a change to that call's entire dynamic
+subtree. Reporting the write as "across `icall sub_001E9380`" narrows it to that
+subtree and no further. `sub_001E9380` can legitimately return `0` — flags clear,
+slot empty, `regcount = 1` so the fallback is dead — while something deeper
+inside it writes `owner+0x38`. An earlier section of this document read that
+report as identifying the writer. It does not.
+
 ## Open
 
-Make a second subsystem register before the first one bootstraps, or establish
-what the original registered and when. Everything downstream is faithful and
-none of it should be guarded.
+The writer of `owner->+0x38` is still unidentified, now bounded to the subtree of
+one call. Narrowing it further needs the poll called at more points — inside that
+subtree rather than only at its boundary — or a bisect of the calls
+`sub_001E9380` makes.
+
+Everything downstream of that write is understood and faithful: the descriptor
+layout, the create path, the allocator, the null check. None of it should be
+guarded.
