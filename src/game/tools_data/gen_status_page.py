@@ -243,18 +243,25 @@ def build(hist, sig):
     </div>
 
     <div class="note">
-      <h3>Why so many globals are null</h3>
-      <p><code>sub_00239E50</code> is a refcounted singleton builder: allocate
-      928 bytes, run the constructor, then store the pointer to
-      <code>0x5BC508</code>. The constructor is a 182-byte leaf that makes no
-      calls, so the fault lies in the allocation and registration beneath it
-      &mdash; and the store never executes. That one missing store is why every
-      later reader of <code>0x5BC508</code> finds null, and it gates the type
-      registry the rest of startup depends on.</p>
-      <p>So the several hundred uninitialised globals are not hundreds of
-      separate missing writers. Many share one cause: the initialiser chain
-      stops partway through.</p>
+      <h3>Root cause: one uninitialised object</h3>
+      <p>Inside that initialiser, a type descriptor reaches the create-an-instance
+      path with <em>both</em> its instance size and its allocation prefix set to
+      <code>-1</code>. The code allocates <code>size + prefix</code>, so it asks
+      the heap for <code>0xFFFFFFFE</code> bytes &mdash; roughly 4&nbsp;GB. The
+      allocator correctly refuses and returns null, and the pointer becomes
+      <code>0 + (-1) = -1</code>, which passes a non-null check and is written
+      through.</p>
+      <p>Probing all 235 allocator calls made this unambiguous: the healthy ones
+      request 12, 16, 52 bytes; the fatal one requests <code>0xFFFFFFFE</code>.
+      Nothing in the chain is misbehaving &mdash; not the allocator, not the null
+      check, not the create path. One object was never initialised, and that
+      single fact produces the absurd size, the null return and the bad pointer.</p>
     </div>
+
+    <p>Tracing where that descriptor comes from: it is handed over as a field of
+    an owner object, whose class is default-constructed with that field set to
+    <strong>null</strong>. Something assigns the bad pointer afterwards, and
+    finding that assignment is the one remaining unknown.</p>
   </section>
 
   <section>
