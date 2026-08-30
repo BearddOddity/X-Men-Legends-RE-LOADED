@@ -399,51 +399,59 @@ is the last unknown in the chain, and it is what hands back an object carrying
 `-1` in its adjust field.
 
 
-## The -1 is a sentinel, not corruption
+## Correction: `+0x20` is an allocation prefix, and the -1 is uninitialised
 
-Prompted by a tutorial's method - compile a construct, then reverse it, to learn
-its shape - the field finally identified itself. `[desc+0x20]` is used in two
-directions:
+A previous section of this document identified `[desc+0x20]` as a base-class
+displacement and read `-1` as MSVC RTTI's "not present" sentinel, on the
+strength of the field being added in one function and subtracted in another.
+**That was wrong**, and Ghidra settled it in two queries once the lab was up.
 
+The decompiler shows the field added to an allocation **size**, which a base
+displacement never is:
+
+```c
+/* FUN_0020e520 - create an instance of the type described by `this` */
+iVar3 = *(int *)((int)this + 0x20);                                  /* prefix */
+iVar4 = (**(code **)(*param_1 + 0xcc))(*(int *)((int)this + 0x48) + iVar3);
+this_00 = (void *)(iVar4 + iVar3);                                   /* skip it */
+if (this_00 != (void *)0x0) {
+    FUN_002096b0(this_00, (int)this);                                /* init + register */
+}
 ```
-sub_0020E547    edi = <virtual call result> + [esi+0x20]    ADD
-sub_002041D0    esi = esi - [eax+0x20]                      SUBTRACT
+
+and subtracted again before the block is freed, in `free_object_instance`:
+
+```c
+param_1 = (int *)((int)param_1 - *(int *)(iVar1 + 0x20));   /* raw block */
+piVar2 = FUN_001e8e20(param_1);                             /* owning allocator */
+(**(code **)(*piVar2 + 0xfc))(param_1);                     /* free */
 ```
 
-Added converting one way, subtracted converting the other. That is a
-**base-class pointer adjustment**: the offset of a base subobject within a
-derived object, carried in the type descriptor. MSVC's RTTI displacement
-records use `-1` as the "not present" marker, and Alchemy's own type system
-follows the same convention.
+Allocate `size + prefix`, hand back `raw + prefix`, free `ptr - prefix`. It is a
+per-type allocation header, and the constructor sets it to **0**. So `-1` is
+neither a sentinel nor valid data: it is an uninitialised field on a descriptor
+that never ran the constructor — which is what the earlier sections said, before
+the RTTI detour. Full field map in [TYPE_DESCRIPTOR.md](TYPE_DESCRIPTOR.md).
 
-So `0xFFFFFFFF` at `+0x20` is **correct data meaning "not a base of this
-type"** - not heap residue, and not an unfinished object. Two earlier readings
-in this document are wrong on that point and are left standing above with this
-correction rather than edited away.
+### The crash needs two faults, and both are now named
 
-It also explains the shape of the failure exactly. The sequence is a
-dynamic-cast: ask the object for a base pointer, then adjust it by the recorded
-displacement.
+1. `desc->prefix` (`+0x20`) is `-1`, because that descriptor arrives from the
+   `+0x3c` forwarding chain rather than from the constructor.
+2. The allocator virtual call at `[context+0xCC]` returns **0**.
 
-| | virtual call | adjust | sum | guard `je` |
-|---|---|---|---|---|
-| cast succeeds | valid pointer | real offset | valid | passes through, correct |
-| cast fails cleanly | `0` | `0` | `0` | **caught** |
-| what happens here | `0` | `-1` | `-1` | **missed** |
+`this_00 = 0 + (-1) = -1`, non-zero, so the null check passes and
+`FUN_002096b0` initialises an object at `-1`. Its first statement is the
+faulting write. With a correct prefix of `0`, a failed allocation would give
+`0 + 0 = 0` and the check would catch it.
 
-The caller tests only the *sum* against zero. A clean failure gives `0 + 0 = 0`
-and is caught; this gives `0 + (-1) = -1`, which is non-zero and sails through
-into a dereference.
+Either fix alone stops the crash. Neither cause is understood yet, and a
+**failing allocator during type registration** is worth chasing on its own
+merits.
 
-**Which moves the question upstream, to where it belonged all along.** The
-descriptor is not broken; the type system is answering "these two types are
-unrelated". On hardware they are related, and the lookup would have returned a
-real displacement. So the fault is that the registry does not know the
-relationship - which is the same incompletely-populated registry this document
-has been circling: the ready flag flipping partway through startup, and
-descriptors arriving from the `[desc+0x3c]` forwarding chain rather than from
-construction.
+### What this says about method
 
-**Next:** find where the base relationship should be registered. That is a
-write of a real displacement into some descriptor's `+0x20`, and the guest
-watchpoint can catch it directly now that we know what to look for.
+Three readings of one field in a day — residue, then RTTI sentinel, then
+allocation prefix — and only the last came from a decompiler. Hand-reading
+disassembly produced a plausible wrong answer twice, and both times the wrong
+answer was *self-consistent*, which is why it survived. The lab was available
+throughout.
