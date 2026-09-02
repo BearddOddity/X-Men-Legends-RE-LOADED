@@ -150,3 +150,56 @@ py -3 tools/ghidra_naming/merge_names.py --apply
 ```
 
 After applying, regenerate the affected recomp C to pick up the new names.
+
+## Alchemy naming (added 2026-09-02)
+
+Two independent sources of names for the engine layer, plus the repair pass for
+a defect the earlier RTTI walk left behind.
+
+### `data/` — the game's own class registry
+
+`class_registrations.tsv` (698 rows) and `class_parents.tsv` (695 edges),
+extracted from the binary's startup registration table. Class name, size in
+bytes, five function pointers and the metaobject global for every class. See
+`docs/ALCHEMY_CLASS_REGISTRY.md`. This is the highest-yield source and needs no
+SDK.
+
+Pipeline:
+
+```
+ExtractClassRegistrations.java <registrar_va> <out.tsv>
+ApplyRegistrationNames.java    <tsv> <log> <hierarchy.tsv>
+NameByRegistration.java        <tsv> <addr list> <log>   # name specific targets
+```
+
+### `alchemy/` — body matching against the Alchemy SDK
+
+For engine functions the registry does not name. Alchemy 3.0 (the version the
+game shipped with) is lost media, so this matches code *shape* against 2.5 and
+5.0. Slot arithmetic and field offsets do not transfer between versions; the
+instruction stream mostly does.
+
+```
+ExportFunctionBytes.java                  # dump the game side from Ghidra
+match_bodies.py --ref a25=DIR --ref a50=DIR --game ... --out ...
+prep_renames.py --renames ... --out ...   # demangle, reject many-to-one
+ApplyMatchedNames.java <apply.tsv> <log>  # score floor, never overwrites a
+                                          # human-chosen name
+```
+
+`match_deltas.py` identifies a function by its member-offset signature. Use it
+to **reject** a suspect match, not to make one: scored against the registry's
+ground truth it was 5 right out of 16, and the score did not separate right from
+wrong.
+
+Yield for the record: 45 names from ~70,000 reference bodies, against 717 from
+the registry. Look for an in-binary source first.
+
+### Repairing the unbounded RTTI vtable walk
+
+`AuditVtableBounds.java` and `ClearBogusDataFunctions.java`. The earlier walk had
+no end test — Ghidra's XBE loader marks `.rdata`/`.data` executable, so "is this
+a code pointer?" never fails and each walk ran into the following vtables. 1,282
+of 3,890 `::vfuncN` names were out of bounds and 314 had disassembled RTTI
+structures as code. Both are fixed; `AuditVtableBounds.java` bounds a vtable
+properly, by the next complete-object-locator pointer.

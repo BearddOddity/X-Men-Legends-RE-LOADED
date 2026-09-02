@@ -464,3 +464,48 @@ being fatal; none of them populates anything.
 
 Current wall: `sub_001EB890+0x1d5`. The next move is upstream of it — find what
 should set `field 0` of the object `FUN_0020ef90` is called on.
+
+## The descriptor is Alchemy's `igMetaObject`
+
+**Added 2026-09-02.** The class is now named, and so are the two size fields,
+from the game's own class registration table (`docs/ALCHEMY_CLASS_REGISTRY.md`)
+plus the Alchemy 5.0 SDK headers.
+
+The registry lists `igMetaObject` with a size of **100 bytes**, which is exactly
+the `0x64` allocation this document already recorded for both construction
+paths. Those two facts were established by different methods weeks apart, so
+they corroborate each other.
+
+The SDK defines the allocation the create-an-instance path performs:
+
+```cpp
+inline igInt getAllocSize() const { return _runTimeSize + _sizeofSize; }
+```
+
+which is the `prefix + size` sum documented above. That names both fields:
+
+| offset | SDK name | what it is |
+|---|---|---|
+| `+0x20` | `_runTimeSize` | the allocation header prefix - added before the object, subtracted again before `free` |
+| `+0x48` | `_sizeofSize` | the class's own `sizeof`, passed to the allocator |
+
+The constructor at `0x00216EE0` is `igMetaObject::ctor`. Reading it confirms the
+layout independently: it writes a 16-bit `4` at `+0x58`, and `_requiredAlignment`
+is the only `igUnsignedShort` in the class with a default of 4; and it writes
+`-1` at `+0x48`, deliberately marking the descriptor **not yet sized**.
+
+`+0x20` is set to `0` by the constructor, not `-1`. Both fields reading `-1` on
+the failing descriptor therefore means something later wrote `-1` into `+0x20`
+as well - the constructor alone does not produce that state.
+
+### What this buys the open defect
+
+The registry gives the true `sizeof` for all 698 classes. That is the value
+`_sizeofSize` is supposed to hold, so which descriptors are unsized at runtime -
+and what each one should have contained - is now directly checkable rather than
+inferred.
+
+`igMetaObject` also declares `setSizeofSize(igInt)`, and carries a
+`_setupFunction` (`igClassSetupFunction`) alongside the `makeConcrete` /
+`makeAbstract` pair on `igObject`. Those are the paths that should run and
+evidently do not for descriptors reached via `sub_002263F0`.
