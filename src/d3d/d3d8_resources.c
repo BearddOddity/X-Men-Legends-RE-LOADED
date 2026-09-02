@@ -7,6 +7,7 @@
  */
 
 #include "d3d8_internal.h"
+#include "d3d8_texrepl.h"
 #include "d3d8_swizzle.h"
 #include <stdlib.h>
 #include <string.h>
@@ -480,6 +481,37 @@ static HRESULT __stdcall tex_UnlockRect(IDirect3DTexture8 *self, UINT Level)
             (ID3D11Resource *)tex->d3d11_texture,
             0, NULL, upload_data, tex->pitch, tex->pitch * rows);
         tex->dirty = FALSE;
+
+        /*
+         * Texture replacement. This is the right moment: upload_data is the
+         * final, unswizzled level-0 image, so the hash is taken over what the
+         * GPU actually receives rather than over a console-specific layout.
+         *
+         * The game's own texture is still created and still uploaded above - it
+         * keeps its object, its pixels and its refcount, and nothing about its
+         * view of the world changes. Only the shader resource view that gets
+         * bound is swapped, so a 64x64 original can be served as 1024x1024
+         * without the game knowing anything about it.
+         *
+         * No-op unless XBOX_TEXTURES is set.
+         */
+        if (d3d8_TexReplEnabled()) {
+            uint64_t h = d3d8_TexHash(upload_data, tex->width, tex->height,
+                                      tex->pitch, (uint32_t)tex->d3d8_format);
+            ID3D11ShaderResourceView *repl =
+                d3d8_TexReplLookup(h, tex->width, tex->height,
+                                   (uint32_t)tex->d3d8_format);
+            if (repl && repl != tex->srv) {
+                /* Drop the view made for the game's own pixels and bind the
+                 * replacement. The replacement is owned by the texrepl cache
+                 * and outlives this texture, so it is not released here - and
+                 * srv_is_replacement stops teardown releasing it either. */
+                if (tex->srv && !tex->srv_is_replacement)
+                    ID3D11ShaderResourceView_Release(tex->srv);
+                tex->srv = repl;
+                tex->srv_is_replacement = TRUE;
+            }
+        }
 
         if (unswizzled) free(unswizzled);
     }

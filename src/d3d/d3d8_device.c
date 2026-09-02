@@ -101,6 +101,51 @@ void d3d8_PresentFrame(void)
         IDXGISwapChain_Present(g_device_state.swap_chain, 1, 0);
 }
 
+/*
+ * d3d8_CreateNativeDevice - build the real device from plain C arguments.
+ *
+ * The guest-facing shim (src/game/src/d3d8_shim.c) needs a device but should
+ * not pull the whole COM surface in to make one, so the vtable dance lives
+ * here. Idempotent: the guest's Direct3D_CreateDevice can be reached more than
+ * once, and creating a second swap chain would orphan the first.
+ *
+ * Returns 1 on success, 0 on failure.
+ */
+int d3d8_CreateNativeDevice(unsigned width, unsigned height)
+{
+    IDirect3D8 *d3d;
+    IDirect3DDevice8 *dev = NULL;
+    D3DPRESENT_PARAMETERS pp;
+    HRESULT hr;
+
+    if (g_device_state.swap_chain)
+        return 1;                       /* already up */
+
+    d3d = xbox_Direct3DCreate8(220);
+    if (!d3d)
+        return 0;
+
+    memset(&pp, 0, sizeof(pp));
+    pp.BackBufferWidth  = width  ? width  : 640;
+    pp.BackBufferHeight = height ? height : 480;
+    pp.BackBufferFormat = D3DFMT_A8R8G8B8;
+    pp.BackBufferCount  = 1;
+    pp.SwapEffect       = D3DSWAPEFFECT_DISCARD;
+    pp.Windowed         = TRUE;
+    pp.EnableAutoDepthStencil = TRUE;
+    pp.AutoDepthStencilFormat = D3DFMT_D24S8;
+
+    hr = d3d->lpVtbl->CreateDevice(d3d, 0, 1 /* HAL */, NULL,
+                                   0x00000040 /* SW vertex processing */,
+                                   &pp, &dev);
+    if (FAILED(hr) || !dev) {
+        fprintf(stderr, "D3D8: d3d8_CreateNativeDevice failed hr=0x%08lX\n",
+                (unsigned long)hr);
+        return 0;
+    }
+    return 1;
+}
+
 /* ================================================================
  * Internal accessors (used by d3d8_resources/shaders/states)
  * ================================================================ */

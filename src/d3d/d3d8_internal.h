@@ -91,6 +91,10 @@ typedef struct D3D8Texture {
     UINT                    pitch;      /* Row pitch of level 0 */
     BOOL                    locked;
     BOOL                    dirty;
+    /* TRUE once srv points at a texrepl replacement. That view is owned by the
+     * replacement cache and shared between textures, so it must not be released
+     * with this object. */
+    BOOL                    srv_is_replacement;
 } D3D8Texture;
 
 typedef struct D3D8Surface {
