@@ -634,3 +634,77 @@ standing regression test for a subsystem the boot cannot yet reach.
 Everything here is off by default. Without `XBOX_TEXTURES` the replacement path
 is inert; without `XBOX_RAM_MB` the port is a 64 MB Xbox. None of it changes
 boot behaviour, and none of it is evidence about wall 42 in either direction.
+
+## Wall 42, traced end to end (2 September 2026)
+
+The boot has not moved. What moved is the understanding of why, and three
+positions taken earlier had to be corrected along the way - twice by measurement
+that contradicted something written here.
+
+### The mechanism
+
+`0x01092B58` is a **16 KB memory pool**: a 0x28-byte header over an arena, with
+capacity at `+0x0C`, base at `+0x10` (which is the header's own end), and current
+at `+0x14`. Three blocks allocated through it carry names at `+8` -
+`igObject`, `igMetaField`, `igBoolMetaField` - and a refcount at `+4`.
+
+When a block's refcount reaches zero, `sub_00123600` calls
+`sub_0020EF90(this = block->field0, arg = block)`, and `field0` is the block's
+owning pool. All three name the same pool, which is correct: they were allocated
+from it.
+
+`sub_0020EF90` then does three things:
+
+1. `sub_001F87A0(this = pool->parent, block)` - looks the block's **name** up in
+   the parent allocator's index, via `sub_001EB890`.
+2. `sub_001EBA30(this = pool, block, strlen+9)` - returns the block to the pool.
+3. `if (MEM8(pool+0x20)) sub_0020EEE0(this = pool->parent, param_1 = pool)` -
+   and that frees the pool.
+
+So the second removal frees the pool while the third block still points at it.
+The third removal reads `pool->field0` out of freed memory - by then the
+allocator's own free-list link - and looks a name up in it. That is the fault at
+`sub_001EB890+0x1D5`.
+
+### The decision to free
+
+`sub_0020EEE0` opens with `if (MEM32(this+0x14) <= 0) goto loc_0020EF65`, and
+`loc_0020EF65` is `eax++; MEM32(this+0x14) = eax;`. **The branch that skips the
+destroy is the branch that increments the counter gating it.** First removal
+spared, every removal after it frees the pool.
+
+A software poll armed on that counter for the whole boot reports exactly one
+write: that self-increment. Nothing initialises it.
+
+Both functions in the allocator cluster that genuinely initialise a `+0x14`
+write it as the third member of a *(capacity, base, current)* triple. The parent
+has the first two set and the third zero. That is a lead and not yet a finding -
+nothing has established the parent is of the same class as the objects those
+functions construct.
+
+### Corrections made this session
+
+Recording these because each was asserted here or in the ledger first:
+
+- A recursion explanation was retracted, and the **retraction was itself wrong**.
+  It argued from "the function is entered on different objects", which proves
+  nothing: a teardown walking object A releases A's *fields*, not A.
+- Wall 42 was ruled **out** of the walls 40/41 family because its count "was being
+  populated, 0 then 1". That 0 -> 1 is the guard incrementing itself, so the
+  refutation is void. The family link is reopened, not established.
+- The pool was called **exhausted** because `current == end`. That is the state
+  its constructor leaves behind; the allocator fills downward.
+- `field0` was called a **table**. It is the parent allocator.
+
+### Method
+
+Three instruments disagreed at various points and the disagreements were
+resolved rather than voted on. A host backtrace was validated before being
+believed - checking that none of the functions on the path were ICF-folded (255
+addresses in this build carry multiple names, one carries 224) and that every
+frame offset falls inside its function's host extent. Competing probes were run
+in the **same build**, because two measurements from two builds can disagree for
+reasons unrelated to the question.
+
+The standard that settled it: a position is worth writing down when it explains
+every number already observed, rather than discarding some of them.

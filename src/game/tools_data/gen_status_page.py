@@ -35,21 +35,16 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Two walls broken, a use-after-free behind the third, and the port "
-            "started becoming a PC game")
+HEADLINE = ("Two walls broken, and the third is now understood line by line")
 SUBHEAD = ("Walls 40 and 41 were containers nothing ever filled, and both are now "
-           "guarded and passed. Wall 42 is a confirmed use-after-free: the holder "
-           "at 0x01092B58 is freed and then used twice more, and what looked like "
-           "an overwrite is the allocator's own free-list link landing in the "
-           "freed block. Who releases it three times is still unidentified - an "
-           "explanation involving a recursive teardown was written down and then "
-           "retracted when a probe showed that function is never reached with "
-           "this object. It is left to fault, because guarding a read of freed "
-           "memory would hide the defect rather than fix it. Meanwhile the other "
-           "half of the project moved: Xbox RAM is now a setting rather than a "
-           "64 MB constant, and textures can be replaced at up to 4K with "
-           "generated mip chains - neither constrained by the boot, because "
-           "neither runs inside it.")
+           "guarded and passed. Wall 42 is a use-after-free, and this session traced "
+           "it end to end: three named blocks allocated from one memory pool each "
+           "reach refcount zero, and removing the second one frees the pool while the "
+           "third still points at it. The third removal then looks its name up in an "
+           "allocator pointer read out of freed memory, and that is the fault. The "
+           "decision to free hinges on a counter that nothing in the binary ever "
+           "initialises. It is left to fault rather than guarded, because guarding a "
+           "read of freed memory would hide the defect instead of fixing it.")
 
 
 def lifted_function_count():
