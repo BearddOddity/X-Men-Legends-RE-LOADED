@@ -35,13 +35,15 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The crash is understood end to end, and the fix is at the far end "
-            "of the chain")
-SUBHEAD = ("A subsystem registrar is never called, because its only reference is "
-           "a data pointer rather than a call. The registry count stays at one, a "
-           "type lookup that needs two or more silently returns an uninitialised "
-           "descriptor, and the boot dereferences -1. Every function in that chain "
-           "is faithful to the original; none of them should be guarded.")
+HEADLINE = ("Two walls broken, and the third turned out to be a different bug "
+            "entirely")
+SUBHEAD = ("Walls 40 and 41 were containers nothing ever filled, and both are now "
+           "guarded and passed. Wall 42 looked the same and is not: the object is "
+           "populated correctly and then overwritten. A watchpoint on the guest "
+           "address caught the allocator's free path writing over the table "
+           "pointer during a refcount release. That one is being left to fault, "
+           "because guarding a wrong object would only hide the allocator "
+           "defect underneath it.")
 
 
 def lifted_function_count():
