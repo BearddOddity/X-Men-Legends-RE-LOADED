@@ -399,6 +399,9 @@ extern void sub_001A35AC(void);
 extern void sub_001A3554(void);
 extern void sub_00011E40(void);
 extern void sub_001A237D(void);
+#ifdef RECOMP_SCOUT
+extern void scout_static_init(void);   /* src/recomp_scout.c - throwaway */
+#endif
 
 static void sub_001A1C23(void)
 {
@@ -455,7 +458,17 @@ static void sub_001A1C23(void)
     g_esp -= 4; MEM32(g_esp) = 0;  /* dummy return address */
     { static unsigned _e; fprintf(stderr,
         "[MAINLOOP] enter #%u\n", ++_e); fflush(stderr); }
+#ifdef RECOMP_SCOUT
+    /*
+     * Reconnaissance build only - see src/recomp_scout.c. Replays the same
+     * ten initialiser calls with each one wrapped in SEH, so a fault skips
+     * that initialiser instead of ending the boot. Never enabled in a build
+     * used to measure progress.
+     */
+    scout_static_init();
+#else
     sub_00011E40();
+#endif
     { static unsigned _x; fprintf(stderr,
         "[MAINLOOP] RETURNED #%u eax=%08X\n", ++_x, g_eax); fflush(stderr); }
     g_esp += 16;
@@ -2155,6 +2168,7 @@ extern void sub_00397556(void);
 extern void sub_00397598(void);
 extern void sub_00397618(void);
 extern void sub_00397732(void);
+extern void sub_001D21F0(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -3820,6 +3834,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00397598u) return sub_00397598;
     if (xbox_va == 0x00397618u) return sub_00397618;
     if (xbox_va == 0x00397732u) return sub_00397732;
+    if (xbox_va == 0x001D21F0u) return sub_001D21F0;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;

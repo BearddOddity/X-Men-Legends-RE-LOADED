@@ -57,6 +57,23 @@ if(RECOMP_TRAP_PAGE_ZERO)
     message(STATUS "RECOMP_TRAP_PAGE_ZERO is ON - guest page 0 is unmapped")
 endif()
 
+# THROWAWAY reconnaissance build. Wraps each of the ten static initialisers in
+# SEH so a fault skips that initialiser instead of ending the boot, the same
+# way RECOMP_TRAP_PAGE_ZERO censuses page 0 in one pass rather than dying at
+# the first hit. It exists to find out whether the D3D/NV2A host code produces
+# anything, since that code is downstream of all ten and has never run.
+#
+# It deliberately continues past faults the real port must not continue past.
+# NEVER measure coverage or progress on this build and never record a run of it
+# in progress.json. Use a SEPARATE build dir:
+#   cmake -S . -B build_scout -DRECOMP_SCOUT=ON
+option(RECOMP_SCOUT "throwaway: survive faulting static initialisers" OFF)
+if(RECOMP_SCOUT)
+    add_compile_definitions(RECOMP_SCOUT)
+    message(WARNING "RECOMP_SCOUT is ON - reconnaissance build. "
+                    "Results are NOT valid progress and must not be measured.")
+endif()
+
 # ── xboxrecomp toolkit ──────────────────────────────────────────
 #
 # Option A: xboxrecomp as a subdirectory (simplest)
@@ -89,6 +106,9 @@ file(GLOB RECOMP_GEN_SOURCES CONFIGURE_DEPENDS "src/recomp/gen/*.c")
 set(GAME_SOURCES
     src/main.c
     src/recomp_manual.c
+    # Throwaway reconnaissance driver. Compiles to nothing unless RECOMP_SCOUT
+    # is defined; the whole file is inside #ifdef RECOMP_SCOUT.
+    src/recomp_scout.c
     # Native replacement for the Xbox D3D8 entry points. The recomp pipeline
     # never disassembles the D3D section, so without this those calls fall
     # through to empty stubs that leak simulated stack and return stale
