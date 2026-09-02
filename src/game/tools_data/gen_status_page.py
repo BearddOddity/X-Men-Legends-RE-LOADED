@@ -35,15 +35,21 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Two walls broken, and the third turned out to be a different bug "
-            "entirely")
+HEADLINE = ("Two walls broken, a use-after-free behind the third, and the port "
+            "started becoming a PC game")
 SUBHEAD = ("Walls 40 and 41 were containers nothing ever filled, and both are now "
-           "guarded and passed. Wall 42 looked the same and is not: the object is "
-           "populated correctly and then overwritten. A watchpoint on the guest "
-           "address caught the allocator's free path writing over the table "
-           "pointer during a refcount release. That one is being left to fault, "
-           "because guarding a wrong object would only hide the allocator "
-           "defect underneath it.")
+           "guarded and passed. Wall 42 is a confirmed use-after-free: the holder "
+           "at 0x01092B58 is freed and then used twice more, and what looked like "
+           "an overwrite is the allocator's own free-list link landing in the "
+           "freed block. Who releases it three times is still unidentified - an "
+           "explanation involving a recursive teardown was written down and then "
+           "retracted when a probe showed that function is never reached with "
+           "this object. It is left to fault, because guarding a read of freed "
+           "memory would hide the defect rather than fix it. Meanwhile the other "
+           "half of the project moved: Xbox RAM is now a setting rather than a "
+           "64 MB constant, and textures can be replaced at up to 4K with "
+           "generated mip chains - neither constrained by the boot, because "
+           "neither runs inside it.")
 
 
 def lifted_function_count():
