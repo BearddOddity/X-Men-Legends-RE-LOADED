@@ -525,3 +525,112 @@ attributable to `sub_0020AA90` specifically.
    count stays at 1, the type-lookup fallback that needs ≥2 entries is dead,
    and descriptors are never sized. Fixing the count retires the family rather
    than one wall at a time.
+
+## Session close, 2 September 2026: modern PC targets
+
+Boot is still at wall 42. This session's work was the other half of the
+project - making the port a *PC* port rather than a faithful console
+reimplementation - which can proceed in parallel because none of it depends on
+the boot surviving.
+
+The framing that drove it: the Xbox's limits are the source binary's
+constraints, not this port's. Where a limit is enforced by host code we now
+write, it becomes a setting.
+
+### Memory is no longer fixed at 64 MB
+
+`XBOX_TOTAL_RAM` was a compile-time 64 MB. It is now `g_xbox_total_ram`, set at
+startup by `xbox_ConfigureRam()` from `XBOX_RAM_MB`, accepting 64 or 128 - the
+retail and devkit configurations. `kernel_memory.c` derives
+`TotalPhysicalPages` from it, so a title querying free memory sees the larger
+pool.
+
+Only those two values are accepted, and that is deliberate rather than timid:
+the guest's own allocators were built against a 26-bit memory bus and RAM that
+wraps modulo 64 MB, which the port reproduces with mirrored views. An arbitrary
+size would put the mirror somewhere the guest's arithmetic does not expect. 128
+MB is the one larger layout the hardware itself defined.
+
+### Payloads moved out of the guest's way
+
+Host-side payload allocations sat where they could collide with guest memory.
+They now live in a dedicated arena, `XBOX_PAYLOAD_BASE 0x0C000000` to
+`XBOX_PAYLOAD_LIMIT 0x10000000`, sized by `XBOX_PAYLOAD_MB`, below the 256 MB
+ceiling that the Xbox's 28-bit physical resource pointers impose. That ceiling
+is real and cannot be raised without breaking every `ptr & 0x0FFFFFFF` the
+binary performs, so it is documented as hardware rather than exposed as a
+setting.
+
+`d3d8_PayloadAlloc()` takes the arena first and falls back to the guest heap,
+so exhausting the arena degrades rather than fails.
+
+### Texture replacement
+
+`src/d3d/d3d8_texrepl.c`. Replacement art is bound at draw time in place of the
+game's own texture; the title keeps its small texture object and never learns
+anything changed.
+
+Replacements are **host** memory. None of the limits above apply to them - not
+64 MB, not the 256 MB arena, not the 28-bit pointers. This is the one place in
+the port where "modern PC budget" is literally true.
+
+Identity is an FNV-1a hash of the game's own level-0 pixels, taken at upload.
+Hashing content rather than hooking the `.igb` asset loader means replacement
+is pipeline-independent: the same texture is recognised however it arrives.
+
+Enable with `XBOX_TEXTURES=<dir>`; the log names the file to supply.
+
+```
+[TEXREPL] miss 3F2A9C41D0B7E856  64x64 fmt=6   <- dump this name
+textures\3F2A9C41D0B7E856.bmp                  <- provide this file
+```
+
+32-bit uncompressed BMP. Not DDS: DDS needs a parser for a large format or an
+external library, and neither earns its keep for a feature whose job is "let
+someone drop in a bigger picture".
+
+**Sizes.** Only an upper bound is enforced, `TEXREPL_MAX_DIM 4096`. Verified
+against a 64x64 original:
+
+| replacement | scale | VRAM with mips |
+|---|---|---|
+| 512x512 | 8x | 1.3 MB |
+| 1024x1024 | 16x | 5.3 MB |
+| 2048x2048 | 32x | 21.3 MB |
+| 4096x4096 | 64x | 85.3 MB |
+| 8192x1024 | - | rejected |
+
+Each step is 4x the memory of the one below, which is why the ceiling sits at
+4096 rather than at the 16384 D3D11 feature level 11 permits: a few dozen 4K
+replacements would exhaust a mid-range card for detail nobody can resolve.
+That is policy, and `TEXREPL_MAX_DIM` is one edit. There is no lower bound, so
+art can arrive one resolution at a time.
+
+**Mips are generated, not optional.** A 4K texture standing in for a 64x64
+original is minified enormously; unmipped it aliases and crawls in motion -
+worse than the texture it replaced. That forces the creation path, because a
+mip chain cannot be generated on an `IMMUTABLE` texture created with initial
+data: `MipLevels = 0`, `USAGE_DEFAULT`, `BIND_RENDER_TARGET`,
+`MISC_GENERATE_MIPS`, upload level 0, then `GenerateMips`.
+
+Negative lookups are cached. A texture re-uploaded every frame would otherwise
+stat a missing file every frame.
+
+`g_texrepl_vram_bytes` tracks the cost, because silent VRAM exhaustion is
+miserable to diagnose.
+
+### How any of this was testable
+
+None of it could be exercised through the game, which does not reach rendering.
+`tools/gfx_harness/` drives the graphics stack with no game attached, in five
+stages: create device, clear and present, a D3D8 triangle, an NV2A push-buffer
+dispatch, and a texture upload with replacement. All five pass.
+
+The harness is the reason the graphics work is not speculative. It is also a
+standing regression test for a subsystem the boot cannot yet reach.
+
+### Scope
+
+Everything here is off by default. Without `XBOX_TEXTURES` the replacement path
+is inert; without `XBOX_RAM_MB` the port is a 64 MB Xbox. None of it changes
+boot behaviour, and none of it is evidence about wall 42 in either direction.
