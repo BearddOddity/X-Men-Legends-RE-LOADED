@@ -10,6 +10,7 @@
  */
 
 #include "kernel.h"
+#include "xbox_memory_layout.h"   /* XBOX_TOTAL_RAM - the configured RAM size */
 #include <malloc.h>
 
 /* ============================================================================
@@ -135,9 +136,13 @@ NTSTATUS __stdcall xbox_MmQueryStatistics(PXBOX_MM_STATISTICS MemoryStatistics)
     memset(MemoryStatistics, 0, sizeof(XBOX_MM_STATISTICS));
     MemoryStatistics->Length = sizeof(XBOX_MM_STATISTICS);
 
-    /* Xbox has 64MB RAM. Report plausible values. */
+    /* Report the configured Xbox RAM size (XBOX_RAM_MB; 64 retail, 128 devkit).
+     * This is only half of how a title learns the size - the XDK also probes by
+     * walking memory and checking whether high addresses alias low ones, which
+     * the mirror views in xbox_MemoryLayoutInit answer. Both follow
+     * g_xbox_total_ram, so they cannot disagree. */
     ULONG page_size = 4096;
-    MemoryStatistics->TotalPhysicalPages = 64 * 1024 * 1024 / page_size; /* 16384 pages */
+    MemoryStatistics->TotalPhysicalPages = XBOX_TOTAL_RAM / page_size;
     MemoryStatistics->AvailablePages = (ULONG)(ms.ullAvailPhys / page_size);
     if (MemoryStatistics->AvailablePages > MemoryStatistics->TotalPhysicalPages)
         MemoryStatistics->AvailablePages = MemoryStatistics->TotalPhysicalPages / 2;

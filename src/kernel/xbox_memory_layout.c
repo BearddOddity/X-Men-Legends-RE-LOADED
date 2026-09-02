@@ -12,6 +12,7 @@
  * 4. Set memory protection (read-only for .rdata)
  */
 
+#include <stdlib.h>   /* getenv, strtoul - XBOX_RAM_MB */
 #include "xbox_memory_layout.h"
 #include "xbox_page_zero_trap.h"
 #include "xbox_watch.h"
@@ -48,6 +49,97 @@ static HANDLE g_mapping_handle = NULL;
 
 /* Mirror view pointers for cleanup */
 static void *g_mirror_views[XBOX_NUM_MIRRORS] = {0};
+
+/*
+ * Emulated Xbox RAM size. Retail default; XBOX_RAM_MB=128 selects the devkit
+ * configuration. See the header for why only 64 and 128 are accepted.
+ *
+ * Everything downstream follows this: g_memory_size is set from it, the mirror
+ * views stride by g_memory_size, and MmQueryStatistics reports it. Raising it
+ * therefore moves the aliasing boundary the XDK's own memory probe reads, which
+ * is the mechanism that actually tells the game how much RAM it has.
+ */
+uint32_t g_xbox_total_ram = XBOX_TOTAL_RAM_DEFAULT;
+
+/*
+ * Payload arena. 0 = disabled, which is the default: with it off nothing about
+ * the memory map changes. See the header for why it sits at 192..256 MB.
+ */
+uint32_t g_xbox_payload_size = 0;
+static HANDLE g_payload_mapping = NULL;
+static void  *g_payload_view = NULL;
+static uint32_t g_payload_next = XBOX_PAYLOAD_BASE;
+
+static void xbox_ConfigurePayload(void)
+{
+    const char *spec = getenv("XBOX_PAYLOAD_MB");
+    unsigned long mb;
+    char *end = NULL;
+
+    if (!spec || !*spec)
+        return;
+
+    mb = strtoul(spec, &end, 10);
+    if (!end || *end != '\0' || mb == 0 || mb > XBOX_PAYLOAD_MAX_MB) {
+        fprintf(stderr,
+            "[MEM] XBOX_PAYLOAD_MB=\"%s\" ignored - expected 1..%u. The arena "
+            "sits at 0x%08X and must end by 0x%08X, because the XDK stores "
+            "resource pointers as 28-bit physical addresses and anything above "
+            "that truncates silently.\n",
+            spec, XBOX_PAYLOAD_MAX_MB, XBOX_PAYLOAD_BASE, XBOX_PAYLOAD_LIMIT);
+        fflush(stderr);
+        return;
+    }
+    g_xbox_payload_size = (uint32_t)(mb * 1024u * 1024u);
+}
+
+uint32_t xbox_PayloadAlloc(uint32_t size, uint32_t align)
+{
+    uint32_t base;
+
+    if (!g_payload_view || g_xbox_payload_size == 0 || size == 0)
+        return 0;
+    if (align < 4) align = 4;
+
+    base = (g_payload_next + (align - 1)) & ~(align - 1);
+    if (base < XBOX_PAYLOAD_BASE ||
+        base + size > XBOX_PAYLOAD_BASE + g_xbox_payload_size ||
+        base + size < base) {                       /* overflow */
+        fprintf(stderr,
+            "[MEM] payload arena exhausted: wanted %u bytes, %u of %u used\n",
+            size, g_payload_next - XBOX_PAYLOAD_BASE, g_xbox_payload_size);
+        fflush(stderr);
+        return 0;
+    }
+    g_payload_next = base + size;
+    return base;
+}
+
+static void xbox_ConfigureRam(void)
+{
+    const char *spec = getenv("XBOX_RAM_MB");
+    unsigned long mb;
+    char *end = NULL;
+
+    if (!spec || !*spec)
+        return;                      /* unset: stay at the retail default */
+
+    mb = strtoul(spec, &end, 10);
+    if (end && *end == '\0' && (mb == 64 || mb == 128)) {
+        g_xbox_total_ram = (uint32_t)(mb * 1024u * 1024u);
+        fprintf(stderr,
+            "[MEM] XBOX_RAM_MB=%lu - emulating %lu MB%s\n", mb, mb,
+            mb == 128 ? " (development kit configuration)" : " (retail)");
+    } else {
+        fprintf(stderr,
+            "[MEM] XBOX_RAM_MB=\"%s\" ignored - only 64 or 128 are accepted. "
+            "The address mask in kernel_rtl.c needs a power of two, and the "
+            "XDK's 28-bit physical resource pointers (ptr & 0x0FFFFFFF) start "
+            "truncating at 256 MB. Staying at %u MB.\n",
+            spec, (unsigned)(g_xbox_total_ram / (1024u * 1024u)));
+    }
+    fflush(stderr);
+}
 
 /* Separate allocation for Xbox kernel address space (0x80010000+).
  * Some RenderWare code reads the kernel PE header to detect features. */
@@ -127,6 +219,8 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
      * from, the XBE sections, and the simulated stack.
      */
     /* Map the full 64MB Xbox address space (covers all sections + stack + heap) */
+    xbox_ConfigureRam();          /* honour XBOX_RAM_MB before anything sizes off it */
+    xbox_ConfigurePayload();      /* and XBOX_PAYLOAD_MB, before the mirrors are placed */
     g_memory_size = XBOX_TOTAL_RAM;
 
     /*
@@ -568,6 +662,23 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         for (int m = 0; m < XBOX_NUM_MIRRORS; m++) {
             uintptr_t mirror_base = (uintptr_t)g_memory_base +
                                     (uintptr_t)(m + 1) * g_memory_size;
+            /*
+             * Skip any mirror that would land on the payload arena. The arena
+             * is deliberately placed at the TOP of the sub-256 MB window so
+             * the mirrors the XDK's memory probe actually walks - the first
+             * one, at a single RAM-size above zero - are left intact.
+             */
+            if (g_xbox_payload_size) {
+                uint32_t mv = (uint32_t)(mirror_base - (uintptr_t)g_memory_base);
+                if (mv + g_memory_size > XBOX_PAYLOAD_BASE &&
+                    mv < XBOX_PAYLOAD_BASE + g_xbox_payload_size) {
+                    fprintf(stderr,
+                        "  Mirror %d: skipped, payload arena occupies "
+                        "0x%08X-0x%08X\n", m + 1, XBOX_PAYLOAD_BASE,
+                        XBOX_PAYLOAD_BASE + g_xbox_payload_size);
+                    continue;
+                }
+            }
             g_mirror_views[m] = MapViewOfFileEx(
                 g_mapping_handle,
                 FILE_MAP_ALL_ACCESS,
@@ -585,6 +696,40 @@ BOOL xbox_MemoryLayoutInit(const void *xbe_data, size_t xbe_size)
         fprintf(stderr, "  RAM mirror: %d/%d views mapped (covers %d MB)\n",
                 mirrors_ok, XBOX_NUM_MIRRORS,
                 (int)((mirrors_ok + 1) * g_memory_size / (1024 * 1024)));
+    }
+
+    /*
+     * Map the payload arena, if enabled. Its own mapping, NOT a view of the
+     * RAM section - the whole point is that it is real additional storage
+     * rather than another alias of the same 64 MB.
+     */
+    if (g_xbox_payload_size) {
+        uintptr_t native = (uintptr_t)g_memory_base + XBOX_PAYLOAD_BASE;
+        g_payload_mapping = CreateFileMappingA(
+            INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+            0, g_xbox_payload_size, NULL);
+        if (g_payload_mapping) {
+            g_payload_view = MapViewOfFileEx(
+                g_payload_mapping, FILE_MAP_ALL_ACCESS,
+                0, 0, g_xbox_payload_size, (LPVOID)native);
+        }
+        if (g_payload_view) {
+            fprintf(stderr,
+                "  Payload arena: %u MB at Xbox VA 0x%08X-0x%08X (native %p)\n"
+                "    outside the game's heap; the game's memory accounting is "
+                "unchanged\n",
+                g_xbox_payload_size / (1024u * 1024u), XBOX_PAYLOAD_BASE,
+                XBOX_PAYLOAD_BASE + g_xbox_payload_size, g_payload_view);
+        } else {
+            fprintf(stderr,
+                "  Payload arena: FAILED to map %u MB at 0x%08X (error %lu) - "
+                "resources fall back to the Xbox heap\n",
+                g_xbox_payload_size / (1024u * 1024u), XBOX_PAYLOAD_BASE,
+                GetLastError());
+            g_xbox_payload_size = 0;      /* so xbox_PayloadAlloc stays off */
+            if (g_payload_mapping) { CloseHandle(g_payload_mapping); g_payload_mapping = NULL; }
+        }
+        fflush(stderr);
     }
 
     /* Opt-in diagnostic, last of all: everything above writes to low memory
