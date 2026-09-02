@@ -396,7 +396,7 @@ void xbox_WatchPollVA(uint32_t va);
             recomp_esp_escape(#fn, _abi_p);                          \
     } while (0)
 #else
-#define RECOMP_ABI_CALL(fn) do { RECOMP_MARK_SITE(); fn(); RECOMP_WATCH_POLL(#fn); } while (0)
+#define RECOMP_ABI_CALL(fn) do { RECOMP_MARK_SITE(); RECOMP_WATCH_POLL("before " #fn); fn(); RECOMP_WATCH_POLL(#fn); } while (0)
 #endif
 
 
@@ -689,7 +689,7 @@ void recomp_abi_violation_va(uint32_t target_va,
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_WATCH_POLL("before icall"); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); } \
     else { recomp_icall_fail_log(_va); g_esp += 4; eax = 0; } \
 } while(0)
 
@@ -726,7 +726,7 @@ void recomp_abi_violation_va(uint32_t target_va,
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_WATCH_POLL("before icall"); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); } \
     else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 

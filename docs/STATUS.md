@@ -1,8 +1,8 @@
 # Where this port stands
 
-*29 August 2026. Figures from a deterministic two-of-two run of the current build.*
+*1 September 2026. Figures from a deterministic two-of-two run of the current build.*
 
-**28,318 functions are translated to C. 415 call sites execute.**
+**28,318 functions are translated to C. 445 call sites execute.**
 
 That ratio is the whole picture. Translation was never the bottleneck and has
 not been for some time. The game dies inside its own C runtime's static
@@ -455,3 +455,73 @@ allocation prefix — and only the last came from a decompiler. Hand-reading
 disassembly produced a plausible wrong answer twice, and both times the wrong
 answer was *self-consistent*, which is why it survived. The lab was available
 throughout.
+
+## Session close, 1 September 2026
+
+**Baseline.** 514 kernel calls, 94 heap allocations, 445 distinct direct call
+sites, 154 distinct indirect targets reached. Faults at RVA `0xDED4C5`, in
+`sub_001EB890+0x1d5`, reading `0x8B0146F4`. Two walls were broken this stretch
+(39 → 41 passed); the baseline moved 434 → 514 kernel calls and 415 → 445 call
+sites.
+
+### Wall 42 is a different mechanism, and it is now understood
+
+Walls 40 and 41 were containers that were never filled. Wall 42 is not. The
+holder object at `0x01092B58` is the same object on all three calls into
+`FUN_0020ef90`, but its field 0 changes:
+
+```
+[HOLDER] 01092B58 table=01091B30 f20=00000001
+[HOLDER] 01092B58 table=01091B30 f20=00000001
+[HOLDER] 01092B58 table=0109863C f20=00000001   <- bogus
+```
+
+The guest watchpoint on `0x01092B58` named the writer:
+
+```
+[WATCH-POLL] #1 guest 0x01092B58 changed 00000000 -> 01091B30 across before icall
+[WATCH-POLL] #2 guest 0x01092B58 changed 01091B30 -> 0109863C across sub_0020AA90
+```
+
+Backtrace for hit 2: `sub_0020EF90+0x22c` → `sub_0020EEE0` → `sub_001EC750` →
+`sub_00211530`, which is the allocator.
+
+The path is a refcount release. `FUN_00123600` decrements `param_1[1]` and, at
+zero, calls `FUN_0020ef90`. That removes the entry from the table and then,
+when `holder+0x20` is non-zero, calls `FUN_0020eee0(*this, this)` — a shrink
+that stores a new table pointer back into `holder+0`. The replacement pointer
+is the bad one, and `sub_001EB890` then binary-searches an object whose count
+field holds a pointer and whose array field holds `0x680`.
+
+The auto-release flag was checked and cleared of suspicion. Watching
+`holder+0x20` showed it set `0 → 1` by `sub_001F8830`, under `sub_00216EE0` —
+the descriptor constructor. It is legitimate initialisation, so the release
+itself is intended behaviour and the defect is in what the shrink produces.
+
+### Deliberately not guarded
+
+Per the standing rule: restore a check the original wrote, never invent one to
+survive bad data. Walls 40 and 41 were guarded because an empty container is
+something the original checked for. Wall 42 is a *wrong object*, and guarding
+it would hide the allocator defect rather than fix it.
+
+### Instrument change
+
+`RECOMP_ABI_CALL` and both icall macros now sample the watched value **before**
+the call as well as after. An after-only poll fires when a call returns, which
+bounds a whole subtree rather than naming a writer — that is what made hit #2
+attributable to `sub_0020AA90` specifically.
+
+### Next
+
+1. Decompile `sub_0020EEE0` and `sub_0020AA90` to find why the shrink yields a
+   bad table pointer. `sub_0020AA90` appears in the allocator decompilation as
+   the free path, so a recycled or double-freed block is the leading
+   hypothesis.
+2. Seed Ghidra with the 512 heuristically found functions. `sub_001EC5E0`,
+   `sub_0020E960` and `sub_002263F0` have no Ghidra function, so the
+   decompiler currently covers only part of the critical path.
+3. The root defect behind walls 40–42 is unchanged: the subsystem registry
+   count stays at 1, the type-lookup fallback that needs ≥2 entries is dead,
+   and descriptors are never sized. Fixing the count retires the family rather
+   than one wall at a time.
