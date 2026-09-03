@@ -35,16 +35,18 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Two walls broken, and the third is now understood line by line")
-SUBHEAD = ("Walls 40 and 41 were containers nothing ever filled, and both are now "
-           "guarded and passed. Wall 42 is a use-after-free, and this session traced "
-           "it end to end: three named blocks allocated from one memory pool each "
-           "reach refcount zero, and removing the second one frees the pool while the "
-           "third still points at it. The third removal then looks its name up in an "
-           "allocator pointer read out of freed memory, and that is the fault. The "
-           "decision to free hinges on a counter that nothing in the binary ever "
-           "initialises. It is left to fault rather than guarded, because guarding a "
-           "read of freed memory would hide the defect instead of fixing it.")
+HEADLINE = ("Nine walls broken in one session, and the pattern behind them "
+            "has a scanner now")
+SUBHEAD = ("Walls 42 through 50 fell on 2 September. All of them traced back to one "
+           "defect in how the translator saves the stack pointer around indirect "
+           "calls: a failed call rolled the stack back past a function's saved "
+           "registers, so it returned a stale pointer to its caller. In the worst "
+           "case an object initialiser then ran twice on one object and never on "
+           "another, freeing memory that was still in use. The project's own "
+           "callee-save checker named the culprit in a single run after two sessions "
+           "of hand-probing had not; a new scanner then found the same defect at 284 "
+           "more sites, and fixing them all broke another wall. Execution now reaches "
+           "530 kernel calls and 460 call sites, up from 514 and 445.")
 
 
 def lifted_function_count():
