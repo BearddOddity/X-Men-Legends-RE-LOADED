@@ -1,4 +1,6 @@
-# X-Men Legends — PC Port ## NOW UNDER NEW NAME ## X-Men Legends: RE-LOADED
+# X-Men Legends: RE-LOADED #
+ **X-Men Legends — PC Port** 
+once finished and bundled to the rest of collection the bundles name will be Marvel Legends: RE-Compiled 
 
 Static recompilation of **X-Men Legends (Original Xbox)** into a native Windows
 executable. **No emulator at runtime.**
