@@ -2920,6 +2920,21 @@
     "root-cause"
    ],
    "when": "2026-09-03 07:54"
+  },
+  {
+   "id": 174,
+   "claim": "The kernel-call count has been the misleading signal: the 226 to 434 jump came with ZERO extra dispatches, while today's lower 230 carries twice the work of anything before it",
+   "verdict": "confirmed",
+   "evidence": "SCANNED ALL 49 DISTINCT WALLS ACROSS 198 ENTRIES. (1) SEVEN WALLS WERE REVISITED after being left - VCRUNTIME140.dll three times across 106 entries, sub_002235D0+0xC0 three times across 54, sub_00205170+0x7D1 twice across 15, and four more that oscillated within two entries during a bisect and are noise rather than regressions. (2) FIFTEEN WALLS WERE LEFT BY A BYPASS OR AN UNCLEAR CHANGE rather than a repair, by classifying the entry that moved off each one: sub_001A0B0C, sub_001F7930+0x1FC, sub_00221F50+0x2E2, sub_001F7560+0x2F8, sub_0013AE50+0xB10, sub_0013B0E0+0x2CE, sub_001186A0+0xC7, sub_0013AE50+0x3C1, sub_0034139A+0x25A, sub_00204800+0x24D and five unclear. Those are passed in the counter and not in the code. (3) ELEVEN WALLS ARE NOT PROVEN BROKEN TODAY - they sat deeper than the 230 kernel calls the current build reaches, so whether their repairs still hold is untested: sub_00202B87+0x35E at depth 1426, sub_001EBA9E+0x1A4 at 582, sub_00209414+0x3FA, sub_00221070+0x647 and sub_001E8800+0x182 at 530, sub_001EA600+0x2C3, sub_001EB890+0x1D5 and sub_001EA6B0+0x2FB at 514, sub_002096B0+0xD5 at 434, sub_001EA5A0+0x341 at 338, sub_00205170+0x7D1 at 274. Thirty-five others sit shallower than 230 and ARE passed every run. (4) THE MISLEADING NUMBER, and this is the finding that matters. Aug 9: 226 kernel, 154 reached, 22313 dispatches. Aug 29 after seeding 512 pointers: 434 kernel, 159 reached, 22313 dispatches - the kernel count nearly DOUBLED while the dispatch count did not move by one and reached rose by five. A count rising with no more work happening is a count measuring something else. Sep 2: 578 kernel, 165 reached, 24681 dispatches. Today: 230 kernel, 196 reached, 551 call sites, 44941 dispatches - the kernel count is the lowest since August and the work is DOUBLE anything ever recorded. The mechanism is proven separately: entry #148's own words are that the wall moves off sub_001FBA90, and that is exactly where ledger #136's carry-flag fix lives - a fix a seeding run silently discards. With it absent the predicate answers yes to everything and the boot skips work while counting kernel calls; with it present the boot is at 230 both on Aug 9 and today. CONCLUSION: reached, call sites and dispatches have risen monotonically all along and are trustworthy; kernel_calls inflated between Aug 29 and Sep 2 and should not be read as depth.",
+   "tags": [
+    "audit",
+    "walls",
+    "regression",
+    "misleading",
+    "kernel-calls",
+    "signals"
+   ],
+   "when": "2026-09-03 08:01"
   }
  ]
 }

@@ -2664,5 +2664,19 @@
     "message": "Traced the current wall from the fault all the way to its cause in four probes, each eliminating a candidate. The wall sees alloc=00000002 where an allocator pointer belongs; the 2 is not produced inside sub_0020E547 (probes on both candidate returns fired zero times on the fatal call), and not by the caller sub_002219A0 (which only forwards), and not by the value's producer (the virtual call at [obj+0x58] in sub_00209470 fired 92 times and returned 01088A90 every time). It is the STACK. Bracketing sub_002219A0's call to sub_00209650 across two nested invocations: the inner returns esp at pre-4, correct for this cdecl call, and the outer returns esp at pre+12 - sixteen bytes too HIGH. sub_00209650 over-pops, so MEM32(esp+8) reads past the argument and picks up 2. Opposite sign to the leaks in ledger #84 and #145, and consistent with the ABI checker already naming sub_00209650. Also swept the whole tree for the dead-guard class found in ledger #172: exactly one instance, the one already known, so every other manual guard is live and the ten diagnostic bypasses are real.",
     "note": "Diagnosis only, no behaviour change. Probes stripped, baseline re-verified twice at 230/136/292/196/551, manual_edits 1093/1093, no duplicates. The nesting matters for the next step: the outer sub_00209650 call CONTAINS the inner sub_002219A0 invocation, so the 16-byte over-pop happens somewhere in that deeper chain rather than in sub_00209650's own prologue. Next is to bracket esp inside sub_00209650 across its callees and find which one over-pops. Ledger #173.",
     "commit": "3ccd08b"
+  },
+  {
+    "kernel_calls": 230,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Audited every wall: all 49 distinct crash sites across 198 recorded runs. THE FINDING THAT MATTERS is that kernel_calls stopped measuring depth around 29 August. On that date the count nearly doubled, 226 to 434, while the dispatch count did not move by ONE (22,313 both sides) and reached rose by five. A count that rises with no more work happening is measuring something else. Today the kernel count is the lowest since August at 230, and the work is double anything ever recorded at 44,941 dispatches, with reached at 196 and call sites at 551, both records. The mechanism is proven separately: entry #148's own summary says the wall moves off sub_001FBA90, which is exactly where ledger #136's carry-flag fix lives and which a seeding run silently discards - with the fix absent the predicate answers yes to everything and the boot SKIPS work while still counting kernel calls. Also found: 11 walls sat deeper than 230 and are therefore not proven broken today, 7 walls were left and later returned to, and 15 were left by a bypass rather than a repair. Two new tools keep this repeatable: audit_walls.py and audit_wall_depth.py.",
+    "note": "No behaviour change; analysis only, baseline unchanged at 230/136/292/196/551. CONCLUSION FOR READING THE HISTORY: reached, call sites and dispatches have risen monotonically throughout and are trustworthy. kernel_calls between 29 August and 2 September should not be read as depth, and the 434/514/578 figures in entries #148-#191 are inflated by a missing fix rather than earned. This is consistent with, and explains, the 582 to 230 correction recorded in entry #192. Full breakdown in docs/REGRESSIONS.md section W. Ledger #174.",
+    "commit": "d1882ea"
   }
 ]

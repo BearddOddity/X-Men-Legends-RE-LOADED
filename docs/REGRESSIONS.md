@@ -225,6 +225,80 @@ arrives as the **argument**, and `recomp_where` names the caller:
 #149's signature — callee-saved corruption. That is the next target.
 
 
+## W — the wall audit: what is actually broken
+
+All 49 distinct crash sites across 198 recorded runs, scanned 2026-09-03.
+
+### The misleading number
+
+**Kernel calls stopped measuring depth somewhere around 29 August.**
+
+| date | kernel | reached | call sites | dispatches |
+|---|---|---|---|---|
+| 9 Aug | 226 | 154 | 434 | 22,313 |
+| 29 Aug | 434 | 159 | 437 | **22,313** |
+| 2 Sep | 578 | 165 | 481 | 24,681 |
+| **3 Sep** | **230** | **196** | **551** | **44,941** |
+
+On 29 August the kernel count nearly doubled while the dispatch count did not
+move **by one** and `reached` rose by five. A count that rises with no more work
+happening is measuring something else.
+
+Today the kernel count is the lowest since August and the work is **double
+anything ever recorded**.
+
+The mechanism is proven separately. Entry #148's own summary says "the wall
+moves off `sub_001FBA90`" — which is exactly where ledger #136's carry-flag fix
+lives, and a seeding run silently discards the manual edits in that file. With
+the fix absent the predicate answers yes to everything and the boot *skips* work
+while still counting kernel calls; with it present the boot sits at 226 on
+9 August and 230 today.
+
+**`reached`, call sites and dispatches have risen monotonically throughout and
+are trustworthy. `kernel_calls` between 29 August and 2 September should not be
+read as depth.**
+
+### Eleven walls are not proven broken
+
+They sat deeper than the 230 kernel calls the current build reaches, so their
+repairs are untested by any run made today:
+
+| wall | depth | last seen |
+|---|---|---|
+| `sub_00202B87+0x35E` | 1426 | #90 |
+| `sub_001EBA9E+0x1A4` | 582 | #191 |
+| `sub_00209414+0x3FA` | 530 | #183 |
+| `sub_00221070+0x647` | 530 | #184 |
+| `sub_001E8800+0x182` | 530 | #185 |
+| `sub_001EA600+0x2C3` | 514 | #162 |
+| `sub_001EB890+0x1D5` | 514 | #181 |
+| `sub_001EA6B0+0x2FB` | 514 | #182 |
+| `sub_002096B0+0xD5` | 434 | #161 |
+| `sub_001EA5A0+0x341` | 338 | #138 |
+| `sub_00205170+0x7D1` | 274 | #142 |
+
+Thirty-five other walls sit shallower than 230 and **are** passed on every run.
+
+### Seven walls were revisited
+
+Left and later returned to. Three are substantive; four oscillated within two
+entries during a bisect and are noise.
+
+- `VCRUNTIME140.dll` — 3 visits across 106 entries
+- `sub_002235D0+0xC0` — 3 visits across 54 entries
+- `sub_00205170+0x7D1` — 2 visits across 15 entries
+
+### Fifteen walls were left by a bypass, not a repair
+
+Classified from the entry that moved off each one. These are passed in the
+counter and not in the code: `sub_001A0B0C`, `sub_001F7930+0x1FC`,
+`sub_00221F50+0x2E2`, `sub_001F7560+0x2F8`, `sub_0013AE50+0xB10`,
+`sub_0013B0E0+0x2CE`, `sub_001186A0+0xC7`, `sub_0013AE50+0x3C1`,
+`sub_0034139A+0x25A`, `sub_00204800+0x24D`, plus five whose exit entry is
+unclear.
+
+Ledger #174.
+
 ## R7 — one undocumented drop in the recorded history
 
 Entry #26 (2026-08-02), kernel calls 92 to 72, with no note. Every other large
