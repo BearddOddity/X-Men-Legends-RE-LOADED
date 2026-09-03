@@ -2935,6 +2935,21 @@
     "signals"
    ],
    "when": "2026-09-03 08:01"
+  },
+  {
+   "id": 175,
+   "claim": "The 16-byte over-pop is inside sub_002235D0 and is PATH-DEPENDENT: the same thunk is balanced on one invocation and over-pops on the next",
+   "verdict": "confirmed",
+   "evidence": "NARROWED FROM SIX FUNCTIONS TO ONE PATH, all by probe. (1) Bracketing sub_00209650 entry to exit showed its short-path invocations balanced at -4 and one long-path invocation exiting 16 bytes high. (2) Bracketing each step of the long path put the damage BEFORE any of it ran - esp was already wrong at loc_0020965B - so it happened in the indirect call at 0x00209651. (3) Probing that call's target and its stack effect names the culprit precisely, three dispatches from the same site: target 0021BD20 esp 00F7F9D0 -> 00F7F9CC correct, target 00221900 esp 00F7F9D0 -> 00F7F9DC sixteen bytes high, target 00222230 esp 00F7F980 -> 00F7F97C correct. (4) sub_00221900 is a plain 11-argument registration thunk and both its original and its recompiled form are balanced - 11 pushes, call, esp += 0x2C, ret - so the damage is below it. Bracketing inside it settles that AND shows the defect is path-dependent: invocation one entered at 00F7F9C8 and returned from sub_002235D0 at 00F7F9AC where 00F7F99C was due, 16 bytes high; invocation two entered at 00F7F97C and returned at 00F7F950, exactly right. Same function, same thunk, one balanced and one not. So sub_002235D0 over-pops 16 bytes on ONE of its paths. INSTRUMENT GAP, and it explains why this survived so long. RECOMP_CHECK_ABI has an esp check, but recomp_esp_escape only fires when esp leaves the SIMULATED STACK entirely - a range test against 0x00780000-0x00F80000, not a delta test. A 16-byte imbalance stays far inside that window and never trips it, so the ABI build reports 16 register violations and zero esp ones while this defect is live. A per-call delta check would have named sub_002235D0 immediately. Baseline unchanged, re-verified twice at 230/136/292/196/551.",
+   "tags": [
+    "wall",
+    "esp",
+    "over-pop",
+    "sub_002235D0",
+    "sub_00221900",
+    "instrument-gap"
+   ],
+   "when": "2026-09-03 08:21"
   }
  ]
 }

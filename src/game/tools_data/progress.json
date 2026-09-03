@@ -2766,5 +2766,21 @@
     "commit": "d1882ea",
     "reached": 196,
     "callsites": 551
+  },
+  {
+    "kernel_calls": 230,
+    "reached": 196,
+    "callsites": 551,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Task 1 landed and task 2 narrowed to one function and one path. progress.py now records reached and callsites, gates moved() on them BEFORE kernel_calls, excludes watchdog-clipped runs from best-ever (1456, not 4000, with 6 clipped runs named), leads the summary with the trustworthy signals, and no longer cries regression when kernel calls fall while reached is at a record. Backfilled both fields from prose, then cleared 35 entries again because an entry that measured a change and reverted it quotes BOTH sets of numbers and taking the after value records the discarded configuration as the tree's state. On the wall: bracketed sub_00209650 and found the damage before the long path even runs, then probed the indirect call's target - three dispatches from the same site, 0021BD20 and 00222230 both correct at -4, and 00221900 sixteen bytes high. sub_00221900 is a plain 11-argument thunk and is balanced in both original and recompiled form, so bracketing inside it: invocation one returned from sub_002235D0 at 00F7F9AC where 00F7F99C was due, invocation two returned exactly right. Same function, one balanced and one not - sub_002235D0 over-pops 16 bytes on ONE of its paths.",
+    "note": "No behaviour change on the boot; baseline re-verified twice at 230/136/292/196/551, probes stripped, manual_edits 1093/1093, no duplicates. INSTRUMENT GAP worth fixing next: RECOMP_CHECK_ABI has an esp check but recomp_esp_escape only fires when esp leaves the SIMULATED STACK entirely - a range test against 0x00780000-0x00F80000, not a delta test - so a 16-byte imbalance never trips it. The ABI build reports 16 register violations and zero esp ones while this defect is live. A per-call delta check would have named sub_002235D0 immediately, and would have caught this class every time it has appeared. Ledger #174, #175.",
+    "commit": "c30f1f9"
   }
 ]
