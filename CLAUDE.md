@@ -448,7 +448,8 @@ replace, `## The 15 rules` above: its ranked-falsifiable-hypothesis step
 ## Assigned powers
 
 <!-- 2026-09-03 assigned by skill-manager at the boot-to-menu debugging stage.
-     Same ten as `D:\My apps\Reverse Engineer Brain`, which is this project's
+     status-page added the same day, on request, once it was written.
+     Same eleven as `D:\My apps\Reverse Engineer Brain`, which is this project's
      knowledge side; the two rosters are kept identical on purpose so moving
      between the repos needs no switching step. Standing for this project. Do
      not re-derive; change only on an explicit shift. -->
@@ -473,6 +474,7 @@ their subject, whether or not they are named.
 | `superpowers:verification-before-completion` | Rules #1, #7 and #8 are this power written as house rules — build and run before and after, two runs per number, a second signal per fix |
 | `plugin-dev:skill-development` | `.claude/skills/` holds six locally authored skills, including `wayfinder` and `diagnosing-bugs` |
 | `caveman:caveman` | At **lite**: compressed but complete sentences. Rule #12 governs — articles and full grammar stay, because that is what dyslexia needs; only the filler goes |
+| `oddity-re:status-page` | `progress.py`, `ledger.json` and `walls.py` are exactly the evidence a progress page needs; `gen_status_page.py` is this skill already written by hand for one project |
 
 **Not assigned, deliberately:**
 
