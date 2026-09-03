@@ -2624,6 +2624,19 @@
     "abi-checker"
    ],
    "when": "2026-09-02 22:44"
+  },
+  {
+   "id": 153,
+   "claim": "The field array is not \"sized but never populated\" - _metaFields at meta+0x28 is NULL on look-up-path descriptors, and mapped page 0 turns the NULL read into a plausible count. Giving those descriptors a real EMPTY container is a REGRESSION",
+   "verdict": "refuted",
+   "evidence": "DIAGNOSIS CONFIRMED, FIX REFUTED - two separate results. (1) THE DIAGNOSIS. Probing the field walk prints meta, _metaFields, count and array together: healthy descriptors read \"mf=01097790 count=25 arr=01098088\", while the broken one reads \"mf=00000000 count=26 arr=010985B8\". _metaFields is NULL; the count of 26 and the array pointer are MEM32(0xC) and MEM32(8) read off mapped guest page zero. So the container was never sized-but-empty - it was never there, and page zero is what disguised that as plausible data. That explains why six field walks, a three-level linear search and a two-level binary search all faulted on garbage elements. (2) WHO ASSIGNS IT. A watch on a healthy descriptor's meta+0x28 names sub_00222708+0x3F3, which calls sub_00222600 to build the container. A watch on the broken one shows only the allocator zeroing the block. sub_002226E0 branches on the registry ready-flag at [0x5BC508]: not ready goes to sub_00222708 (constructs AND builds _metaFields), ready goes to the look-up path, which instantiates a blank descriptor via sub_0020E520 and never assigns +0x28. The descriptor class's construct vfunc is an empty function, so nothing fills it later. (3) THE FIX WAS TRIED AND IS A REGRESSION. Calling sub_00222600 in the look-up path when +0x28 is NULL - the same call the create path makes, applied only to genuinely NULL fields - gives kernel calls 578 -> 2210, which looks like a 4x advance and is not: distinct kernel ordinals stay at 17 and two ordinals account for 1086 calls each, so it is a spin. Callsites fall 481 -> 443 and reached VAs 165 -> 159, and the crash regresses to sub_001FBA90+0x76 fault 0xF6000013, the August-era wall. Reverted; baseline restored exactly at 481/578/165. (4) WHAT THAT MEANS. The boot's current depth partly DEPENDS on the walks iterating page-zero garbage with the range guards filtering it, rather than on correct data. Making the data truthfully empty moves the boot backwards. So the real fix is to POPULATE the fields, not to empty them - which needs registration to actually run for look-up-path descriptors, i.e. the BLOCKER_005BB700 registry-count defect. An empty container is truthful and still wrong for this boot.",
+   "tags": [
+    "root-defect",
+    "metafields",
+    "page-zero",
+    "type-descriptor"
+   ],
+   "when": "2026-09-02 23:10"
   }
  ]
 }
