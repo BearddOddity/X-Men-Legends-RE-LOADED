@@ -12487,5 +12487,97 @@
    "     * so the capture belongs after the register saves, immediately before the",
    "     * call. */"
   ]
+ },
+ {
+  "file": "recomp_0013.c",
+  "kind": "insert_before",
+  "function": "sub_001E8800",
+  "match": null,
+  "anchor": "    ecx = MEM32(ecx + 8);",
+  "pre": "loc_001E8814: ;",
+  "block": [
+   "    /* Manual guard (not in original x86): the entry ARRAY pointer is residue.",
+   "     * One level up from the per-entry guard below: the container's +8 array",
+   "     * pointer is itself allocator residue when the container was sized and",
+   "     * never populated - measured 0x74000000, so the first element read faulted",
+   "     * before any entry existed. loc_001E8869 is the function's own not-found",
+   "     * exit, which returns 0, and that is what a search over no entries means.",
+   "     *",
+   "     * DIAGNOSTIC BYPASS, per the walls.py method. See docs/TYPE_DESCRIPTOR.md. */",
+   "    if (!(MEM32(ecx + 8) >= 0x00880000u && MEM32(ecx + 8) < 0x04000000u)) goto loc_001E8869;"
+  ]
+ },
+ {
+  "file": "recomp_0013.c",
+  "kind": "insert_before",
+  "function": "sub_001E8800",
+  "match": null,
+  "anchor": "    eax = MEM32(ecx + edx);",
+  "pre": "    esi = MEM32(esp + 0x20);",
+  "block": [
+   "    /* Manual guard (not in original x86): skip an unfilled array slot.",
+   "     *",
+   "     * This is a linear name search: the caller's +0xC is the entry COUNT and",
+   "     * +8 the entry array; each entry's name pointer lives at entry+edx and is",
+   "     * compared byte by byte against the key at loc_001E8830. On a container",
+   "     * sized but never populated the entry is allocator residue, so entry+edx is",
+   "     * not a string - measured a byte read faulting at 0x8CF8005D.",
+   "     *",
+   "     * loc_001E885D is the loop's own increment, which is exactly what this code",
+   "     * does for any entry whose name does not match. The range is the one",
+   "     * sub_0020E547 already uses in this tree for the same judgement.",
+   "     *",
+   "     * DIAGNOSTIC BYPASS, per the walls.py method. The real defect is that the",
+   "     * array is never populated. See docs/TYPE_DESCRIPTOR.md. */",
+   "    if (!(ecx >= 0x00880000u && ecx < 0x04000000u)) goto loc_001E885D;"
+  ]
+ },
+ {
+  "file": "recomp_0013.c",
+  "kind": "insert_before",
+  "function": "sub_001E8800",
+  "match": null,
+  "anchor": "    /* nop */",
+  "pre": "    eax = MEM32(ecx + edx);",
+  "block": [
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001E885D;"
+  ]
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001EB890",
+  "match": null,
+  "anchor": "    ebp = MEM32(eax + edi * 4 + -4);",
+  "pre": "    eax = MEM32(edx + 0x10);",
+  "block": [
+   "    /* Manual guard (not in original x86): residue in the sorted array this",
+   "     * binary search walks. edx+0x10 is the element array and each element's",
+   "     * name is at element+8, compared byte by byte from loc_001EB8E0. When the",
+   "     * container was sized but never populated, either the array pointer or the",
+   "     * element is allocator residue - measured a byte read faulting at",
+   "     * 0x7541C4FE.",
+   "     *",
+   "     * A binary search cannot be given a direction from a garbage element, so",
+   "     * bail to loc_001EB929, the function's own not-found exit: it reports the",
+   "     * current index through the out-param and returns 0, which is exactly what",
+   "     * 'this key is not present' means here. The range is the one sub_0020E547",
+   "     * already uses in this tree.",
+   "     *",
+   "     * DIAGNOSTIC BYPASS, per the walls.py method. The real defect is that the",
+   "     * array is never populated. See docs/TYPE_DESCRIPTOR.md. */",
+   "    if (!(eax >= 0x00880000u && eax < 0x04000000u)) goto loc_001EB929;"
+  ]
+ },
+ {
+  "file": "recomp_0014.c",
+  "kind": "insert_before",
+  "function": "sub_001EB890",
+  "match": null,
+  "anchor": "    eax = MEM32(esp + 0x24);",
+  "pre": "    ebp = MEM32(eax + edi * 4 + -4);",
+  "block": [
+   "    if (!(ebp >= 0x00880000u && ebp < 0x04000000u)) goto loc_001EB929;"
+  ]
  }
 ]
