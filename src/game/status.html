@@ -238,20 +238,20 @@
     <div class="stamp">
       <span>2026-09-03</span>
       <span>default.xbe &middot; XDK 5849</span>
-      <span>191 recorded runs</span>
+      <span>192 recorded runs</span>
       <span>generated, not hand-written</span>
     </div>
   </header>
 
   <section class="wall" style="border-left-color:var(--blocked)">
     <div class="wall-row"><span class="tn-label">Where it stands right now</span></div>
-    <h3 style="margin-top:.2rem">Two thousand suspects, five culprits: the stub census that resized the problem</h3>
-    <p class="track-cap">A static scan said 2,061 unresolved call targets could return without restoring their caller's registers - the defect that cost wall 42. Instrumenting all 2,125 of them and booting gave five. Two seed cleanly and are kept; one has an extent spanning unrelated functions; and two must not be seeded at all, because a mid-function continuation carries the epilogue's pops without the prologue's pushes. The first step of the plan of record is done, though the defect was not the one the plan predicted. Execution reaches 582 kernel calls, 501 call sites and 174 dispatch targets, up from 578, 445 and 165.</p>
+    <h3 style="margin-top:.2rem">A predicate that always said yes, and a baseline that was measuring a damaged tree</h3>
+    <p class="track-cap">The translator emits the two-instruction idiom for “was this zero?” but never the flag that carries the answer between them, so 269 comparisons across the binary evaluated as a compile-time constant. One of them asks whether an allocator owns a pointer, and it was answering yes for every pointer. Fixing it does not unblock what the plan said it would - and checking that turned up something worse: the previous run’s figures were taken from a tree that had silently lost four hand-written fixes. The honest number is 230 kernel calls and 477 call sites, not 582 and 501.</p>
     <div class="wall-row" style="margin-top:.4rem">
-      <span>wall <strong>sub_001EBA9E+0x1A4</strong></span>
-      <span>582 kernel calls</span>
-      <span>191 runs</span>
-      <span>46 walls passed</span>
+      <span>wall <strong>sub_00209414+0x3F6</strong></span>
+      <span>230 kernel calls</span>
+      <span>192 runs</span>
+      <span>47 walls passed</span>
       <span>updated 2026-09-03</span>
     </div>
   </section>
@@ -261,9 +261,9 @@
       <div><span class="tn-label">Functions translated to C</span>
            <span class="tn-val num">28,321</span></div>
       <div><span class="tn-label">Call sites executed</span>
-           <span class="tn-val num reached">501</span></div>
+           <span class="tn-val num reached">477</span></div>
       <div><span class="tn-label">Walls passed</span>
-           <span class="tn-val num">46</span></div>
+           <span class="tn-val num">47</span></div>
     </div>
     <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
     <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
@@ -271,45 +271,45 @@
     inside the C runtime's static initialisers, before the game proper starts.</p>
     <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
     counts distinct <em>direct</em> call sites. A separate counter tracks
-    174 functions entered through <em>indirect</em> calls. Neither is a
+    170 functions entered through <em>indirect</em> calls. Neither is a
     clean count of functions executed, and an earlier version of this page
     presented the second as though it were.</p>
   </section>
 
   <section>
     <p class="eyebrow">Progression</p>
-    <h2>46 walls passed across 191 runs</h2>
+    <h2>47 walls passed across 192 runs</h2>
     <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
     inflate it &mdash; which is why the count of distinct crash sites matters
     more: reaching a new one means the previous wall was passed, and that cannot
     be faked by spinning.</p>
-    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 191 recorded runs, ending at 582"><polyline points="0.0,114.9 3.6,114.8 7.2,114.8 10.7,114.7 14.3,114.5 17.9,114.5 21.5,114.7 25.1,114.5 28.6,114.5 32.2,114.5 35.8,114.5 39.4,114.0 42.9,114.0 46.5,114.0 50.1,114.0 53.7,113.7 57.3,113.7 60.8,113.7 64.4,113.4 68.0,113.4 71.6,113.4 75.2,113.4 78.7,113.4 82.3,113.4 85.9,113.4 89.5,114.0 93.1,114.0 96.6,114.0 100.2,114.5 103.8,114.5 107.4,114.5 110.9,114.5 114.5,114.5 118.1,114.5 121.7,114.4 125.3,114.9 128.8,114.4 132.4,114.9 136.0,114.6 139.6,110.4 143.2,110.4 146.7,110.4 150.3,110.4 153.9,110.4 157.5,110.4 161.1,110.4 164.6,110.4 168.2,110.4 171.8,110.4 175.4,110.4 178.9,110.4 182.5,114.8 186.1,110.4 189.7,110.4 193.3,110.4 196.8,110.4 200.4,110.4 204.0,110.4 207.6,113.7 211.2,113.7 214.7,113.7 218.3,113.7 221.9,114.5 225.5,114.4 229.1,114.4 232.6,114.4 236.2,114.4 239.8,114.4 243.4,114.5 246.9,114.5 250.5,114.5 254.1,114.5 257.7,114.5 261.3,114.5 264.8,114.5 268.4,114.5 272.0,115.1 275.6,114.5 279.2,114.5 282.7,114.5 286.3,113.2 289.9,113.2 293.5,113.2 297.1,113.2 300.6,76.1 304.2,76.1 307.8,76.1 311.4,76.1 314.9,76.1 318.5,76.1 322.1,75.2 325.7,75.2 329.3,75.2 332.8,75.3 336.4,75.3 340.0,75.3 343.6,75.3 347.2,4.0 350.7,4.0 354.3,114.2 357.9,114.3 361.5,114.2 365.1,114.2 368.6,113.7 372.2,114.8 375.8,114.8 379.4,114.8 382.9,114.8 386.5,114.8 390.1,114.8 393.7,114.8 397.3,114.8 400.8,114.8 404.4,114.8 408.0,108.3 411.6,108.3 415.2,108.3 418.7,108.3 422.3,108.3 425.9,108.3 429.5,108.3 433.1,108.3 436.6,108.3 440.2,108.3 443.8,106.5 447.4,106.5 450.9,106.5 454.5,106.5 458.1,106.5 461.7,106.5 465.3,106.5 468.8,106.5 472.4,106.5 476.0,106.5 479.6,106.5 483.2,106.5 486.7,106.5 490.3,106.5 493.9,4.0 497.5,4.0 501.1,4.0 504.6,4.0 508.2,109.7 511.8,109.7 515.4,109.7 518.9,109.7 522.5,109.7 526.1,103.8 529.7,103.8 533.3,103.8 536.8,103.8 540.4,103.8 544.0,103.8 547.6,103.8 551.2,103.8 554.7,103.8 558.3,103.8 561.9,103.8 565.5,103.8 569.1,103.8 572.6,103.8 576.2,101.6 579.8,101.6 583.4,101.6 586.9,101.6 590.5,101.6 594.1,101.6 597.7,101.6 601.3,101.6 604.8,101.6 608.4,101.6 612.0,101.6 615.6,101.6 619.2,101.6 622.7,101.6 626.3,101.6 629.9,101.6 633.5,101.6 637.1,101.6 640.6,101.6 644.2,101.6 647.8,101.6 651.4,101.2 654.9,101.2 658.5,101.2 662.1,99.8 665.7,99.8 669.3,99.8 672.8,99.8 676.4,99.8 680.0,99.7" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="99.7" r="3.5" fill="var(--accent)"/></svg>
+    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 192 recorded runs, ending at 230"><polyline points="0.0,114.9 3.6,114.8 7.1,114.8 10.7,114.7 14.2,114.5 17.8,114.5 21.4,114.7 24.9,114.5 28.5,114.5 32.0,114.5 35.6,114.5 39.2,114.0 42.7,114.0 46.3,114.0 49.8,114.0 53.4,113.7 57.0,113.7 60.5,113.7 64.1,113.4 67.6,113.4 71.2,113.4 74.8,113.4 78.3,113.4 81.9,113.4 85.4,113.4 89.0,114.0 92.6,114.0 96.1,114.0 99.7,114.5 103.2,114.5 106.8,114.5 110.4,114.5 113.9,114.5 117.5,114.5 121.0,114.4 124.6,114.9 128.2,114.4 131.7,114.9 135.3,114.6 138.8,110.4 142.4,110.4 146.0,110.4 149.5,110.4 153.1,110.4 156.6,110.4 160.2,110.4 163.8,110.4 167.3,110.4 170.9,110.4 174.5,110.4 178.0,110.4 181.6,114.8 185.1,110.4 188.7,110.4 192.3,110.4 195.8,110.4 199.4,110.4 202.9,110.4 206.5,113.7 210.1,113.7 213.6,113.7 217.2,113.7 220.7,114.5 224.3,114.4 227.9,114.4 231.4,114.4 235.0,114.4 238.5,114.4 242.1,114.5 245.7,114.5 249.2,114.5 252.8,114.5 256.3,114.5 259.9,114.5 263.5,114.5 267.0,114.5 270.6,115.1 274.1,114.5 277.7,114.5 281.3,114.5 284.8,113.2 288.4,113.2 291.9,113.2 295.5,113.2 299.1,76.1 302.6,76.1 306.2,76.1 309.7,76.1 313.3,76.1 316.9,76.1 320.4,75.2 324.0,75.2 327.5,75.2 331.1,75.3 334.7,75.3 338.2,75.3 341.8,75.3 345.3,4.0 348.9,4.0 352.5,114.2 356.0,114.3 359.6,114.2 363.1,114.2 366.7,113.7 370.3,114.8 373.8,114.8 377.4,114.8 380.9,114.8 384.5,114.8 388.1,114.8 391.6,114.8 395.2,114.8 398.7,114.8 402.3,114.8 405.9,108.3 409.4,108.3 413.0,108.3 416.5,108.3 420.1,108.3 423.7,108.3 427.2,108.3 430.8,108.3 434.3,108.3 437.9,108.3 441.5,106.5 445.0,106.5 448.6,106.5 452.1,106.5 455.7,106.5 459.3,106.5 462.8,106.5 466.4,106.5 469.9,106.5 473.5,106.5 477.1,106.5 480.6,106.5 484.2,106.5 487.7,106.5 491.3,4.0 494.9,4.0 498.4,4.0 502.0,4.0 505.5,109.7 509.1,109.7 512.7,109.7 516.2,109.7 519.8,109.7 523.4,103.8 526.9,103.8 530.5,103.8 534.0,103.8 537.6,103.8 541.2,103.8 544.7,103.8 548.3,103.8 551.8,103.8 555.4,103.8 559.0,103.8 562.5,103.8 566.1,103.8 569.6,103.8 573.2,101.6 576.8,101.6 580.3,101.6 583.9,101.6 587.4,101.6 591.0,101.6 594.6,101.6 598.1,101.6 601.7,101.6 605.2,101.6 608.8,101.6 612.4,101.6 615.9,101.6 619.5,101.6 623.0,101.6 626.6,101.6 630.2,101.6 633.7,101.6 637.3,101.6 640.8,101.6 644.4,101.6 648.0,101.2 651.5,101.2 655.1,101.2 658.6,99.8 662.2,99.8 665.8,99.8 669.3,99.8 672.9,99.8 676.4,99.7 680.0,109.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="109.6" r="3.5" fill="var(--accent)"/></svg>
     <p class="track-cap">Clipped at 4,000 so one spin artefact does not flatten
-    the series. Latest run: <strong>582</strong> kernel calls,
-    100 heap allocations, ending in crash.</p>
+    the series. Latest run: <strong>230</strong> kernel calls,
+    96 heap allocations, ending in crash.</p>
 
     <div class="scroller">
       <table>
         <thead><tr><th>First reached</th><th>Wall</th><th>Kernel calls</th></tr></thead>
         <tbody>
+          <tr><td class="n">2026-09-03</td><td class="n">sub_00209414+0x3F6</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001EBA9E+0x1A4</td><td class="n">578</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001E8800+0x182</td><td class="n">530</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_00221070+0x647</td><td class="n">530</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_00209414+0x3FA</td><td class="n">530</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001EA6B0+0x2FB</td><td class="n">514</td></tr>
-          <tr><td class="n">2026-08-29</td><td class="n">sub_001EB890+0x1D5</td><td class="n">514</td></tr>
         </tbody>
       </table>
     </div>
     <p class="track-cap">Most recent walls, newest first.</p>
 
     <div class="metrics">
-      <div class="metric"><span class="metric-k">First 95 runs</span>
+      <div class="metric"><span class="metric-k">First 96 runs</span>
         <span class="metric-val">29 walls</span>
         <span class="track-cap">3.3 runs each</span></div>
       <div class="metric"><span class="metric-k">Last 96 runs</span>
-        <span class="metric-val">17 walls</span>
-        <span class="track-cap">5.6 runs each</span></div>
+        <span class="metric-val">18 walls</span>
+        <span class="track-cap">5.3 runs each</span></div>
       <div class="metric"><span class="metric-k">Median wall</span>
         <span class="metric-val">2 runs</span></div>
       <div class="metric"><span class="metric-k">Worst wall</span>
@@ -410,70 +410,58 @@
 
   <section>
     <p class="eyebrow">What happens next</p>
-    <h2>One named target unlocks the rest</h2>
-    <p>The sequence below is not a wish list. Each step is blocked only by the
-    one above it, and the first has already been named by the project's own
-    callee-save checker.</p>
+    <h2>A correction first, then the next thread</h2>
+    <p>The previous entry reported 582 kernel calls and 501 call sites. That
+    measurement was taken from a damaged tree: regenerating one generated file
+    discards the hand-written fixes inside it, and the tool that checks for those
+    fixes answers &ldquo;all 1,095 can be placed&rdquo; whether or not they are
+    actually there. Four were missing, including one that makes an allocator
+    ownership test honest. With them restored the same build measures 230 and
+    477. The lower number is the real one.</p>
     <div class="note">
-      <h3>1 &mdash; <code>sub_0021E970</code> &mdash; done, and it was not
-      what the plan predicted</h3>
-      <p>The plan said its epilogue was misaligned. It is not. The address it
-      exits through, <code>0x0021EABF</code>, is a real two-instruction fragment
-      &mdash; set a register, jump back into the middle of the same function
-      &mdash; that the translator never recognised as code. So the exit called a
-      placeholder whose entire body discards a return address, and the function
-      returned with its epilogue never run: five saved registers abandoned on the
-      stack, and the caller handed back a loop counter where it expected an
-      object pointer. That counter, 23, is the value an earlier investigation
-      chased for weeks. The fragment is now inlined where it belongs.</p>
-      <p>This one is proved from the original machine code rather than from a
-      run, because the function is not reached on the current boot. The census it
-      prompted is where the measurable gain came from.</p>
-      <h3>2 &mdash; re-apply the field-container fix</h3>
-      <p>A single edit, already written and verified to work: create the field
-      container at registration when a descriptor has none. It was reverted only
-      because the wall above sits in front of it.</p>
-      <h3>3 &mdash; retire the guards</h3>
-      <p>Ten of this session's changes are diagnostic bypasses, and each says so
-      in its own comment. With registration writing into real containers they
-      should become inert. Every one gets removed and re-measured on its own.</p>
+      <h3>What was actually fixed</h3>
+      <p><code>neg r; sbb r, r; inc r</code> is how a compiler of that era asks
+      &ldquo;was this value zero?&rdquo;. The middle instruction reads a carry
+      flag the first one sets. The translator emits both instructions and never
+      the flag, so the whole idiom folds to a constant &mdash; the answer is
+      always &ldquo;yes, equal&rdquo;. It appears 404 times; at 269 of them the
+      two instructions sit adjacent in one basic block, where the flag is
+      knowable with certainty, and those are now correct.</p>
+      <p>The remaining 135 take their carry from a comparison further back or
+      from another path into the same code. Those are left alone. Guessing a
+      plausible value there would be manufacturing data to get past a check,
+      which is the one thing this project does not do.</p>
+      <p>A pleasing confirmation: months ago this same defect was found by hand
+      at exactly one of those sites and fixed the same way. The new tool skips
+      that site, because it was already right.</p>
     </div>
+    <p>It did not, however, unblock the change it was supposed to. That change
+    still collapses the boot, so the dependency the plan described was wrong: the
+    fixed function was blocking a <em>different</em> repair, not this one.</p>
     <div class="note">
-      <h3>What the census changed</h3>
-      <p>The same defect class looked enormous statically and turned out to have
-      five live members. Two of them are now real functions rather than
-      placeholders, which is the whole of this session's measured gain. One must
-      never be recompiled the way the tool proposed: it derives a function's size
-      by scanning forward to a return instruction, and here that ran 693 bytes
-      through several unrelated functions when the real one is 41. The other two
-      are a matched pair, and they need the fragment inlined rather than
-      recompiled &mdash; a mid-function continuation carries the epilogue's pops
-      without the prologue's pushes, so it is only correct while the frame it
-      belongs to is still alive.</p>
-      <p>The lesson generalises past this project: measure a defect class before
-      sizing it. The gap between 2,061 and 5 is the difference between a rewrite
-      and an afternoon.</p>
+      <h3>The next thread, and it is a sharp one</h3>
+      <p>The defect this project has been chasing for weeks &mdash; type
+      descriptors whose field container is missing &mdash; is gone. All fourteen
+      now have real containers and real arrays, and the fix written for it is
+      measurably a no-op, so it was deleted rather than kept as dead code.</p>
+      <p>What replaced it is more specific. Six of the fourteen have a field
+      pointer aimed at <em>another object&rsquo;s</em> array, while their own sits
+      unused at a fixed offset the other eight use correctly. That is not a null
+      pointer or uninitialised memory; it is one object holding a reference to
+      another&rsquo;s data. Aliasing like that has a single cause, and finding it
+      should collapse several walls at once.</p>
     </div>
-    <p>Two other threads stay open. A scanner written earlier found 379
-    indirect calls that mix register saves with argument pushes; none can be
-    corrected mechanically, and each is a latent version of the defect that cost
-    wall 42. And one wall is deliberately left unguarded, because it sits inside
-    the allocator's own free list, where a wrong skip corrupts the heap silently
-    instead of crashing.</p>
     <div class="note">
       <h3>The honest caveat</h3>
-      <p>Part of the depth reported above rests on those bypasses rather than on
-      correct behaviour. Applying the real fix will make the numbers look worse
-      before they look better, and that is the right trade: a bypass that becomes
-      load-bearing has stopped being a bypass.</p>
-      <p>That stopped being hypothetical this session. The correct fix for one of
-      the two paired fragments is faithful to the original machine code, and
-      applying it takes execution from 582 kernel calls down to 48 &mdash; because
-      the broken placeholder had been returning early and skipping work that now
-      runs and fails. It lands the boot directly on an older wall the plan already
-      names. The fix is reverted and recorded word for word, to be re-applied once
-      that wall is cleared. Reverting a correct change is the right call here;
-      pretending the number it produced was a regression would not be.</p>
+      <p>Two of today&rsquo;s corrections cost more than they gained on the
+      headline counter, and both were kept anyway. A predicate that answers
+      truthfully sends execution down paths that a predicate stuck on
+      &ldquo;yes&rdquo; never reached, and those paths fail. Indirect dispatches
+      rose 21% while kernel calls fell &mdash; more real work happening, over a
+      shorter run. The counter that dropped is the narrower measure.</p>
+      <p>One thing was lost for good. The regenerated file cannot be rebuilt to
+      match what it replaced, and no archive had been taken since early August.
+      The project has a tool for exactly this and it was not used.</p>
     </div>
   </section>
 

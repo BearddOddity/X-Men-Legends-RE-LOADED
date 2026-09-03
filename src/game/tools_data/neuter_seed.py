@@ -32,11 +32,26 @@ SEED = os.path.join(os.path.dirname(HERE), "src", "recomp", "gen", "recomp_seed.
 TAG = "/* NEUTERED by neuter_seed.py - real body follows as __seeded */"
 
 
+# recomp_seed.c is rewritten by several tools, and they do not agree on line
+# endings: seed_missing_functions.py writes LF, manual_edits.py writes CRLF.
+# Matching a bare newline therefore silently found nothing after a manual_edits
+# run and reported "no body found" for a function that was plainly there.
+# Normalise on read, and put the file's own ending back on write.
+_CRLF = [False]
+
+LF = chr(10)
+CRLF = chr(13) + chr(10)
+
+
 def read():
-    return io.open(SEED, encoding="utf-8", newline="").read()
+    raw = io.open(SEED, encoding="utf-8", newline="").read()
+    _CRLF[0] = CRLF in raw
+    return raw.replace(CRLF, LF)
 
 
 def write(s):
+    if _CRLF[0]:
+        s = s.replace(LF, CRLF)
     io.open(SEED, "w", encoding="utf-8", newline="").write(s)
 
 

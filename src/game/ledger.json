@@ -2719,6 +2719,61 @@
     "held"
    ],
    "when": "2026-09-03 02:30"
+  },
+  {
+   "id": 160,
+   "claim": "The lifter emits sbb reg,reg without ever assigning _cf, so every neg/sbb/inc predicate in the tree is a compile-time constant",
+   "verdict": "confirmed",
+   "evidence": "354 functions read _cf; 353 never assign it anywhere, and the generator (tools/recomp/lifter.py:1154, translator.py:372) only ever emits the declaration 'int _cf = 0'. So 'eax = _cf ? 0xFFFFFFFF : 0' always takes the zero branch and 'neg r; sbb r,r; inc r' - the standard 'was r zero?' idiom - collapses to the constant 1. Of the 404 reads, 269 sit on the line immediately after a neg in the same basic block, where the carry is knowable with certainty (CF = operand != 0, taken before the negation); the other 135 take their carry from a cmp/test or from another block and are left alone. Independently corroborated: ledger #136 found and hand-fixed this exact defect at sub_001FBA90 months ago, for the same reason, and the new tool correctly skips that site. New tool tools_data/fix_sbb_carry.py, with --apply, --revert (keyed on its own marker) and a --self-test.",
+   "tags": [
+    "flags",
+    "lifter",
+    "carry",
+    "sbb",
+    "class",
+    "sub_001FBA90"
+   ],
+   "when": "2026-09-03 02:59"
+  },
+  {
+   "id": 161,
+   "claim": "Fixing sub_001FBA90 lets the sub_0020B850 island fix land",
+   "verdict": "refuted",
+   "evidence": "It does not. With sub_001FBA90's carry flag correct - by ledger #136's hand edit or by fix_sbb_carry.py, measured identical either way - applying the island fix still gives 48 kernel calls, 125 reached, 323 call sites, exactly as it did before. The boot dies reading guest 0xFFFFFFFF in sub_001F7930+0x1C8, walking a field array whose element is garbage, under sub_002235D0 and sub_00239E50. So sub_001FBA90 was the wall behind the FIELD-CONTAINER fix (ledger #155 step 2), not behind the island - the plan of record had the ordering wrong. What blocks the island is still the unpopulated field array, one layer below the container.",
+   "tags": [
+    "wall",
+    "island",
+    "sub_0020B850",
+    "sub_001FBA90",
+    "measurement"
+   ],
+   "when": "2026-09-03 02:59"
+  },
+  {
+   "id": 162,
+   "claim": "The root defect is that _metaFields is NULL at registration (ledger #155)",
+   "verdict": "refuted",
+   "evidence": "No longer true in the current tree. A probe at sub_00216FD0's entry, printing this, this->_metaFields, its array at +8 and its count at +0xC, fires for 14 metaobjects and every one already has a real container AND a real array pointer, count 0 as expected at the start of registration. Ledger #155's fix - allocate the container when the slot is empty - is now a measured no-op: with and without it the run is byte-identical at 230/96/477/170. So step 2 of the plan of record is obsolete and the fix was removed rather than kept as dead code. The defect moved one layer down: 6 of the 14 have a _metaFields that does NOT point at their own embedded container (this+0x68, the pattern the other 8 follow) but at another object's memory - e.g. this=01097498 has fields=01096BA0, which is object 01091AB0's field ARRAY - while their own container sits unused at this+0x68. That aliasing, not a null pointer, is what leaves the arrays unpopulated.",
+   "tags": [
+    "root-defect",
+    "metaobject",
+    "superseded",
+    "sub_00216FD0"
+   ],
+   "when": "2026-09-03 02:59"
+  },
+  {
+   "id": 163,
+   "claim": "seed_missing_functions.py --apply silently discards the manual edits in recomp_seed.c, and manual_edits.py apply can duplicate a region of a file it repairs",
+   "verdict": "confirmed",
+   "evidence": "Two separate tool defects, both found by losing work to them today. (1) Regenerating recomp_seed.c dropped all 4 manual-edit records targeting that file, including ledger #136's carry-flag fix at sub_001FBA90. manual_edits.py VERIFY still reported 1095/1095 'would place', because 'would place' means placeable, not present - so the loss was invisible and the 582-kernel-call baseline recorded in progress entry 191 was measured on a tree missing those 4 edits. Running manual_edits.py apply afterwards is mandatory, not optional. (2) That apply then wrote two copies of sub_001EA600, sub_001EA640 and sub_001EA6B0 into recomp_0014.c - 309 duplicated lines, with the first copy a hybrid carrying sub_001EA5E0-family labels (loc_001EA5EF) inside sub_001EA6B0's body. Duplicate definitions in one translation unit do not compile, so this is caught at build time rather than silently, but it destroys the original. Detected by counting 'void sub_XXXX(void)' headers per file, and repaired by keeping the copy whose every loc_ label lies inside the function's own address range - a check worth making standard. Finally: no snapshot had been taken since 7 August, so the pre-regeneration recomp_seed.c is unrecoverable. snapshot.py exists precisely for this and was not used.",
+   "tags": [
+    "tooling",
+    "manual_edits",
+    "regeneration",
+    "data-loss"
+   ],
+   "when": "2026-09-03 02:59"
   }
  ]
 }

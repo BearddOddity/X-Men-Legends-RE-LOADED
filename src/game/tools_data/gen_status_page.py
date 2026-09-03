@@ -35,17 +35,17 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Two thousand suspects, five culprits: the stub census that "
-            "resized the problem")
-SUBHEAD = ("A static scan said 2,061 unresolved call targets could return without "
-           "restoring their caller's registers - the defect that cost wall 42. "
-           "Instrumenting all 2,125 of them and booting gave five. Two seed "
-           "cleanly and are kept; one has an extent spanning unrelated functions; "
-           "and two must not be seeded at all, because a mid-function continuation "
-           "carries the epilogue's pops without the prologue's pushes. The first "
-           "step of the plan of record is done, though the defect was not the one "
-           "the plan predicted. Execution reaches 582 kernel calls, 501 call "
-           "sites and 174 dispatch targets, up from 578, 445 and 165.")
+HEADLINE = ("A predicate that always said yes, and a baseline that was "
+            "measuring a damaged tree")
+SUBHEAD = ("The translator emits the two-instruction idiom for “was this zero?” "
+           "but never the flag that carries the answer between them, so 269 "
+           "comparisons across the binary evaluated as a compile-time constant. "
+           "One of them asks whether an allocator owns a pointer, and it was "
+           "answering yes for every pointer. Fixing it does not unblock what the "
+           "plan said it would - and checking that turned up something worse: the "
+           "previous run’s figures were taken from a tree that had silently lost "
+           "four hand-written fixes. The honest number is 230 kernel calls and 477 "
+           "call sites, not 582 and 501.")
 
 
 def lifted_function_count():
@@ -337,70 +337,58 @@ def build(hist, sig):
 
   <section>
     <p class="eyebrow">What happens next</p>
-    <h2>One named target unlocks the rest</h2>
-    <p>The sequence below is not a wish list. Each step is blocked only by the
-    one above it, and the first has already been named by the project's own
-    callee-save checker.</p>
+    <h2>A correction first, then the next thread</h2>
+    <p>The previous entry reported 582 kernel calls and 501 call sites. That
+    measurement was taken from a damaged tree: regenerating one generated file
+    discards the hand-written fixes inside it, and the tool that checks for those
+    fixes answers &ldquo;all 1,095 can be placed&rdquo; whether or not they are
+    actually there. Four were missing, including one that makes an allocator
+    ownership test honest. With them restored the same build measures 230 and
+    477. The lower number is the real one.</p>
     <div class="note">
-      <h3>1 &mdash; <code>sub_0021E970</code> &mdash; done, and it was not
-      what the plan predicted</h3>
-      <p>The plan said its epilogue was misaligned. It is not. The address it
-      exits through, <code>0x0021EABF</code>, is a real two-instruction fragment
-      &mdash; set a register, jump back into the middle of the same function
-      &mdash; that the translator never recognised as code. So the exit called a
-      placeholder whose entire body discards a return address, and the function
-      returned with its epilogue never run: five saved registers abandoned on the
-      stack, and the caller handed back a loop counter where it expected an
-      object pointer. That counter, 23, is the value an earlier investigation
-      chased for weeks. The fragment is now inlined where it belongs.</p>
-      <p>This one is proved from the original machine code rather than from a
-      run, because the function is not reached on the current boot. The census it
-      prompted is where the measurable gain came from.</p>
-      <h3>2 &mdash; re-apply the field-container fix</h3>
-      <p>A single edit, already written and verified to work: create the field
-      container at registration when a descriptor has none. It was reverted only
-      because the wall above sits in front of it.</p>
-      <h3>3 &mdash; retire the guards</h3>
-      <p>Ten of this session's changes are diagnostic bypasses, and each says so
-      in its own comment. With registration writing into real containers they
-      should become inert. Every one gets removed and re-measured on its own.</p>
+      <h3>What was actually fixed</h3>
+      <p><code>neg r; sbb r, r; inc r</code> is how a compiler of that era asks
+      &ldquo;was this value zero?&rdquo;. The middle instruction reads a carry
+      flag the first one sets. The translator emits both instructions and never
+      the flag, so the whole idiom folds to a constant &mdash; the answer is
+      always &ldquo;yes, equal&rdquo;. It appears 404 times; at 269 of them the
+      two instructions sit adjacent in one basic block, where the flag is
+      knowable with certainty, and those are now correct.</p>
+      <p>The remaining 135 take their carry from a comparison further back or
+      from another path into the same code. Those are left alone. Guessing a
+      plausible value there would be manufacturing data to get past a check,
+      which is the one thing this project does not do.</p>
+      <p>A pleasing confirmation: months ago this same defect was found by hand
+      at exactly one of those sites and fixed the same way. The new tool skips
+      that site, because it was already right.</p>
     </div>
+    <p>It did not, however, unblock the change it was supposed to. That change
+    still collapses the boot, so the dependency the plan described was wrong: the
+    fixed function was blocking a <em>different</em> repair, not this one.</p>
     <div class="note">
-      <h3>What the census changed</h3>
-      <p>The same defect class looked enormous statically and turned out to have
-      five live members. Two of them are now real functions rather than
-      placeholders, which is the whole of this session's measured gain. One must
-      never be recompiled the way the tool proposed: it derives a function's size
-      by scanning forward to a return instruction, and here that ran 693 bytes
-      through several unrelated functions when the real one is 41. The other two
-      are a matched pair, and they need the fragment inlined rather than
-      recompiled &mdash; a mid-function continuation carries the epilogue's pops
-      without the prologue's pushes, so it is only correct while the frame it
-      belongs to is still alive.</p>
-      <p>The lesson generalises past this project: measure a defect class before
-      sizing it. The gap between 2,061 and 5 is the difference between a rewrite
-      and an afternoon.</p>
+      <h3>The next thread, and it is a sharp one</h3>
+      <p>The defect this project has been chasing for weeks &mdash; type
+      descriptors whose field container is missing &mdash; is gone. All fourteen
+      now have real containers and real arrays, and the fix written for it is
+      measurably a no-op, so it was deleted rather than kept as dead code.</p>
+      <p>What replaced it is more specific. Six of the fourteen have a field
+      pointer aimed at <em>another object&rsquo;s</em> array, while their own sits
+      unused at a fixed offset the other eight use correctly. That is not a null
+      pointer or uninitialised memory; it is one object holding a reference to
+      another&rsquo;s data. Aliasing like that has a single cause, and finding it
+      should collapse several walls at once.</p>
     </div>
-    <p>Two other threads stay open. A scanner written earlier found 379
-    indirect calls that mix register saves with argument pushes; none can be
-    corrected mechanically, and each is a latent version of the defect that cost
-    wall 42. And one wall is deliberately left unguarded, because it sits inside
-    the allocator's own free list, where a wrong skip corrupts the heap silently
-    instead of crashing.</p>
     <div class="note">
       <h3>The honest caveat</h3>
-      <p>Part of the depth reported above rests on those bypasses rather than on
-      correct behaviour. Applying the real fix will make the numbers look worse
-      before they look better, and that is the right trade: a bypass that becomes
-      load-bearing has stopped being a bypass.</p>
-      <p>That stopped being hypothetical this session. The correct fix for one of
-      the two paired fragments is faithful to the original machine code, and
-      applying it takes execution from 582 kernel calls down to 48 &mdash; because
-      the broken placeholder had been returning early and skipping work that now
-      runs and fails. It lands the boot directly on an older wall the plan already
-      names. The fix is reverted and recorded word for word, to be re-applied once
-      that wall is cleared. Reverting a correct change is the right call here;
-      pretending the number it produced was a regression would not be.</p>
+      <p>Two of today&rsquo;s corrections cost more than they gained on the
+      headline counter, and both were kept anyway. A predicate that answers
+      truthfully sends execution down paths that a predicate stuck on
+      &ldquo;yes&rdquo; never reached, and those paths fail. Indirect dispatches
+      rose 21% while kernel calls fell &mdash; more real work happening, over a
+      shorter run. The counter that dropped is the narrower measure.</p>
+      <p>One thing was lost for good. The regenerated file cannot be rebuilt to
+      match what it replaced, and no archive had been taken since early August.
+      The project has a tool for exactly this and it was not used.</p>
     </div>
   </section>
 
