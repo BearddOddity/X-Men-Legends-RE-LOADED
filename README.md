@@ -1,4 +1,4 @@
-# X-Men Legends — PC Port
+# X-Men Legends — PC Port ## NOW UNDER NEW NAME ## X-Men Legends: RE-LOADED
 
 Static recompilation of **X-Men Legends (Original Xbox)** into a native Windows
 executable. **No emulator at runtime.**
