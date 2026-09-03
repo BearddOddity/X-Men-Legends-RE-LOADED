@@ -2637,6 +2637,18 @@
     "type-descriptor"
    ],
    "when": "2026-09-02 23:10"
+  },
+  {
+   "id": 154,
+   "claim": "The subsystem registry count staying at 1 is NOT a lifting gap and is probably not the root defect: the registrar runs, every indirect call in the subsystem init resolves, and one registration is all this code path performs",
+   "verdict": "refuted",
+   "evidence": "BLOCKER_005BB700 records that \"0x005BB700 is NULL because SubsystemRegistry_Register never runs... nothing calls it\". That is no longer true and the conclusion drawn from it does not hold. (1) THE REGISTRAR RUNS. A probe at sub_00216210's entry fires exactly once: \"register obj=01087000 count_before=0\", so the count goes 0 -> 1 and the table gets one entry. It is lifted (gen/recomp_0015.c) and present in the generated dispatch table (recomp_dispatch.c:15906). (2) ITS CALLER IS LEGITIMATE. recomp_where puts it at sub_00236500+0x360, the same function documented as flipping the type-registry ready flag - i.e. exactly where a subsystem would register itself during module init. (3) NO CALL IS MISSING. Every indirect call in sub_00236500 was instrumented with its target and resolution: 001E9380 (x3), 00216210, 001EC770 and 001EC5E0 - all four distinct targets RESOLVE. sub_001EC5E0 resolves through the MANUAL table rather than the generated one, which is why a first pass that only queried recomp_lookup() reported it as unresolved; testing recomp_lookup_manual() as well corrected that before it became a finding. (4) SO THE COUNT IS 1 BECAUSE ONE SUBSYSTEM HAS REGISTERED SO FAR, not because a registration was lost. The consumers sub_001E9380 and sub_001E9500 open with \"if (count <= 1) skip\" and search the table for an entry OTHER than the current subsystem; with one subsystem that search is correctly empty. Further subsystems would register from their own inits, which happen later in the boot than the current crash. (5) IMPLICATION: the dead \">= 2 fallback\" is a CONSEQUENCE of boot depth, not a cause of it. Raising the count artificially would mean writing a fabricated pointer into table[1], which is inventing data to satisfy a check - exactly what the project's guard rule forbids. The root defect for the wall 42-53 family therefore remains the NULL _metaFields on look-up-path descriptors (ledger #153), and that is not fixed by the registry count.",
+   "tags": [
+    "blocker-005BB700",
+    "registry-count",
+    "root-defect"
+   ],
+   "when": "2026-09-02 23:15"
   }
  ]
 }
