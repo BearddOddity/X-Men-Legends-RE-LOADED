@@ -90,8 +90,19 @@ def measure():
     # flat no matter how long it loops; reaching a new subsystem moves it.
     ordinals = set(re.findall(r"ordinal (\d+)", text))
 
+    # Breadth of the RUNTIME reached, and the two signals signals.py gates on
+    # first. They were parsed by hand in prose for months and never recorded,
+    # which is how kernel_calls was allowed to inflate for two weeks unnoticed:
+    # between 9 and 29 August it nearly doubled, 226 -> 434, while the dispatch
+    # count did not move by one and reached rose by five. Nothing could catch
+    # that, because moved() never looked at either number. See ledger #174.
+    reached = re.findall(r"\[COVERAGE\] distinct=(\d+)", text)
+    callsites = re.findall(r"\[COVERAGE\] callsites=(\d+)", text)
+
     return {
         "kernel_calls": len(re.findall(r"\[KERNEL\] #", text)),
+        "reached": int(reached[-1]) if reached else None,
+        "callsites": int(callsites[-1]) if callsites else None,
         "failed_icalls": len(re.findall(r"Failed to resolve VA", text)),
         "total_icalls": max(totals) if totals else None,
         "distinct_ordinals": len(ordinals) if ordinals else None,
@@ -159,13 +170,30 @@ def show(rows, tail=None):
             print(f"{'':<32}    crashed in {r['crash_in']}"
                   + (f" at {r['fault_va']}" if r.get("fault_va") else ""))
         prev = k
-    best = max(r["kernel_calls"] for r in rows)
+    # The watchdog clips a runaway at this value, so a clipped run is not a
+    # depth record - it is a spin that was cut off. Reporting 4000 as "best"
+    # told every session it stood 17x below a figure the project's own entry
+    # #143 documents as a page-zero junk dispatch loop. See ledger #174.
+    CLIP = 4000
+    unclipped = [r["kernel_calls"] for r in rows if r["kernel_calls"] < CLIP]
+    best = max(unclipped) if unclipped else max(r["kernel_calls"] for r in rows)
+    n_clipped = sum(1 for r in rows if r["kernel_calls"] >= CLIP)
     last = rows[-1]
     tots = [r["total_icalls"] for r in rows if r.get("total_icalls")]
     best_tot = max(tots) if tots else None
     print("-" * 106)
+    # Lead with the two signals that have risen monotonically through the whole
+    # history. kernel_calls goes last because it is the one that inflated.
+    for key, label in (("reached", "reached VAs"), ("callsites", "call sites")):
+        vals = [r[key] for r in rows if r.get(key) is not None]
+        if vals:
+            cur = last.get(key)
+            mark = "  <-- record" if cur is not None and cur >= max(vals) else ""
+            print(f"{label}:  best {max(vals)}   now {cur}{mark}")
     print(f"best: {best} kernel calls   now: {last['kernel_calls']}   "
-          f"failed indirect calls: {last['failed_icalls']}")
+          f"failed indirect calls: {last['failed_icalls']}"
+          + (f"   ({n_clipped} clipped run(s) excluded from best)"
+             if n_clipped else ""))
     ords = [r.get("distinct_ordinals") for r in rows if r.get("distinct_ordinals")]
     if ords:
         print(f"distinct kernel functions reached:  best {max(ords)}   "
@@ -181,14 +209,31 @@ def show(rows, tail=None):
     if last.get("ended"):
         print(f"run ended by: {last['ended']}")
     if last["kernel_calls"] < best:
-        print("NOTE: kernel calls are below the best ever - but that count is "
-              "a narrow proxy.\n      Check the total above before calling it "
-              "a regression (Rules #1, #8).")
+        reached_ok = (last.get("reached") is not None
+                      and last["reached"] >= max(
+                          [r["reached"] for r in rows if r.get("reached")] or [0]))
+        if reached_ok:
+            print("NOTE: kernel calls are below the best ever, and reached VAs "
+                  "are at a RECORD.\n      That combination is the boot doing "
+                  "more real work over a shorter run,\n      not a regression "
+                  "(Rules #1, #8).")
+        else:
+            print("NOTE: kernel calls are below the best ever - but that count "
+                  "is a narrow proxy.\n      Check the signals above before "
+                  "calling it a regression (Rules #1, #8).")
 
 
 def improved(cur, prev):
     """Did any tracked signal move the right way between two entries?"""
     reasons = []
+    # `reached` and `callsites` FIRST, because they are the two signals that
+    # rose monotonically through the whole history while kernel_calls did not.
+    # signals.py already names reached "the only signal with any resolution";
+    # this is that judgement finally applied where it decides something.
+    for key, label in (("reached", "reached VAs"), ("callsites", "call sites")):
+        if (cur.get(key) is not None and prev.get(key) is not None
+                and cur[key] > prev[key]):
+            reasons.append(f"{label} {prev[key]} -> {cur[key]}")
     if cur["kernel_calls"] > prev["kernel_calls"]:
         reasons.append(f"kernel calls {prev['kernel_calls']} -> {cur['kernel_calls']}")
     if (cur.get("failed_icalls") is not None
