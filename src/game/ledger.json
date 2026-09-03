@@ -2950,6 +2950,20 @@
     "instrument-gap"
    ],
    "when": "2026-09-03 08:21"
+  },
+  {
+   "id": 176,
+   "claim": "Built and verified the esp delta-check instrument that ledger #175 called for; it confirms the +16 finding automatically and surfaces 167 total imbalances tree-wide",
+   "verdict": "confirmed",
+   "evidence": "RECOMP_ICALL_SAFE already receives saved_esp, the value its own failure path treats as correct - so a successful call is held to the identical invariant, checked once across all 19,239 call sites in this tree: not one is followed by a caller-side esp += N cleanup, so full callee cleanup is assumed everywhere and the invariant is exact. Added RECOMP_ICALL_ESP_DELTA (compiles to (void)0 outside RECOMP_CHECK_ABI) plus recomp_esp_delta_va, reported once per distinct target VA like its range-check sibling. FIRST ATTEMPT WAS WRONG and is worth recording: I nested a fresh #ifdef/#else/#endif inside the ALREADY-OPEN one that guards recomp_esp_escape_va/recomp_abi_violation_va/RECOMP_ICALL_WATCH, which closed that outer block early and stranded RECOMP_ICALL_WATCH's real body outside any #ifdef - the non-ABI build then saw an undeclared RECOMP_ICALL_ESP_DELTA and failed at LINK time (LNK2001), not compile time, because a bare macro that fails to expand is silently treated as a function call. Caught before commit by building the plain configuration, which is exactly the check this addition itself argues for elsewhere. Fixed by inserting the declaration and macro INSIDE the existing ifdef, and the no-op INSIDE the existing else, touching zero other structure. VERIFIED. Normal build: deterministic 2 of 2 at 230/136/292/196/551, byte-identical to baseline - the instrument is compile-time inert without RECOMP_CHECK_ABI as designed. ABI build: reports sub_00221900 delta +16 exactly, esp 00F7F9CC (expected) -> 00F7F9DC (got) - matching the hand-probed finding in ledger #175 exactly (00F7F9D0 -> 00F7F9DC there, same call, different vantage point before vs after the dummy retaddr push). 167 total ESP-DELTA reports tree-wide, not yet triaged - this is a major new surface, not a single fix, and is left for a dedicated pass rather than attempted here.",
+   "tags": [
+    "instrument",
+    "esp",
+    "delta-check",
+    "sub_00221900",
+    "ledger-175"
+   ],
+   "when": "2026-09-03 08:56"
   }
  ]
 }

@@ -646,6 +646,35 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va);
 void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before);
 void recomp_abi_violation_va(uint32_t target_va,
                              uint32_t ebx0, uint32_t esi0, uint32_t edi0);
+
+/*
+ * RECOMP_ICALL_ESP_DELTA - catches an over/under-pop that RECOMP_ICALL_WATCH
+ * cannot see, because RECOMP_ICALL_WATCH only checks that esp stayed inside
+ * the simulated stack range - a coarse range test, not a delta test. A
+ * 16-byte imbalance stays far inside 0x00780000-0x00F80000 and never trips
+ * it.
+ *
+ * RECOMP_ICALL_SAFE already receives `saved_esp`: the esp value captured
+ * BEFORE this call's own argument pushes and dummy return-address push. Its
+ * failure path restores exactly that value, on the reasoning that a failed
+ * call should leave the stack as if the callee had done nothing but still
+ * performed its stdcall-style cleanup. A SUCCESSFUL call is held to the
+ * identical invariant: whatever this callee legitimately pops for itself
+ * (its own arguments plus the return-address slot), esp should land back on
+ * `saved_esp` either way. Checked across all 19,239 RECOMP_ICALL_SAFE call
+ * sites in this tree: not one is followed by a caller-side `esp += N`
+ * cleanup, so every site already assumes full callee cleanup and this
+ * invariant is exact, not approximate.
+ *
+ * Found by hand for one wall (ledger #175: sub_002235D0 over-pops 16 bytes
+ * on one of its paths, invisible to every existing ABI check) before this
+ * existed. This makes that whole class self-reporting from now on.
+ */
+void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after);
+#define RECOMP_ICALL_ESP_DELTA(va, saved_esp_val) do { \
+    if (g_esp != (saved_esp_val)) \
+        recomp_esp_delta_va((va), (saved_esp_val), g_esp); \
+} while (0)
 #define RECOMP_ICALL_WATCH(va, call) do { \
     uint32_t _esp_b = g_esp; \
     uint32_t _abi_b = g_ebx, _abi_s = g_esi, _abi_d = g_edi; \
@@ -657,6 +686,7 @@ void recomp_abi_violation_va(uint32_t target_va,
         recomp_abi_violation_va((va), _abi_b, _abi_s, _abi_d); \
 } while (0)
 #else
+#define RECOMP_ICALL_ESP_DELTA(va, saved_esp_val) ((void)0)
 #define RECOMP_ICALL_WATCH(va, call) do { call; } while (0)
 #endif
 
@@ -726,7 +756,7 @@ void recomp_abi_violation_va(uint32_t target_va,
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
-    if (_fn) { recomp_mark_reached(_va); RECOMP_WATCH_POLL("before icall"); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); } \
+    if (_fn) { recomp_mark_reached(_va); RECOMP_WATCH_POLL("before icall"); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); RECOMP_ICALL_ESP_DELTA(_va, (saved_esp)); } \
     else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 

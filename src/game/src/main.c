@@ -459,6 +459,49 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before)
 }
 
 /*
+ * A successful indirect call left esp somewhere OTHER than saved_esp - the
+ * value RECOMP_ICALL_SAFE's own failure path treats as correct. See the
+ * doc comment on RECOMP_ICALL_ESP_DELTA in recomp_types.h for why that is a
+ * sound invariant rather than a heuristic.
+ *
+ * This is a DELTA check, unlike recomp_esp_escape_va's RANGE check, and it
+ * exists because the range check cannot see a small imbalance. Ledger #175:
+ * sub_002235D0 over-pops exactly 16 bytes on one of its paths, staying
+ * comfortably inside 0x00780000-0x00F80000 the whole time - 16 register
+ * violations were reported by the existing checks and zero esp ones, while
+ * this defect was live.
+ *
+ * Reported once per distinct target VA, like its range-check sibling.
+ */
+void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after)
+{
+    enum { SEEN_MAX = 32 };
+    static uint32_t seen[SEEN_MAX];
+    static unsigned seen_n;
+
+    for (unsigned i = 0; i < seen_n; i++)
+        if (seen[i] == target_va)
+            return;
+    if (seen_n < SEEN_MAX)
+        seen[seen_n++] = target_va;
+
+    fprintf(stderr, "[ESP-DELTA] icall to sub_%08X returned with esp at the "
+                    "wrong depth: expected %08X, got %08X  (delta %+d)\n",
+            target_va, saved_esp, esp_after, (int)(esp_after - saved_esp));
+
+    module_range();
+    void *frames[16];
+    USHORT got = CaptureStackBackTrace(1, 16, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t a = (uintptr_t)frames[k];
+        if (in_module(a))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(a - g_mod_base));
+    }
+    fflush(stderr);
+}
+
+/*
  * A callee reached through an INDIRECT call returned with ebx, esi or edi
  * changed. The direct-call equivalent is recomp_abi_violation() above.
  *

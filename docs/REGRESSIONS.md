@@ -222,7 +222,45 @@ mapped page zero as `0xFFFE0000`, and `MEM32(0xFFFE0000 + 0xCC)` is the fault.
 Probes on both candidate producers fired zero times on the fatal call, so the 2
 arrives as the **argument**, and `recomp_where` names the caller:
 **`sub_002219A0+0x839`**. A small integer where a pointer belongs is ledger
-#149's signature — callee-saved corruption. That is the next target.
+#149's signature — callee-saved corruption.
+
+Traced by hand to `sub_002235D0`, which over-pops 16 bytes on one of its
+paths — narrowed to one function across four probes (ledger #175), then
+confirmed automatically by the new esp delta-check instrument below, which
+reports the exact same 16-byte imbalance at the icall boundary into
+`sub_00221900` without any manual bracketing. That confirmation is the
+instrument earning its keep on the first run.
+
+## The esp delta-check instrument, and the 167 hits it surfaced
+
+`RECOMP_ICALL_WATCH`'s existing esp check only tests that esp stayed inside
+the *simulated stack range* — `0x00780000`-`0x00F80000` — which is why a
+16-byte imbalance survived every ABI build run so far. `RECOMP_ICALL_SAFE`
+already receives `saved_esp`, the value its own failure path treats as
+correct; a new macro, `RECOMP_ICALL_ESP_DELTA`, holds a *successful* call to
+that identical value. Checked once across all 19,239 `RECOMP_ICALL_SAFE`
+sites in this tree: none is followed by a caller-side `esp += N` cleanup, so
+the invariant is exact rather than a heuristic. Compiles to `(void)0` outside
+`RECOMP_CHECK_ABI`, verified deterministic and byte-identical to baseline in
+the normal build (230/136/292/196/551, twice).
+
+Running it found **167 distinct esp imbalances** tree-wide — not one bug, a
+whole surface. The first hand-caught one, `sub_00221900` returning `+16` when
+`00F7F9CC` was due, matches the manually-probed finding exactly. The other
+166 are unexamined; some will be real defects of this same class, some may be
+call sites this tool's invariant does not actually cover (a genuine
+exception to callee-side cleanup would show up here as a false positive, and
+none has been ruled out yet). This is recorded as a major open finding, not
+attempted as a single fix — it needs its own triage pass. Ledger #176.
+
+**A mistake worth keeping too.** The first attempt at this instrument nested
+a fresh `#ifdef`/`#else`/`#endif` inside one that was already open, which
+closed the outer block early and stranded `RECOMP_ICALL_WATCH`'s real body
+outside any `#ifdef`. The normal build failed at **link** time
+(`LNK2001: unresolved external symbol`), not compile time, because an
+unexpanded macro name is silently treated as a function call. Caught before
+commit by building the plain configuration first — exactly the check this
+whole addition exists to generalize.
 
 
 ## W — the wall audit: what is actually broken
