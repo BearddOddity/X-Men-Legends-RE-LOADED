@@ -2596,6 +2596,34 @@
     "method"
    ],
    "when": "2026-08-10 00:57"
+  },
+  {
+   "id": 151,
+   "claim": "Wall 42 is caused by sub_001EA600 capturing _icall_esp before its four callee-save pushes: a failed vtable+0x50 ICALL rolls g_esp back past them, so the epilogue returns a stale esi to sub_002096FD, which re-initialises the previous instance and double-releases its fields",
+   "verdict": "confirmed",
+   "evidence": "Measured end to end in single builds. (1) Pairing createInstance's returned instance against the initialiser's `this`: 17 created, 17 initialised, sixteen pairs correct and one wrong - 01098938 created and never initialised, 01098A40 initialised twice. Log shows them adjacent: \"createInstance -> 01098938\" then \"[INIT] 01098A40\". (2) Bracketing esi through the init sequence in sub_002096FD: correct at entry (01098938), still correct after sub_001EA5A0, STALE after sub_001EA600 (01098A40). That names sub_001EA600 as the clobber. (3) sub_001EA600's generated code captures `uint32_t _icall_esp = g_esp` BEFORE PUSH32 of ebx/ebp/esi/edi and then ICALLs through vtable+0x50 - textually ledger #145's defect, at the site #130 flagged as latent. (4) Applying #145's fix - move the capture to after the register saves, immediately before the call - MOVES THE WALL: crash goes from sub_001EB890+0x1D5 (fault 0x8B0146F4) to sub_001EA6B0+0x2FB (fault 0xD3010000), deterministic 2 of 2 at 514 kernel calls / 94 heap allocs. Callsites go 445 -> 435, which is consistent with the double-initialisation having executed extra paths on the wrong object. (5) The fix is recorded surgically in manual_edits.json (1069 -> 1071 entries, verify reports 1071/1071 placeable) - manual_edits.py extract was NOT used, per the documented data-loss gotcha, and an accidental run of it was reverted. Everything examined on the pool side during this investigation - the destroy gate, capacity, binary-search seed, the -1 marker, the auto-release flag - behaves exactly as specified; three pool-side hypotheses were raised and refuted before the real cause was found upstream.",
+   "tags": [
+    "wall42",
+    "callee-save",
+    "icall-esp",
+    "ledger145"
+   ],
+   "when": "2026-09-02 22:08"
+  },
+  {
+   "id": 152,
+   "claim": "The esi clobber producing the 0x41 garbage `this` is sub_001EA8E0, and the _icall_esp-before-callee-save-pushes defect is systemic: 284 prologue captures across the tree sit before register saves",
+   "verdict": "confirmed",
+   "evidence": "(1) NAMED BY AN EXISTING TOOL, not by hand. RECOMP_CHECK_ABI already checks callee-saved registers across both direct calls and indirect ones (RECOMP_ICALL_WATCH is wired into all three icall macros). A build_abi run reports \"sub_001EA8E0 did not restore: esi 01098CE8->00000041\" - the exact garbage value that had been propagating through sub_0021E0D0 into sub_00221070 and faulting at 0xFF000008. Two sessions of manual bracketing were unnecessary; the checker answers this class of question in one run. (2) sub_001EA8E0 carried the same ledger #145 defect as sub_001EA600: _icall_esp captured before four callee-save pushes, then an ICALL through vtable+0x50. Applying the same fix moved the wall - crash went from a READ at 0xFF000008 to a WRITE at 0x8B18817A. (3) THE DEFECT IS SYSTEMIC. A new tool, tools_data/find_icall_esp.py, scans gen/*.c for the pattern. Restricted to PROLOGUE captures - which is where every confirmed instance lives, and where pushes can only be the register saves the epilogue pops - it finds 284 sites where the capture precedes callee-saved pushes ONLY, plus 379 that mix saves with argument pushes and are left for a human because moving a capture past a real argument push would break the rollback. (4) Applying all 284 moved the wall again: crash to sub_001E8800+0x182 (fault 0x8CF8005D), callsites back to 460, deterministic 2 of 2 at 530 kernel calls, and ABI violations fell 41 -> 37. (5) The 284 are NOT recorded in manual_edits.json; re-running find_icall_esp.py --apply after a regeneration is more robust than 284 store entries, and the tool is idempotent because it only matches the unfixed shape. The hand fix to sub_001EA8E0 IS in the store (1083/1083 placeable). A backup of gen/ was taken before the sweep.",
+   "tags": [
+    "wall49",
+    "wall50",
+    "callee-save",
+    "icall-esp",
+    "tooling",
+    "abi-checker"
+   ],
+   "when": "2026-09-02 22:44"
   }
  ]
 }
