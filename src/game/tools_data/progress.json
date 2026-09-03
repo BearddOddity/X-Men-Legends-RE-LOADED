@@ -2650,5 +2650,19 @@
     "message": "Pivoted from the R3 wall back to the CURRENT wall and traced it in three probes. sub_0020E547 faults reading 0xFFFE00CC: 83 healthy calls carry alloc=01088A90 vt=003F4770, then one carries alloc=00000002, and MEM32(2) reads mapped page zero as 0xFFFE0000 so MEM32(0xFFFE0000+0xCC) is the fault. Probes on both candidate producers - the returns of sub_001E9B80 and sub_001F5C20 - fired zero times on the fatal call, so the 2 arrives as the ARGUMENT, and recomp_where names the caller: sub_002219A0+0x839. Also settled the abstract-type question from the last entry: the registration thunk at 0x0021EF70 pushes slot 0x5BC214 with first argument 1 while its neighbour pushes 0 for slot 0x5BC21C, so the game itself declares that type abstract and the NULL is intended, not a defect.",
     "note": "Diagnosis only, no behaviour change; probes stripped, baseline re-verified twice at 230/136/292/196/551, manual_edits 1093/1093, no duplicates. A DEAD GUARD FOUND: in sub_0020E547 the generated line if (TEST_NZ(eax, eax)) goto loc_0020E56D runs BEFORE the manual plausible-pointer guard that carries the same condition plus a heap-range test, so for any non-zero eax the jump has already happened and the guard has never executed. Its own comment says to keep it for the eax=-1 case. Insert-only placement caused it - the guard needed to precede the line it constrains. Left in place rather than switched on, since enabling a bypass does not address the cause. Next target: sub_002219A0+0x839 pushing 2 where an allocator pointer belongs. Ledger #172.",
     "commit": "d8e21cd"
+  },
+  {
+    "kernel_calls": 230,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Traced the current wall from the fault all the way to its cause in four probes, each eliminating a candidate. The wall sees alloc=00000002 where an allocator pointer belongs; the 2 is not produced inside sub_0020E547 (probes on both candidate returns fired zero times on the fatal call), and not by the caller sub_002219A0 (which only forwards), and not by the value's producer (the virtual call at [obj+0x58] in sub_00209470 fired 92 times and returned 01088A90 every time). It is the STACK. Bracketing sub_002219A0's call to sub_00209650 across two nested invocations: the inner returns esp at pre-4, correct for this cdecl call, and the outer returns esp at pre+12 - sixteen bytes too HIGH. sub_00209650 over-pops, so MEM32(esp+8) reads past the argument and picks up 2. Opposite sign to the leaks in ledger #84 and #145, and consistent with the ABI checker already naming sub_00209650. Also swept the whole tree for the dead-guard class found in ledger #172: exactly one instance, the one already known, so every other manual guard is live and the ten diagnostic bypasses are real.",
+    "note": "Diagnosis only, no behaviour change. Probes stripped, baseline re-verified twice at 230/136/292/196/551, manual_edits 1093/1093, no duplicates. The nesting matters for the next step: the outer sub_00209650 call CONTAINS the inner sub_002219A0 invocation, so the 16-byte over-pop happens somewhere in that deeper chain rather than in sub_00209650's own prologue. Next is to bracket esp inside sub_00209650 across its callees and find which one over-pops. Ledger #173.",
+    "commit": "3ccd08b"
   }
 ]

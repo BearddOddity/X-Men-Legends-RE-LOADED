@@ -2905,6 +2905,21 @@
     "dead-guard"
    ],
    "when": "2026-09-03 07:45"
+  },
+  {
+   "id": 173,
+   "claim": "sub_00209650 returns with esp 16 bytes TOO HIGH, and that over-pop is what turns a valid allocator pointer into the integer 2 at the current wall",
+   "verdict": "confirmed",
+   "evidence": "TRACED UPWARDS IN FOUR PROBES, each one eliminating a candidate. (1) At the wall, sub_0020E547 sees alloc=00000002 on call 84 of 84 after 83 healthy alloc=01088A90. (2) The 2 is not produced inside that function - probes on the returns of sub_001E9B80 and sub_001F5C20 fired ZERO times on the fatal call - so it arrives as the argument, from sub_002219A0+0x839 per recomp_where. (3) sub_002219A0 does not originate it either: it FORWARDS, doing push 0x221900 / call 0x209650 / mov ecx,[esp+8] / add esp,4 / push ecx. And the value pushed to it is sound - a probe on the producing virtual call [obj+0x58] in sub_00209470 fired 92 times and returned 01088A90 EVERY time, never 2. So the pointer is correct when pushed and wrong when read. (4) THE STACK IS THE CULPRIT. Bracketing sub_002219A0's call to sub_00209650 across two nested invocations: inner A1 pre esp=00F7F98C -> A2 post esp=00F7F988, which is pre-4 and correct for this cdecl call. Outer A1 pre esp=00F7F9D8 -> A2 post esp=00F7F9E4, which is pre+12, i.e. 16 bytes HIGHER than it should be. sub_00209650 over-pops 16 bytes on the outer invocation, so MEM32(esp + 8) reads a slot past the argument and picks up 2. This is an OVER-pop, the opposite sign to the leaks in ledger #84 and #145, and it is consistent with the ABI checker already reporting sub_00209650 did not restore ebx/esi/edi. The 16 bytes and the nesting both matter: the outer call contains the inner sub_002219A0 invocation, so the damage happens somewhere in that deeper chain rather than in sub_00209650's own prologue. NEXT: bracket esp inside sub_00209650 across its own callees to find which one over-pops. Also swept for the ledger #172 dead-guard class across the whole tree: exactly ONE instance, the one already found in sub_0020E547, so every other manual guard is live and the ten diagnostic bypasses are real. Baseline unchanged, re-verified twice at 230/136/292/196/551.",
+   "tags": [
+    "wall",
+    "esp",
+    "over-pop",
+    "sub_00209650",
+    "sub_002219A0",
+    "root-cause"
+   ],
+   "when": "2026-09-03 07:54"
   }
  ]
 }
