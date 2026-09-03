@@ -2774,6 +2774,48 @@
     "data-loss"
    ],
    "when": "2026-09-03 02:59"
+  },
+  {
+   "id": 164,
+   "claim": "Six of the fourteen metaobjects have a _metaFields aliasing another object's field array",
+   "verdict": "refuted",
+   "evidence": "REFUTED by ledger #115, which already settled the framing months earlier and which a ledger check surfaced before any build was spent on it. The pattern 'container == owner + 0x68' holds for 8 of the 14 not because the container is an embedded sub-object but because 0x68 is the ALLOCATION STRIDE of this 0x64-byte class - consecutive blocks from the bump allocator. The other 6 simply had their containers allocated at a different time, so the coincidence does not hold for them. Nothing is aliased and nothing is supposed to set MEM32(this+0x28) = this+0x68; the real store is MEM32(esi+0x28) = sub_00222600(0) inside factory sub_00222708, and #115 measured it succeeding on every object that goes through it. My reading in #162 repeated #114's withdrawn 'embedded sub-object at +0x68' error. The probe evidence behind #162 stands - all 14 do have real containers and real arrays - only the aliasing interpretation of it is wrong.",
+   "tags": [
+    "metaobject",
+    "aliasing",
+    "allocator-stride",
+    "supersedes"
+   ],
+   "when": "2026-09-03 04:04"
+  },
+  {
+   "id": 165,
+   "claim": "The field arrays are never populated because sub_00208645 - the append itself - is an unresolved stub, and skipping it also leaks the 16 bytes ledger #84 measured",
+   "verdict": "confirmed",
+   "evidence": "Traced by probe, not inference. (1) The search in sub_0021E970 SUCCEEDS: [SEARCH] want=01097C00 cont=01098B80 arr=01098D70 n=00000017, and [ELEM] found it at index 0x0D of 23. So the container is not empty and the first call is clean - [CALL1] idx=0000000D obj=01098FA8. (2) The SECOND call is not: [CALL2] idx=FFFFFFFF obj=00000000, and [AT414] showed outer=01098FA8, which is the OBJECT from pass 1, where the manager 01098D08 belongs. edi had been clobbered between the two calls. (3) Bracketing the first call: [PRE] edi=01098D08 esp=00F7F6C4 esi=01098FA8 ebp=0000000D / [POST] edi=01098FA8 esp=00F7F6B4 esi=00000000. esp is 0x10 LOWER after a call that should leave it unchanged - a 16-byte leak - and edi comes back holding esi's saved value, the signature of an epilogue popping from the wrong depth. walk_chain.py reported the tail-call chain BALANCED for edi, so it was stack depth, not a missing pop. (4) Localised with seven esp probes down the chain: E6 (before sub_00208600) = 00F7F6AC, E7 (after) = 00F7F69C. sub_00208600 is the leaker. (5) Its recompiled extent is only 0x00208600-0x0020860F; the real function runs to its 'ret 8' at 0x00208642, and the 'jl 0x208645' branch target sub_00208645 is defined in recomp_stubs_unresolved.c as { g_esp += 4; }. The original at 0x00208645 is: mov edx,[edi+8] / mov eax,[esp+0x10] / pop edi / mov [edx+esi*4],eax / pop esi / ret 8 - the ARRAY STORE, plus 8 bytes of register restore and an 8-byte argument purge. 8 + 8 = the 16 missing bytes exactly, and skipping the store is why the field array never grows. This is the same 16-byte leak ledger #84 measured and could not place. FIXED by seeding 0x00208645 (15 bytes, extent inside sub_00208600, so a seed and not an inline per ledger #158). MEASURED, deterministic 2 of 2: heap 96 -> 136, reached VAs 170 -> 196, call sites 477 -> 551, kernel calls unchanged at 230. Both reached and call sites are new bests. Wall moves to sub_0020E547+0x1C3 reading 0xFFFE00CC.",
+   "tags": [
+    "stub",
+    "append",
+    "leak",
+    "sub_00208600",
+    "sub_00208645",
+    "root-defect"
+   ],
+   "when": "2026-09-03 04:04"
+  },
+  {
+   "id": 166,
+   "claim": "manual_edits.py apply duplicates the same three functions on every run, so a regeneration needs a fixed repair sequence",
+   "verdict": "confirmed",
+   "evidence": "Reproduced deterministically: two separate apply runs this session each wrote a second copy of sub_001EA600, sub_001EA640 and sub_001EA6B0 into recomp_0014.c. Repairing it by hand twice triggered rule #4, so tools_data/dedupe_functions.py now does it: it scores each copy by how many of its loc_ labels fall outside the address range in its own Original: header, keeps a copy that scores zero, and refuses when no copy is clean. The hybrid sub_001EA6B0 scores 5 - it carries loc_001EA5EF, which belongs to sub_001EA5E0. Has a --self-test. THE SEQUENCE after any seed_missing_functions.py --apply, because each step exposes the next: (1) neuter_seed.py to re-disable known-bad seeds, which the regeneration resurrects; (2) manual_edits.py apply, because the seeder discards recomp_seed.c's hand edits and verify cannot tell present from placeable; (3) dedupe_functions.py --apply; (4) stub_overridden.py --apply, because the seeder does not remove the recomp_stubs_unresolved.c body it supersedes and the link fails with LNK2005; (5) strip_probes.py; (6) snapshot.py. Also found: the seeder drops any function neuter_seed.py has renamed to <sym>__seeded, since the carry-forward scan does not recognise the renamed body - which silently removed sub_001995AD, sub_0020B8C6 and sub_0020B88D this run. That is the desired outcome for those three bad seeds, but it is luck, not design, and their moved-to records had to be deleted and their plain stubs restored by hand.",
+   "tags": [
+    "tooling",
+    "manual_edits",
+    "dedupe",
+    "seeder",
+    "workflow"
+   ],
+   "when": "2026-09-03 04:05"
   }
  ]
 }

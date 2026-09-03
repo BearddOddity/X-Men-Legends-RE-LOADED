@@ -12641,26 +12641,6 @@
   "kind": "replace_line",
   "function": null,
   "block": [
-   "/* sub_001995AD: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_001995AD\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
- },
- {
-  "file": "recomp_stubs_unresolved.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
-   "/* sub_0020B8C6: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
-  ],
-  "match": "^void sub_0020B8C6\\(void\\) \\{ /\\*.*\\*/ \\}$",
-  "anchor": null
- },
- {
-  "file": "recomp_stubs_unresolved.c",
-  "kind": "replace_line",
-  "function": null,
-  "block": [
    "/* sub_0034436E: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
   ],
   "match": "^void sub_0034436E\\(void\\) \\{ /\\*.*\\*/ \\}$",
@@ -12673,7 +12653,7 @@
   "block": [
    "/* sub_003680D0: moved to src/d3d8_shim.c - generated body removed so the hand-written definition links */"
   ],
-  "match": "^void sub_003680D0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "match": "^void sub_003680D0\\(void\\) \\{ .*\\}$",
   "anchor": null
  }
 ]

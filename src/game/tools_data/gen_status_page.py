@@ -35,17 +35,17 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("A predicate that always said yes, and a baseline that was "
-            "measuring a damaged tree")
-SUBHEAD = ("The translator emits the two-instruction idiom for “was this zero?” "
-           "but never the flag that carries the answer between them, so 269 "
-           "comparisons across the binary evaluated as a compile-time constant. "
-           "One of them asks whether an allocator owns a pointer, and it was "
-           "answering yes for every pointer. Fixing it does not unblock what the "
-           "plan said it would - and checking that turned up something worse: the "
-           "previous run’s figures were taken from a tree that had silently lost "
-           "four hand-written fixes. The honest number is 230 kernel calls and 477 "
-           "call sites, not 582 and 501.")
+HEADLINE = ("The list that never grew, because the instruction that "
+            "appended to it was missing")
+SUBHEAD = ("For months the engine’s type descriptors held field lists that stayed "
+           "empty, and a dozen crashes downstream all traced back to reading one. "
+           "The routine that appends an entry ends in a branch the translator "
+           "never recognised as code, so the store simply never happened — and "
+           "the same gap dropped sixteen bytes of stack cleanup, which is a leak "
+           "measured in August and never placed until now. Restoring it moved "
+           "three of the four tracked signals at once: heap allocations 96 to 136, "
+           "code reached 170 to 196, call sites 477 to 551, indirect dispatches up "
+           "43%. Both reached and call sites are records.")
 
 
 def lifted_function_count():
@@ -337,58 +337,53 @@ def build(hist, sig):
 
   <section>
     <p class="eyebrow">What happens next</p>
-    <h2>A correction first, then the next thread</h2>
-    <p>The previous entry reported 582 kernel calls and 501 call sites. That
-    measurement was taken from a damaged tree: regenerating one generated file
-    discards the hand-written fixes inside it, and the tool that checks for those
-    fixes answers &ldquo;all 1,095 can be placed&rdquo; whether or not they are
-    actually there. Four were missing, including one that makes an allocator
-    ownership test honest. With them restored the same build measures 230 and
-    477. The lower number is the real one.</p>
+    <h2>A wrong idea, killed before it cost a build</h2>
+    <p>The session opened by chasing a hunch: six of fourteen type descriptors
+    appeared to point at another object&rsquo;s data. Checking the project&rsquo;s
+    own record of past conclusions refuted it in seconds. The pattern that looked
+    like structure &mdash; every healthy descriptor&rsquo;s list sitting exactly
+    0x68 bytes past it &mdash; is just the allocator handing out consecutive
+    blocks of a 0x64-byte object. The same mistake had been made and withdrawn
+    months earlier. Nothing was aliased.</p>
+    <p>That is the ledger paying for itself. The wrong idea was appealing, and
+    the only thing that stopped it was having written down why it failed the
+    first time.</p>
     <div class="note">
-      <h3>What was actually fixed</h3>
-      <p><code>neg r; sbb r, r; inc r</code> is how a compiler of that era asks
-      &ldquo;was this value zero?&rdquo;. The middle instruction reads a carry
-      flag the first one sets. The translator emits both instructions and never
-      the flag, so the whole idiom folds to a constant &mdash; the answer is
-      always &ldquo;yes, equal&rdquo;. It appears 404 times; at 269 of them the
-      two instructions sit adjacent in one basic block, where the flag is
-      knowable with certainty, and those are now correct.</p>
-      <p>The remaining 135 take their carry from a comparison further back or
-      from another path into the same code. Those are left alone. Guessing a
-      plausible value there would be manufacturing data to get past a check,
-      which is the one thing this project does not do.</p>
-      <p>A pleasing confirmation: months ago this same defect was found by hand
-      at exactly one of those sites and fixed the same way. The new tool skips
-      that site, because it was already right.</p>
+      <h3>What was actually wrong</h3>
+      <p>Measuring instead of guessing found something better. The <em>first</em>
+      lookup worked perfectly &mdash; twenty-three entries, match at index
+      thirteen. The <em>second</em> call was the broken one, and bracketing it
+      showed the stack pointer sixteen bytes lower after a call that should have
+      left it untouched, with a saved register coming back holding a
+      neighbour&rsquo;s value.</p>
+      <p>Seven measurements down the call chain put the sixteen bytes on one
+      routine: the one that stores an entry into a descriptor&rsquo;s field list.
+      Its translated form stops early, and the branch it ends on &mdash; the
+      branch containing the store itself, plus the register restore and argument
+      cleanup &mdash; was never recognised as code. Eight bytes of restore plus
+      eight of cleanup is exactly the sixteen that went missing, and the absent
+      store is why no list ever grew.</p>
+      <p>This is the third time a two-or-three-instruction fragment the translator
+      skipped has turned out to be the whole defect. It is now the first thing to
+      check when a function&rsquo;s translated extent is shorter than its real
+      one.</p>
     </div>
-    <p>It did not, however, unblock the change it was supposed to. That change
-    still collapses the boot, so the dependency the plan described was wrong: the
-    fixed function was blocking a <em>different</em> repair, not this one.</p>
-    <div class="note">
-      <h3>The next thread, and it is a sharp one</h3>
-      <p>The defect this project has been chasing for weeks &mdash; type
-      descriptors whose field container is missing &mdash; is gone. All fourteen
-      now have real containers and real arrays, and the fix written for it is
-      measurably a no-op, so it was deleted rather than kept as dead code.</p>
-      <p>What replaced it is more specific. Six of the fourteen have a field
-      pointer aimed at <em>another object&rsquo;s</em> array, while their own sits
-      unused at a fixed offset the other eight use correctly. That is not a null
-      pointer or uninitialised memory; it is one object holding a reference to
-      another&rsquo;s data. Aliasing like that has a single cause, and finding it
-      should collapse several walls at once.</p>
-    </div>
+    <p>Kernel calls did not move, and that is expected rather than
+    disappointing: the boot now does far more real work before it stops, which
+    the other three counters show and that one cannot. The project&rsquo;s own
+    rules require a second signal before believing a fix, and here there are
+    three.</p>
     <div class="note">
       <h3>The honest caveat</h3>
-      <p>Two of today&rsquo;s corrections cost more than they gained on the
-      headline counter, and both were kept anyway. A predicate that answers
-      truthfully sends execution down paths that a predicate stuck on
-      &ldquo;yes&rdquo; never reached, and those paths fail. Indirect dispatches
-      rose 21% while kernel calls fell &mdash; more real work happening, over a
-      shorter run. The counter that dropped is the narrower measure.</p>
-      <p>One thing was lost for good. The regenerated file cannot be rebuilt to
-      match what it replaced, and no archive had been taken since early August.
-      The project has a tool for exactly this and it was not used.</p>
+      <p>Regenerating any part of the translated tree silently discards the
+      hand-written repairs inside it, duplicates three functions every time, and
+      leaves a link error behind. None of that is detected by the tool that
+      claims to check it. The full repair sequence is now written down, and a new
+      tool fixes the duplication by checking that every label inside a function
+      belongs to that function&rsquo;s own address range.</p>
+      <p>An archive of the working tree is taken before and after each of these
+      steps now. Last session one was not, and a file that cannot be rebuilt was
+      lost permanently.</p>
     </div>
   </section>
 
