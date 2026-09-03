@@ -952,6 +952,7 @@ extern void sub_0010DA10(void);
 extern void sub_0010E75E(void);
 extern void sub_0011316F(void);
 extern void sub_0011742D(void);
+extern void sub_001183EC(void);
 extern void sub_001183ED(void);
 extern void sub_00118839(void);
 extern void sub_0011B58F(void);
@@ -1211,6 +1212,7 @@ extern void sub_001970DD(void);
 extern void sub_00198725(void);
 extern void sub_00198978(void);
 extern void sub_00198EAD(void);
+extern void sub_001995AD(void);
 extern void sub_0019961A(void);
 extern void sub_0019AD3C(void);
 extern void sub_0019C1D0(void);
@@ -1330,6 +1332,7 @@ extern void sub_001D0650(void);
 extern void sub_001D0676(void);
 extern void sub_001D1120(void);
 extern void sub_001D1300(void);
+extern void sub_001D21F0(void);
 extern void sub_001D2E0E(void);
 extern void sub_001D3330(void);
 extern void sub_001D350E(void);
@@ -1476,6 +1479,7 @@ extern void sub_00209F50(void);
 extern void sub_0020A020(void);
 extern void sub_0020A2C0(void);
 extern void sub_0020B4E0(void);
+extern void sub_0020B8C6(void);
 extern void sub_0020BF60(void);
 extern void sub_0020CC80(void);
 extern void sub_0020DC70(void);
@@ -2025,6 +2029,7 @@ extern void sub_00343D1C(void);
 extern void sub_00343E62(void);
 extern void sub_00343E65(void);
 extern void sub_00343FE1(void);
+extern void sub_0034436E(void);
 extern void sub_00344878(void);
 extern void sub_00344A34(void);
 extern void sub_00344AAB(void);
@@ -2168,7 +2173,7 @@ extern void sub_00397556(void);
 extern void sub_00397598(void);
 extern void sub_00397618(void);
 extern void sub_00397732(void);
-extern void sub_001D21F0(void);
+extern void sub_0020B88D(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -2618,6 +2623,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0010E75Eu) return sub_0010E75E;
     if (xbox_va == 0x0011316Fu) return sub_0011316F;
     if (xbox_va == 0x0011742Du) return sub_0011742D;
+    if (xbox_va == 0x001183ECu) return sub_001183EC;
     if (xbox_va == 0x001183EDu) return sub_001183ED;
     if (xbox_va == 0x00118839u) return sub_00118839;
     if (xbox_va == 0x0011B58Fu) return sub_0011B58F;
@@ -2877,6 +2883,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00198725u) return sub_00198725;
     if (xbox_va == 0x00198978u) return sub_00198978;
     if (xbox_va == 0x00198EADu) return sub_00198EAD;
+    if (xbox_va == 0x001995ADu) return sub_001995AD;
     if (xbox_va == 0x0019961Au) return sub_0019961A;
     if (xbox_va == 0x0019AD3Cu) return sub_0019AD3C;
     if (xbox_va == 0x0019C1D0u) return sub_0019C1D0;
@@ -2996,6 +3003,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x001D0676u) return sub_001D0676;
     if (xbox_va == 0x001D1120u) return sub_001D1120;
     if (xbox_va == 0x001D1300u) return sub_001D1300;
+    if (xbox_va == 0x001D21F0u) return sub_001D21F0;
     if (xbox_va == 0x001D2E0Eu) return sub_001D2E0E;
     if (xbox_va == 0x001D3330u) return sub_001D3330;
     if (xbox_va == 0x001D350Eu) return sub_001D350E;
@@ -3142,6 +3150,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0020A020u) return sub_0020A020;
     if (xbox_va == 0x0020A2C0u) return sub_0020A2C0;
     if (xbox_va == 0x0020B4E0u) return sub_0020B4E0;
+    if (xbox_va == 0x0020B8C6u) return sub_0020B8C6;
     if (xbox_va == 0x0020BF60u) return sub_0020BF60;
     if (xbox_va == 0x0020CC80u) return sub_0020CC80;
     if (xbox_va == 0x0020DC70u) return sub_0020DC70;
@@ -3691,6 +3700,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00343E62u) return sub_00343E62;
     if (xbox_va == 0x00343E65u) return sub_00343E65;
     if (xbox_va == 0x00343FE1u) return sub_00343FE1;
+    if (xbox_va == 0x0034436Eu) return sub_0034436E;
     if (xbox_va == 0x00344878u) return sub_00344878;
     if (xbox_va == 0x00344A34u) return sub_00344A34;
     if (xbox_va == 0x00344AABu) return sub_00344AAB;
@@ -3834,7 +3844,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00397598u) return sub_00397598;
     if (xbox_va == 0x00397618u) return sub_00397618;
     if (xbox_va == 0x00397732u) return sub_00397732;
-    if (xbox_va == 0x001D21F0u) return sub_001D21F0;
+    if (xbox_va == 0x0020B88Du) return sub_0020B88D;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;

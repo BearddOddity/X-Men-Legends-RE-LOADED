@@ -1,0 +1,488 @@
+<title>X-Men Legends Recomp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:        #F6F8F7;
+    --surface:       #FFFFFF;
+    --surface-sunk:  #EDF1EF;
+    --ink:           #14181A;
+    --ink-soft:      #4A5350;
+    --ink-faint:     #7C8582;
+    --rule:          #D9E0DD;
+    --rule-strong:   #C2CBC7;
+    --accent:        #1B6F62;
+    --accent-soft:   #E2EFEB;
+    --done:          #2F7D4F;
+    --blocked:       #9C6B15;
+    --crash:         #A33A34;
+    --shadow:        0 1px 2px rgba(20,24,26,.05), 0 8px 24px -16px rgba(20,24,26,.28);
+
+    --step--1: clamp(.78rem, .76rem + .1vw, .84rem);
+    --step-0:  clamp(1rem, .97rem + .16vw, 1.09rem);
+    --step-1:  clamp(1.2rem, 1.13rem + .34vw, 1.42rem);
+    --step-2:  clamp(1.5rem, 1.36rem + .68vw, 1.95rem);
+    --step-3:  clamp(2rem, 1.7rem + 1.5vw, 3.1rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:       #0E1211;
+      --surface:      #161B19;
+      --surface-sunk: #111615;
+      --ink:          #E8EEEB;
+      --ink-soft:     #A3AEAA;
+      --ink-faint:    #737E7A;
+      --rule:         #262E2C;
+      --rule-strong:  #36403D;
+      --accent:       #5FBFAC;
+      --accent-soft:  #16302B;
+      --done:         #63B583;
+      --blocked:      #D6A44B;
+      --crash:        #E0766D;
+      --shadow:       0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:       #0E1211;
+    --surface:      #161B19;
+    --surface-sunk: #111615;
+    --ink:          #E8EEEB;
+    --ink-soft:     #A3AEAA;
+    --ink-faint:    #737E7A;
+    --rule:         #262E2C;
+    --rule-strong:  #36403D;
+    --accent:       #5FBFAC;
+    --accent-soft:  #16302B;
+    --done:         #63B583;
+    --blocked:      #D6A44B;
+    --crash:        #E0766D;
+    --shadow:       0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 74ch;
+    margin: 0 auto;
+    padding: clamp(2rem, 1rem + 4vw, 4.5rem) clamp(1.1rem, .6rem + 2.2vw, 2rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 2rem + 2vw, 4rem);
+  }
+
+  h1, h2, h3, .eyebrow, .num, .metric-val, .phase-n {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  }
+  h1 { font-size: var(--step-3); line-height: 1.04; letter-spacing: -.023em; font-weight: 700; margin: 0; text-wrap: balance; }
+  h2 { font-size: var(--step-2); line-height: 1.12; letter-spacing: -.017em; font-weight: 600; margin: 0; text-wrap: balance; }
+  h3 { font-size: var(--step-1); line-height: 1.22; letter-spacing: -.01em; font-weight: 600; margin: 0; text-wrap: balance; }
+  p  { margin: 0; }
+
+  .eyebrow {
+    font-size: var(--step--1);
+    text-transform: uppercase;
+    letter-spacing: .13em;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  code, .mono, .metric-val, .num {
+    font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  code {
+    font-size: .88em;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: .08em .34em;
+  }
+
+  header .lede { color: var(--ink-soft); font-size: var(--step-1); margin-top: 1rem; text-wrap: pretty; }
+  .stamp {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.25rem;
+    margin-top: 1.5rem; padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: var(--step--1);
+    color: var(--ink-faint);
+  }
+
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  section > p { text-wrap: pretty; }
+
+  /* ── the thesis bar ─────────────────────────────── */
+  .thesis {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: clamp(1.4rem, 1rem + 1.6vw, 2.2rem);
+    display: flex; flex-direction: column; gap: 1.4rem;
+  }
+  .thesis-nums { display: flex; flex-wrap: wrap; gap: 2.5rem; align-items: flex-end; }
+  .tn-label { font-size: var(--step--1); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-faint); font-family: Archivo, sans-serif; font-weight: 600; }
+  .tn-val { font-size: clamp(1.9rem, 1.4rem + 2.2vw, 2.9rem); font-weight: 700; line-height: 1; letter-spacing: -.02em; display: block; margin-top: .3rem; }
+  .tn-val.reached { color: var(--accent); }
+
+  .track {
+    position: relative;
+    height: 40px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .track-fill { position: absolute; inset: 0 auto 0 0; width: 0.516%; background: var(--accent); }
+  .track-tick { position: absolute; top: 0; bottom: 0; left: 0.516%; width: 1px; background: var(--rule-strong); }
+  .track-cap { font-size: var(--step--1); color: var(--ink-faint); text-wrap: pretty; }
+
+  /* ── phases ─────────────────────────────────────── */
+  .phases { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .phase {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: 0 1.1rem;
+    padding: 1.4rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .phase-n { font-size: var(--step-1); font-weight: 700; color: var(--rule-strong); line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .phase-body { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+  .phase-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .7rem; }
+  .phase p { color: var(--ink-soft); text-wrap: pretty; }
+
+  .pill {
+    font-family: Archivo, sans-serif;
+    font-size: .7rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .09em;
+    padding: .2rem .55rem; border-radius: 100px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .pill.done    { color: var(--done); }
+  .pill.active  { color: var(--blocked); }
+  .pill.waiting { color: var(--ink-faint); }
+
+  /* ── metric grid ────────────────────────────────── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .metric { background: var(--surface); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+  .metric-k { font-size: var(--step--1); color: var(--ink-faint); font-family: Archivo, sans-serif; font-weight: 600; letter-spacing: .04em; }
+  .metric-val { font-size: var(--step-1); font-weight: 600; line-height: 1.1; }
+  .metric-val .arrow { color: var(--ink-faint); font-weight: 400; }
+  .up   { color: var(--done); }
+  .down { color: var(--blocked); }
+  .flat { color: var(--ink-soft); }
+
+  /* ── wall callout ───────────────────────────────── */
+  .wall {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--crash);
+    background: var(--surface);
+    border-radius: 0 4px 4px 0;
+    padding: 1.2rem 1.4rem;
+    display: flex; flex-direction: column; gap: .55rem;
+  }
+  .wall-row { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: baseline; font-family: "JetBrains Mono", monospace; font-size: var(--step--1); }
+  .wall-row .was { color: var(--ink-faint); text-decoration: line-through; }
+  .wall-row .now { color: var(--crash); font-weight: 600; }
+
+  .note {
+    background: var(--accent-soft);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.2rem 1.4rem;
+    display: flex; flex-direction: column; gap: .6rem;
+  }
+  .note p { color: var(--ink-soft); text-wrap: pretty; }
+
+  ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .55rem; color: var(--ink-soft); }
+  ul li::marker { color: var(--accent); }
+  li strong { color: var(--ink); font-weight: 600; }
+
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); }
+  th, td { text-align: left; padding: .58rem .8rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { font-family: Archivo, sans-serif; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .07em; font-size: .72rem; }
+  td.n { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.4rem; color: var(--ink-faint); font-size: var(--step--1); text-wrap: pretty; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .track-fill { animation: grow .9s cubic-bezier(.2,.7,.3,1) both; }
+    @keyframes grow { from { width: 0; } }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Static recompilation &middot; Xbox to PC</p>
+    <h1>X-Men Legends, running as native code</h1>
+    <p class="lede">The translation is essentially finished. Getting the
+    translated code to <em>execute</em> is the entire remaining problem, and it
+    is where all current work happens.</p>
+    <div class="stamp">
+      <span>2026-09-03</span>
+      <span>default.xbe &middot; XDK 5849</span>
+      <span>191 recorded runs</span>
+      <span>generated, not hand-written</span>
+    </div>
+  </header>
+
+  <section class="wall" style="border-left-color:var(--blocked)">
+    <div class="wall-row"><span class="tn-label">Where it stands right now</span></div>
+    <h3 style="margin-top:.2rem">Two thousand suspects, five culprits: the stub census that resized the problem</h3>
+    <p class="track-cap">A static scan said 2,061 unresolved call targets could return without restoring their caller's registers - the defect that cost wall 42. Instrumenting all 2,125 of them and booting gave five. Two seed cleanly and are kept; one has an extent spanning unrelated functions; and two must not be seeded at all, because a mid-function continuation carries the epilogue's pops without the prologue's pushes. The first step of the plan of record is done, though the defect was not the one the plan predicted. Execution reaches 582 kernel calls, 501 call sites and 174 dispatch targets, up from 578, 445 and 165.</p>
+    <div class="wall-row" style="margin-top:.4rem">
+      <span>wall <strong>sub_001EBA9E+0x1A4</strong></span>
+      <span>582 kernel calls</span>
+      <span>191 runs</span>
+      <span>46 walls passed</span>
+      <span>updated 2026-09-03</span>
+    </div>
+  </section>
+
+  <section class="thesis">
+    <div class="thesis-nums">
+      <div><span class="tn-label">Functions translated to C</span>
+           <span class="tn-val num">28,321</span></div>
+      <div><span class="tn-label">Call sites executed</span>
+           <span class="tn-val num reached">501</span></div>
+      <div><span class="tn-label">Walls passed</span>
+           <span class="tn-val num">46</span></div>
+    </div>
+    <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
+    <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
+    game is already C, and almost none of it has ever run &mdash; the boot dies
+    inside the C runtime's static initialisers, before the game proper starts.</p>
+    <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
+    counts distinct <em>direct</em> call sites. A separate counter tracks
+    174 functions entered through <em>indirect</em> calls. Neither is a
+    clean count of functions executed, and an earlier version of this page
+    presented the second as though it were.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Progression</p>
+    <h2>46 walls passed across 191 runs</h2>
+    <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
+    inflate it &mdash; which is why the count of distinct crash sites matters
+    more: reaching a new one means the previous wall was passed, and that cannot
+    be faked by spinning.</p>
+    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 191 recorded runs, ending at 582"><polyline points="0.0,114.9 3.6,114.8 7.2,114.8 10.7,114.7 14.3,114.5 17.9,114.5 21.5,114.7 25.1,114.5 28.6,114.5 32.2,114.5 35.8,114.5 39.4,114.0 42.9,114.0 46.5,114.0 50.1,114.0 53.7,113.7 57.3,113.7 60.8,113.7 64.4,113.4 68.0,113.4 71.6,113.4 75.2,113.4 78.7,113.4 82.3,113.4 85.9,113.4 89.5,114.0 93.1,114.0 96.6,114.0 100.2,114.5 103.8,114.5 107.4,114.5 110.9,114.5 114.5,114.5 118.1,114.5 121.7,114.4 125.3,114.9 128.8,114.4 132.4,114.9 136.0,114.6 139.6,110.4 143.2,110.4 146.7,110.4 150.3,110.4 153.9,110.4 157.5,110.4 161.1,110.4 164.6,110.4 168.2,110.4 171.8,110.4 175.4,110.4 178.9,110.4 182.5,114.8 186.1,110.4 189.7,110.4 193.3,110.4 196.8,110.4 200.4,110.4 204.0,110.4 207.6,113.7 211.2,113.7 214.7,113.7 218.3,113.7 221.9,114.5 225.5,114.4 229.1,114.4 232.6,114.4 236.2,114.4 239.8,114.4 243.4,114.5 246.9,114.5 250.5,114.5 254.1,114.5 257.7,114.5 261.3,114.5 264.8,114.5 268.4,114.5 272.0,115.1 275.6,114.5 279.2,114.5 282.7,114.5 286.3,113.2 289.9,113.2 293.5,113.2 297.1,113.2 300.6,76.1 304.2,76.1 307.8,76.1 311.4,76.1 314.9,76.1 318.5,76.1 322.1,75.2 325.7,75.2 329.3,75.2 332.8,75.3 336.4,75.3 340.0,75.3 343.6,75.3 347.2,4.0 350.7,4.0 354.3,114.2 357.9,114.3 361.5,114.2 365.1,114.2 368.6,113.7 372.2,114.8 375.8,114.8 379.4,114.8 382.9,114.8 386.5,114.8 390.1,114.8 393.7,114.8 397.3,114.8 400.8,114.8 404.4,114.8 408.0,108.3 411.6,108.3 415.2,108.3 418.7,108.3 422.3,108.3 425.9,108.3 429.5,108.3 433.1,108.3 436.6,108.3 440.2,108.3 443.8,106.5 447.4,106.5 450.9,106.5 454.5,106.5 458.1,106.5 461.7,106.5 465.3,106.5 468.8,106.5 472.4,106.5 476.0,106.5 479.6,106.5 483.2,106.5 486.7,106.5 490.3,106.5 493.9,4.0 497.5,4.0 501.1,4.0 504.6,4.0 508.2,109.7 511.8,109.7 515.4,109.7 518.9,109.7 522.5,109.7 526.1,103.8 529.7,103.8 533.3,103.8 536.8,103.8 540.4,103.8 544.0,103.8 547.6,103.8 551.2,103.8 554.7,103.8 558.3,103.8 561.9,103.8 565.5,103.8 569.1,103.8 572.6,103.8 576.2,101.6 579.8,101.6 583.4,101.6 586.9,101.6 590.5,101.6 594.1,101.6 597.7,101.6 601.3,101.6 604.8,101.6 608.4,101.6 612.0,101.6 615.6,101.6 619.2,101.6 622.7,101.6 626.3,101.6 629.9,101.6 633.5,101.6 637.1,101.6 640.6,101.6 644.2,101.6 647.8,101.6 651.4,101.2 654.9,101.2 658.5,101.2 662.1,99.8 665.7,99.8 669.3,99.8 672.8,99.8 676.4,99.8 680.0,99.7" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="99.7" r="3.5" fill="var(--accent)"/></svg>
+    <p class="track-cap">Clipped at 4,000 so one spin artefact does not flatten
+    the series. Latest run: <strong>582</strong> kernel calls,
+    100 heap allocations, ending in crash.</p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>First reached</th><th>Wall</th><th>Kernel calls</th></tr></thead>
+        <tbody>
+          <tr><td class="n">2026-09-02</td><td class="n">sub_001EBA9E+0x1A4</td><td class="n">578</td></tr>
+          <tr><td class="n">2026-09-02</td><td class="n">sub_001E8800+0x182</td><td class="n">530</td></tr>
+          <tr><td class="n">2026-09-02</td><td class="n">sub_00221070+0x647</td><td class="n">530</td></tr>
+          <tr><td class="n">2026-09-02</td><td class="n">sub_00209414+0x3FA</td><td class="n">530</td></tr>
+          <tr><td class="n">2026-09-02</td><td class="n">sub_001EA6B0+0x2FB</td><td class="n">514</td></tr>
+          <tr><td class="n">2026-08-29</td><td class="n">sub_001EB890+0x1D5</td><td class="n">514</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="track-cap">Most recent walls, newest first.</p>
+
+    <div class="metrics">
+      <div class="metric"><span class="metric-k">First 95 runs</span>
+        <span class="metric-val">29 walls</span>
+        <span class="track-cap">3.3 runs each</span></div>
+      <div class="metric"><span class="metric-k">Last 96 runs</span>
+        <span class="metric-val">17 walls</span>
+        <span class="track-cap">5.6 runs each</span></div>
+      <div class="metric"><span class="metric-k">Median wall</span>
+        <span class="metric-val">2 runs</span></div>
+      <div class="metric"><span class="metric-k">Worst wall</span>
+        <span class="metric-val">19 runs</span></div>
+    </div>
+    <p class="track-cap"><strong>Walls are getting more expensive, not
+    cheaper</strong> &mdash; the cost per wall has roughly doubled between the
+    first and second half of the history. That is expected: the cheap ones
+    (missing stubs, obvious nulls) went early, and what remains needs tracing.
+    It also means the wall count is not a countdown. Walls are not independent,
+    and fixing a whole defect class can collapse several at once, which is what
+    the 512-pointer pass did.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The boot chain, mapped</p>
+    <h2>Exactly where execution dies</h2>
+    <p>Decompiling the wall traced the path from the entry point to the crash,
+    and a per-call bisect of the static initialisers narrowed it to one call.</p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Step</th><th>What it is</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td class="n">0x001A1C97</td><td>XBE entry point</td><td>runs</td></tr>
+          <tr><td class="n">CreateThread</td><td>starts the CRT on a second thread</td><td>runs inline</td></tr>
+          <tr><td class="n">0x001A1C23</td><td>CRT startup &mdash; hand-written in the port</td><td>runs, 4 steps</td></tr>
+          <tr><td class="n">sub_00011E40</td><td>static initialisers</td><td>entered, never returns</td></tr>
+          <tr><td class="n">sub_0011DD40</td><td>initialiser 1</td><td>returns</td></tr>
+          <tr><td class="n">sub_001E8DE0</td><td>initialiser 2</td><td>returns</td></tr>
+          <tr><td class="n">sub_00239E50</td><td><strong>initialiser 3 &mdash; the registry singleton</strong></td><td><strong>never returns</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <h3>Root cause: one uninitialised object</h3>
+      <p>Inside that initialiser, a type descriptor reaches the create-an-instance
+      path with <em>both</em> its instance size and its allocation prefix set to
+      <code>-1</code>. The code allocates <code>size + prefix</code>, so it asks
+      the heap for <code>0xFFFFFFFE</code> bytes &mdash; roughly 4&nbsp;GB. The
+      allocator correctly refuses and returns null, and the pointer becomes
+      <code>0 + (-1) = -1</code>, which passes a non-null check and is written
+      through.</p>
+      <p>Probing all 235 allocator calls made this unambiguous: the healthy ones
+      request 12, 16, 52 bytes; the fatal one requests <code>0xFFFFFFFE</code>.
+      Nothing in the chain is misbehaving &mdash; not the allocator, not the null
+      check, not the create path. One object was never initialised.</p>
+    </div>
+
+    <p class="eyebrow" style="margin-top:.6rem">And where that object comes from</p>
+    <h3>The chain runs back to a wall documented weeks ago</h3>
+    <p>A software watchpoint &mdash; reading the value after every recompiled call,
+    because page-protection watchpoints cannot see writes that land while the page
+    is unprotected &mdash; named the function that installs the bad descriptor. It
+    is a type lookup whose fallback path is dead:</p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Link</th><th>Consequence</th></tr></thead>
+        <tbody>
+          <tr><td>The subsystem registrar is never called &mdash; its only reference is a <strong>data</strong> pointer, not a call</td><td>registry count stays at <strong>1</strong></td></tr>
+          <tr><td>The type lookup falls back to the previously-registered subsystem, which needs <strong>2 or more</strong></td><td>that branch is dead code</td></tr>
+          <tr><td>A type this subsystem does not own cannot be inherited</td><td>lookup returns an uninitialised descriptor</td></tr>
+          <tr><td>Its size and prefix are both <code>-1</code></td><td>allocation asks for 4&nbsp;GB, returns null</td></tr>
+          <tr><td><code>0 + (-1) = -1</code> passes the null check</td><td>the boot writes through <code>-1</code> and dies</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The fix belongs at the top of that chain. Every function below it is
+    faithful to the original and none of them should be guarded. It is also the
+    <strong>third</strong> time the same defect class &mdash; code reachable only
+    through a data pointer, so never translated &mdash; has produced the active
+    wall.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The dominant defect class</p>
+    <h2>Code that exists but is never reached</h2>
+    <p>A recompiler discovers functions by following calls from an entry point.
+    A function whose only reference is a pointer in a table &mdash; a vtable, an
+    initialiser list, a factory array &mdash; is never reached, never translated,
+    and whatever it was meant to set up stays null for the whole run.</p>
+    <p>The clearest case sits on the most important path in the binary: the CRT
+    startup at <code>0x001A1C23</code> is never the target of a call instruction
+    anywhere. Its only reference is <code>push 0x1a1c23</code>, as an argument to
+    <code>CreateThread</code>. It runs at all only because it was hand-written
+    into the port.</p>
+    <div class="note">
+      <h3>The strategic read</h3>
+      <p>Anything that converts data-referenced code into translated code has
+      outsized leverage over fixing individual functions. Two passes of that
+      shape &mdash; 609 orphan functions, then 512 data-referenced pointers
+      &mdash; have each produced more movement than any single-function fix in
+      this project's history.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">What happens next</p>
+    <h2>One named target unlocks the rest</h2>
+    <p>The sequence below is not a wish list. Each step is blocked only by the
+    one above it, and the first has already been named by the project's own
+    callee-save checker.</p>
+    <div class="note">
+      <h3>1 &mdash; <code>sub_0021E970</code> &mdash; done, and it was not
+      what the plan predicted</h3>
+      <p>The plan said its epilogue was misaligned. It is not. The address it
+      exits through, <code>0x0021EABF</code>, is a real two-instruction fragment
+      &mdash; set a register, jump back into the middle of the same function
+      &mdash; that the translator never recognised as code. So the exit called a
+      placeholder whose entire body discards a return address, and the function
+      returned with its epilogue never run: five saved registers abandoned on the
+      stack, and the caller handed back a loop counter where it expected an
+      object pointer. That counter, 23, is the value an earlier investigation
+      chased for weeks. The fragment is now inlined where it belongs.</p>
+      <p>This one is proved from the original machine code rather than from a
+      run, because the function is not reached on the current boot. The census it
+      prompted is where the measurable gain came from.</p>
+      <h3>2 &mdash; re-apply the field-container fix</h3>
+      <p>A single edit, already written and verified to work: create the field
+      container at registration when a descriptor has none. It was reverted only
+      because the wall above sits in front of it.</p>
+      <h3>3 &mdash; retire the guards</h3>
+      <p>Ten of this session's changes are diagnostic bypasses, and each says so
+      in its own comment. With registration writing into real containers they
+      should become inert. Every one gets removed and re-measured on its own.</p>
+    </div>
+    <div class="note">
+      <h3>What the census changed</h3>
+      <p>The same defect class looked enormous statically and turned out to have
+      five live members. Two of them are now real functions rather than
+      placeholders, which is the whole of this session's measured gain. One must
+      never be recompiled the way the tool proposed: it derives a function's size
+      by scanning forward to a return instruction, and here that ran 693 bytes
+      through several unrelated functions when the real one is 41. The other two
+      are a matched pair, and they need the fragment inlined rather than
+      recompiled &mdash; a mid-function continuation carries the epilogue's pops
+      without the prologue's pushes, so it is only correct while the frame it
+      belongs to is still alive.</p>
+      <p>The lesson generalises past this project: measure a defect class before
+      sizing it. The gap between 2,061 and 5 is the difference between a rewrite
+      and an afternoon.</p>
+    </div>
+    <p>Two other threads stay open. A scanner written earlier found 379
+    indirect calls that mix register saves with argument pushes; none can be
+    corrected mechanically, and each is a latent version of the defect that cost
+    wall 42. And one wall is deliberately left unguarded, because it sits inside
+    the allocator's own free list, where a wrong skip corrupts the heap silently
+    instead of crashing.</p>
+    <div class="note">
+      <h3>The honest caveat</h3>
+      <p>Part of the depth reported above rests on those bypasses rather than on
+      correct behaviour. Applying the real fix will make the numbers look worse
+      before they look better, and that is the right trade: a bypass that becomes
+      load-bearing has stopped being a bypass.</p>
+      <p>That stopped being hypothetical this session. The correct fix for one of
+      the two paired fragments is faithful to the original machine code, and
+      applying it takes execution from 582 kernel calls down to 48 &mdash; because
+      the broken placeholder had been returning early and skipping work that now
+      runs and fails. It lands the boot directly on an older wall the plan already
+      names. The fix is reverted and recorded word for word, to be re-applied once
+      that wall is cleared. Reverting a correct change is the right call here;
+      pretending the number it produced was a regression would not be.</p>
+    </div>
+  </section>
+
+  <footer>
+    Generated by <code>tools_data/gen_status_page.py</code> from
+    <code>progress.json</code> and the current run's log. Figures come from a
+    deterministic two-of-two run. Where a conclusion was later overturned, the
+    project ledger records both &mdash; including several where a runtime
+    measurement corrected a confident static one.
+  </footer>
+
+</div>

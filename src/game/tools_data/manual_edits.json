@@ -12579,5 +12579,101 @@
   "block": [
    "    if (!(ebp >= 0x00880000u && ebp < 0x04000000u)) goto loc_001EB929;"
   ]
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "insert_before",
+  "function": "sub_0021E970",
+  "block": [
+   "    /* Manual fix (not in original x86): 0x0021EABF is not a stub, it is a real",
+   "       two-instruction island - `mov ebp, edx` then `jmp 0x0021E9C2` - that the",
+   "       generator failed to detect, so sub_0021EABF() links to an unresolved stub",
+   "       whose whole body is `g_esp += 4`. Taking that exit therefore returned from",
+   "       sub_0021E970 WITHOUT its epilogue: the five saved registers stayed on the",
+   "       stack and the caller got back esi still holding this loop's element count.",
+   "       That is the reported `esi 010989A8 -> 00000017` (0x17 = 23 elements) and the",
+   "       small integer chased for weeks. The second loop below has the same shape and",
+   "       the generator DID resolve it (sub_0021EAC6 -> sub_0021EA41), which is why",
+   "       only this one misbehaves. Jump to the join point instead; the guard at",
+   "       loc_0021E9BF supplies the `mov ebp, edx` half. The generated line that",
+   "       follows is now unreachable on the equal path and left in place so the",
+   "       diff against generator output stays honest. */",
+   "    if (CMP_EQ(MEM32(ecx + edx * 4), eax)) goto loc_0021E9BF;"
+  ],
+  "match": null,
+  "anchor": "    if (CMP_EQ(MEM32(ecx + edx * 4), eax)) { g_seh_ebp = ebp; sub_0021EABF(); return; } /* je: equal / zero */",
+  "pre": "loc_0021E9B1: ;"
+ },
+ {
+  "file": "recomp_0016.c",
+  "kind": "wrap",
+  "function": "sub_0021E970",
+  "block": [
+   "    /* Manual fix (not in original x86): the second half of the 0x0021EABF island.",
+   "       0x0021EABF does `mov ebp, edx` and jumps PAST this `or ebp, -1`, so the",
+   "       index reaches sub_002093F0 instead of -1. The loop above leaves edx == esi",
+   "       when it runs to completion and edx >= esi when it was skipped outright, so",
+   "       `edx < esi` is true only on the match path - no extra state is needed to",
+   "       tell the two apart. */",
+   "    if (CMP_L(edx, esi)) { ebp = edx; } else {"
+  ],
+  "close": [
+   "    }"
+  ],
+  "match": null,
+  "anchor": "    ebp = ebp | 0xFFFFFFFFu;",
+  "wrapped": [
+   "    ebp = ebp | 0xFFFFFFFFu;"
+  ]
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001183EC: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001183EC\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_001995AD: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_001995AD\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0020B8C6: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_0020B8C6\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_stubs_unresolved.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_0034436E: moved to src/recomp_seed.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_0034436E\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
+ },
+ {
+  "file": "recomp_seed.c",
+  "kind": "replace_line",
+  "function": null,
+  "block": [
+   "/* sub_003680D0: moved to src/d3d8_shim.c - generated body removed so the hand-written definition links */"
+  ],
+  "match": "^void sub_003680D0\\(void\\) \\{ /\\*.*\\*/ \\}$",
+  "anchor": null
  }
 ]

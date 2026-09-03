@@ -2663,6 +2663,62 @@
     "blocked"
    ],
    "when": "2026-09-02 23:40"
+  },
+  {
+   "id": 156,
+   "claim": "sub_0021E970's missing esi restore is caused by 0x0021EABF being an unresolved stub, not by a misaligned epilogue",
+   "verdict": "confirmed",
+   "evidence": "whatis 0x0021EABF disassembles to `mov ebp, edx; jmp 0x0021E9C2` - a two-instruction island, 7 bytes, identical in shape to sub_0021EAC6 (`mov ebp, edx; jmp 0x0021EA41`) which the generator DID detect and which is seeded in recomp_0026.c. recomp_stubs_unresolved.c:1876 defined sub_0021EABF as { g_esp += 4; /* not detected */ }. sub_0021E970 pushes ecx/ebx/ebp/esi/edi at 0x0021E970 and pops them at loc_0021EAB9, but the je at loc_0021E9B1 exits through sub_0021EABF, which returns immediately - so the epilogue never runs, the five saves stay on the stack, and the caller gets back esi still holding MEM32(esi+0xC), this loop's element count. That is the reported 'esi 010989A8 -> 00000017' (0x17 = 23). FIXED by inlining the island: goto loc_0021E9BF on match, plus a guard there supplying the mov ebp,edx (the loop leaves edx == esi on completion and edx >= esi when skipped, so edx < esi identifies the match path with no extra state). Two manual_edits records; 1095/1095 placeable. Not measurable on the current boot - sub_0021E970 is not reached - so the evidence is static, from the XBE bytes, not from a run.",
+   "tags": [
+    "wall",
+    "icall",
+    "epilogue",
+    "stub",
+    "sub_0021E970"
+   ],
+   "when": "2026-09-03 02:29"
+  },
+  {
+   "id": 157,
+   "claim": "Only 5 of the 2125 unresolved stubs are actually entered on a boot, so the class is small and fixable rather than a 2061-site latent risk",
+   "verdict": "confirmed",
+   "evidence": "A static scan found 2061 of the 2125 stubs in recomp_stubs_unresolved.c reachable by a lifter tail call (sub_XXXX(); return;) across 2661 sites - every one a potential return-without-epilogue. Instrumenting every stub body with a log-once counter and booting gave exactly 5 hits: 0x001183EC, 0x001995AD, 0x0020B8C6, 0x00340F24, 0x0034436E. All five are mid-function continuations; 0x0020B8C6 is 'mov ebx, edx; jmp 0x0020B88D', the same island shape as 0x0021EABF. Three of the five sit inside functions the ABI checker already names (sub_001183A0, sub_001994F0, sub_00344344), so the STUBHIT list and the ABI violation list are the same defect seen from two sides. Probe removed afterwards; strip_probes clean.",
+   "tags": [
+    "stub",
+    "icall",
+    "epilogue",
+    "instrument",
+    "census"
+   ],
+   "when": "2026-09-03 02:30"
+  },
+  {
+   "id": 158,
+   "claim": "Seeding is the right repair for every unresolved stub",
+   "verdict": "refuted",
+   "evidence": "Seeding all five live stubs measured 578 -> 48 kernel calls, 165 -> 125 reached. Bisected with a new tool (tools_data/neuter_seed.py, which stubs one seeded body in place so a candidate costs one rebuild instead of a five-minute re-seed). Result: sub_001183EC and sub_0034436E are GOOD (578 -> 582 kernel, 165 -> 174 reached, 445 -> 501 call sites, deterministic over two runs). sub_001995AD is BAD (578 -> 244): the seeder derives extent by scanning to a ret and gave it 0x001995AD-0x00199862, 693 bytes, but its enclosing function sub_001994F0 is only 41 bytes (0x001994F0-0x00199519), so the seed spans several unrelated functions. sub_0020B8C6/sub_0020B88D are BAD as seeds (578 -> 48): a seeded continuation carries the epilogue POPs without the prologue PUSHes, which is only correct while the parent frame is still live. The rule: seed a continuation only when its extent stays inside one function; inline an island instead.",
+   "tags": [
+    "seed",
+    "stub",
+    "tooling",
+    "measurement"
+   ],
+   "when": "2026-09-03 02:30"
+  },
+  {
+   "id": 159,
+   "claim": "The correct inline fix for sub_0020B850's 0x0020B8C6 island can land now",
+   "verdict": "refuted",
+   "evidence": "The fix is faithful - 0x0020B8C6 disassembles to 'mov ebx, edx; jmp 0x0020B88D' and the inline form mirrors the one that fixed sub_0021E970 - but applying it measured 582 -> 48 kernel calls and 174 -> 125 reached. The broken stub was load-bearing: it returned early from sub_0020B850 and skipped the icall at 0x0020B893, sub_002093F0 and the release at 0x0020B8AC. With the island inlined, that work runs and the boot dies in a repeating 0x001EC220 -> 0x001FBA90 -> 0x001EC770 ICALL cycle ending in a failed resolve of VA 0 and a read of guest 0x0000FFFF with esi = -1. sub_001FBA90 is the August wall the plan of record already names, so this fix opens the door onto that wall rather than clearing it. REVERTED and held here; re-apply after sub_001FBA90 is fixed. The exact patch: in recomp_0015.c sub_0020B850, insert 'if (CMP_EQ(MEM32(ecx + edx * 4), eax)) goto loc_0020B88A;' before the generated je at loc_0020B880, and replace 'ebx = ebx | 0xFFFFFFFFu;' at loc_0020B88A with 'if (CMP_L(edx, esi)) { ebx = edx; } else { ebx = ebx | 0xFFFFFFFFu; }'.",
+   "tags": [
+    "wall",
+    "icall",
+    "island",
+    "sub_0020B850",
+    "sub_001FBA90",
+    "held"
+   ],
+   "when": "2026-09-03 02:30"
   }
  ]
 }

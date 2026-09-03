@@ -35,17 +35,17 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Eleven walls broken, and the defect behind all of them is now "
-            "measured rather than guessed")
-SUBHEAD = ("Walls 42 through 52 fell on 2 September. Every one traced back to two "
-           "mechanical faults: a translator bug that let a failed indirect call "
-           "return a stale pointer to its caller, and type descriptors whose field "
-           "container is never created. Registration does run for those "
-           "descriptors - it writes their fields through a null pointer into "
-           "mapped page zero, which is why a dozen unrelated-looking crashes all "
-           "read the same garbage. The fix is written and verified, and is held "
-           "back by one older defect standing in front of it. Execution reaches "
-           "578 kernel calls and 481 call sites, up from 514 and 445.")
+HEADLINE = ("Two thousand suspects, five culprits: the stub census that "
+            "resized the problem")
+SUBHEAD = ("A static scan said 2,061 unresolved call targets could return without "
+           "restoring their caller's registers - the defect that cost wall 42. "
+           "Instrumenting all 2,125 of them and booting gave five. Two seed "
+           "cleanly and are kept; one has an extent spanning unrelated functions; "
+           "and two must not be seeded at all, because a mid-function continuation "
+           "carries the epilogue's pops without the prologue's pushes. The first "
+           "step of the plan of record is done, though the defect was not the one "
+           "the plan predicted. Execution reaches 582 kernel calls, 501 call "
+           "sites and 174 dispatch targets, up from 578, 445 and 165.")
 
 
 def lifted_function_count():
@@ -342,12 +342,20 @@ def build(hist, sig):
     one above it, and the first has already been named by the project's own
     callee-save checker.</p>
     <div class="note">
-      <h3>1 &mdash; <code>sub_0021E970</code></h3>
-      <p>It fails to restore <code>esi</code>, turning a live object pointer into
-      <code>0x17</code>. That small integer is the one an earlier investigation
-      chased for weeks. Unlike the five sites fixed this session it saves its
-      registers correctly, so something deeper misaligns its epilogue. Clearing
-      it clears the older wall that everything else waits behind.</p>
+      <h3>1 &mdash; <code>sub_0021E970</code> &mdash; done, and it was not
+      what the plan predicted</h3>
+      <p>The plan said its epilogue was misaligned. It is not. The address it
+      exits through, <code>0x0021EABF</code>, is a real two-instruction fragment
+      &mdash; set a register, jump back into the middle of the same function
+      &mdash; that the translator never recognised as code. So the exit called a
+      placeholder whose entire body discards a return address, and the function
+      returned with its epilogue never run: five saved registers abandoned on the
+      stack, and the caller handed back a loop counter where it expected an
+      object pointer. That counter, 23, is the value an earlier investigation
+      chased for weeks. The fragment is now inlined where it belongs.</p>
+      <p>This one is proved from the original machine code rather than from a
+      run, because the function is not reached on the current boot. The census it
+      prompted is where the measurable gain came from.</p>
       <h3>2 &mdash; re-apply the field-container fix</h3>
       <p>A single edit, already written and verified to work: create the field
       container at registration when a descriptor has none. It was reverted only
@@ -357,7 +365,23 @@ def build(hist, sig):
       in its own comment. With registration writing into real containers they
       should become inert. Every one gets removed and re-measured on its own.</p>
     </div>
-    <p>Two other threads stay open. A scanner written this session found 379
+    <div class="note">
+      <h3>What the census changed</h3>
+      <p>The same defect class looked enormous statically and turned out to have
+      five live members. Two of them are now real functions rather than
+      placeholders, which is the whole of this session's measured gain. One must
+      never be recompiled the way the tool proposed: it derives a function's size
+      by scanning forward to a return instruction, and here that ran 693 bytes
+      through several unrelated functions when the real one is 41. The other two
+      are a matched pair, and they need the fragment inlined rather than
+      recompiled &mdash; a mid-function continuation carries the epilogue's pops
+      without the prologue's pushes, so it is only correct while the frame it
+      belongs to is still alive.</p>
+      <p>The lesson generalises past this project: measure a defect class before
+      sizing it. The gap between 2,061 and 5 is the difference between a rewrite
+      and an afternoon.</p>
+    </div>
+    <p>Two other threads stay open. A scanner written earlier found 379
     indirect calls that mix register saves with argument pushes; none can be
     corrected mechanically, and each is a latent version of the defect that cost
     wall 42. And one wall is deliberately left unguarded, because it sits inside
@@ -369,6 +393,14 @@ def build(hist, sig):
       correct behaviour. Applying the real fix will make the numbers look worse
       before they look better, and that is the right trade: a bypass that becomes
       load-bearing has stopped being a bypass.</p>
+      <p>That stopped being hypothetical this session. The correct fix for one of
+      the two paired fragments is faithful to the original machine code, and
+      applying it takes execution from 582 kernel calls down to 48 &mdash; because
+      the broken placeholder had been returning early and skipping work that now
+      runs and fails. It lands the boot directly on an older wall the plan already
+      names. The fix is reverted and recorded word for word, to be re-applied once
+      that wall is cleared. Reverting a correct change is the right call here;
+      pretending the number it produced was a regression would not be.</p>
     </div>
   </section>
 
