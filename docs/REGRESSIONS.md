@@ -1,6 +1,6 @@
 # Open regressions and defects
 
-Findings from the audit of 2026-09-03. Each is stated so it can be picked up and
+Findings from the audit of 2026-09-03, with R5 chased to a conclusion the same day. Each is stated so it can be picked up and
 fixed on its own, without re-deriving how it was found. Nothing here is fixed —
 this is the worklist.
 
@@ -89,26 +89,44 @@ path** — seeding is wrong and the correct extent is unknown.
 code; find the real owner and whether it is a continuation that needs inlining
 rather than seeding.
 
-## R5 — NEW: `0x0006702C` is an unresolved stub and is entered on every run
+## R5 — `0x0006702C`: found, fixed in one line, and held
 
-Not present in the earlier census, which ran before the paths opened up. Its
-shape is the same class as the defect fixed today:
+**Chased 2026-09-03. The cause is completely understood; the fix is written and
+deliberately not applied.**
 
+`0x0006702C` is **one byte** — opcode `0x48`, `dec eax` — falling straight into
+`0x0006702D`. Its enclosing function is `0x00066FE0`–`0x0006703C`, an
+initialiser that fills a 100-entry table at `[ecx+0x644]` with sequential
+values.
+
+The `jl` at `0x0006701D` is the **normal** path, taken on 99 of the 100
+iterations; the fall-through is only the wrap case. So landing in a stub whose
+whole body is `g_esp += 4` returned from the entire function on the first
+iteration — leaving the table unfilled **and** the caller 12 bytes deep, because
+the two prologue pushes and the return address were never popped.
+
+`sub_0006702D` is already seeded and complete: the store, the loop back, the
+epilogue. Only the decrement was missing, so no seeding is needed:
+
+```c
+/* in sub_00067000, replacing the generated jl */
+if (CMP_L(eax, 0x64)) { eax--; g_seh_ebp = ebp; sub_0006702D(); return; }
 ```
-0x0006702c: dec  eax
-0x0006702d: mov  dword ptr [ecx + eax*4 + 0x644], edx   ; an array store
-0x00067034: inc  edx
-0x00067035: cmp  edx, 0x64
-0x00067038: jl   0x67000                                 ; loop back
-0x0006703a: pop  edi                                     ; register restore
-```
 
-An array store, a loop, and a register restore — exactly the shape of
-`sub_00208645`, whose absence was today's root defect. Skipping it drops a
-hundred-iteration table fill and at least one `pop`.
+**Why it is held.** Measured deterministically both ways: kernel calls 230 to
+**60**, heap 136 to 91, reached 196 to **175**, call sites 551 to **489**,
+indirect dispatches 44,941 to **128**. Every tracked signal moved the wrong way,
+so rule #1 applies. The boot then dies somewhere entirely different —
+`sub_0020F860+0x274F` reading `0xFC015AD8`, under `sub_00211530` and
+`sub_001EC600`.
 
-**Fix.** Establish its owning function and extent, then seed or inline per the
-rule in ledger #158: seed only when the extent stays inside one function.
+**This is now a pattern, not a coincidence** — the third faithful fix a broken
+stub turned out to be load-bearing for, after R3 and the field-container fix. An
+empty table read as empty is survivable; a table filled with real indices sends
+execution down paths that have their own defects. Expect the next one to behave
+the same way.
+
+Ledger #168.
 
 ## R6 — `0x00340F24` is entered every run and the seeder cannot repair it
 

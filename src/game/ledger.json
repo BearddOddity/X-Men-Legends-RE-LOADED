@@ -2830,6 +2830,21 @@
     "verification"
    ],
    "when": "2026-09-03 06:56"
+  },
+  {
+   "id": 168,
+   "claim": "0x0006702C is a single dec eax whose absence empties a 100-entry table and leaks 12 bytes of stack, but restoring it regresses every signal",
+   "verdict": "confirmed",
+   "evidence": "IDENTIFIED. 0x0006702C is ONE BYTE - opcode 0x48, dec eax - falling straight into 0x0006702D. Its enclosing function is 0x00066FE0-0x0006703C: push esi / xor esi,esi / push edi / zero three fields at ecx+0x7D8, +0x7DC, +0x7E0 / xor edx,edx / jmp 0x67000, then a loop that fills a 100-entry table at MEM32(ecx + eax*4 + 0x644) with sequential values. WHY ONE BYTE MATTERED. The jl at 0x0006701D is the NORMAL path, taken on 99 of the 100 iterations; the fall-through at loc_0006701F is only the wrap case that resets the index to 0x63. Because sub_0006702C is an unresolved stub whose whole body is g_esp += 4, taking it returned from the entire function on the first iteration - so the table was never filled, and the caller was left 12 bytes deep because the two prologue pushes and the return address that loc_0006703A in sub_0006702D pops were never popped. sub_0006702D itself is already seeded and complete: the store, the loop back to sub_00067000, and the epilogue. Only the decrement was missing. THE FIX IS ONE LINE and needs no seeding, because sub_0006702D already exists - in sub_00067000, replace the generated jl with: if (CMP_L(eax, 0x64)) { eax--; g_seh_ebp = ebp; sub_0006702D(); return; } MEASURED AND REVERTED, deterministic 2 of 2 both ways. With the fix: kernel calls 230 -> 60, heap 136 -> 91, reached 196 -> 175, call sites 551 -> 489, failed icalls 292 -> 513, indirect dispatches 44941 -> 128. Every tracked signal moved the wrong way, so rule #1 applies and it is reverted. The boot then dies somewhere entirely different - sub_0020F860+0x274F reading 0xFC015AD8, under sub_00211530 and sub_001EC600 - rather than at the previous wall. THIRD instance of a faithful fix that a broken stub was load-bearing for, after ledger #159 and the field-container fix in #162. The pattern is now established enough to expect: an empty table read as empty is survivable, and a table filled with real indices sends execution down paths that have their own defects. Baseline restored and re-verified at 230/136/292/196/551.",
+   "tags": [
+    "stub",
+    "fragment",
+    "sub_00066FE0",
+    "sub_0006702C",
+    "held",
+    "regression"
+   ],
+   "when": "2026-09-03 07:14"
   }
  ]
 }

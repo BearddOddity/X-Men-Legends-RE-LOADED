@@ -2594,5 +2594,19 @@
     "message": "Seed sub_00208645 - the field-array append - and the whole container chain starts working. Chased the '6 of 14 aliased _metaFields' idea and a ledger check killed it before a build was spent: #115 settled months ago that 'container == owner + 0x68' is the bump allocator's 0x64-byte stride, not structure. Probed instead. The search in sub_0021E970 SUCCEEDS (23 entries, match at index 13); the SECOND call is the broken one, and bracketing it showed esp 0x10 lower after a call that should leave it unchanged, with edi coming back holding esi's saved value. Seven esp probes down the chain put the 16 bytes on sub_00208600. Its recompiled extent stops at 0x0020860F, and the jl branch target sub_00208645 was an unresolved stub - the original there is the ARRAY STORE plus pop edi / pop esi / ret 8, so 8 bytes of register restore and 8 of argument purge is the missing 16 exactly, and skipping the store is why no field array ever grew. Same 16-byte leak ledger #84 measured in August and could not place. New tool dedupe_functions.py repairs the duplicate function bodies manual_edits.py apply writes on every run, choosing the copy whose loc_ labels all lie inside its own address range.",
     "note": "Deterministic 2 of 2. heap 96 -> 136, reached VAs 170 -> 196, call sites 477 -> 551, kernel calls unchanged at 230. Reached and call sites are both new bests - the previous highs of 176/501 were measured on the damaged tree entry 192 corrects. Kernel calls flat while three other signals rise is rule #8 working as intended: the boot is doing much more real work before it stops. Wall moves to sub_0020E547+0x1C3 reading 0xFFFE00CC. Snapshot taken. Full post-seed repair sequence recorded in ledger #166.",
     "commit": "dcf6031"
+  },
+  {
+    "kernel_calls": 230,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Chased 0x0006702C, the new stub the audit census found. It is ONE BYTE - opcode 0x48, dec eax - falling into 0x0006702D, inside an initialiser at 0x00066FE0-0x0006703C that fills a 100-entry table at [ecx+0x644] with sequential values. The jl at 0x0006701D is the NORMAL path, taken on 99 of 100 iterations, so landing in a g_esp += 4 stub returned from the whole function on the first iteration: table unfilled, and the caller left 12 bytes deep because the two prologue pushes and the return address were never popped. sub_0006702D is already seeded and complete, so the fix is one line and needs no seeding. Also rewrote the README for the renamed repo with a full Credits and sources section, and pushed it to the default branch.",
+    "note": "THE FIX IS REVERTED, not applied. Measured deterministically both ways: kernel 230 -> 60, heap 136 -> 91, reached 196 -> 175, callsites 551 -> 489, failed icalls 292 -> 513, dispatches 44941 -> 128. Every tracked signal moved the wrong way, so rule #1 applies. The boot then dies somewhere entirely different, sub_0020F860+0x274F reading 0xFC015AD8. This is the THIRD faithful fix a broken stub turned out to be load-bearing for, after ledger #159 and the field-container fix - an empty table read as empty is survivable, a filled one sends execution down paths with their own defects. Patch preserved verbatim in ledger #168 and docs/REGRESSIONS.md R5. Baseline restored and re-verified at 230/136/292/196/551, deterministic 2 of 2.",
+    "commit": "4db0c64"
   }
 ]
