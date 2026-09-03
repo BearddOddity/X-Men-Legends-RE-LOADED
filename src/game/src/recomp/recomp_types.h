@@ -748,6 +748,16 @@ void recomp_abi_violation_va(uint32_t target_va,
      * so the check stays sound and covers the tail-jump chains that #79 \
      * could not rule out. */ \
     if (_fn) { recomp_mark_reached(_tva); RECOMP_ICALL_WATCH(_tva, _fn()); } \
+    /* An unresolved tail jump used to do NOTHING here - no call, no log, no \
+     * count. That is the worst possible failure for a tail jump, because the \
+     * TARGET owns this function's epilogue: skipping it means the callee-saved \
+     * registers are never popped and the caller silently receives garbage. \
+     * Measured: sub_00342AA0 (memcpy) dispatches through a jump table whose \
+     * entry sub_00342C8F is not lifted, and the ABI checker duly reported \
+     * "sub_00342AA0 did not restore: esi ... edi ...". Route it through the \
+     * same accounting every other unresolved indirect call already uses, so \
+     * these show up in the failed-icall count instead of vanishing. */ \
+    else { recomp_icall_fail_log(_tva); } \
 } while(0)
 
 /* ================================================================
