@@ -35,17 +35,14 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The list that never grew, because the instruction that "
-            "appended to it was missing")
-SUBHEAD = ("For months the engine’s type descriptors held field lists that stayed "
-           "empty, and a dozen crashes downstream all traced back to reading one. "
-           "The routine that appends an entry ends in a branch the translator "
-           "never recognised as code, so the store simply never happened — and "
-           "the same gap dropped sixteen bytes of stack cleanup, which is a leak "
-           "measured in August and never placed until now. Restoring it moved "
-           "three of the four tracked signals at once: heap allocations 96 to 136, "
-           "code reached 170 to 196, call sites 477 to 551, indirect dispatches up "
-           "43%. Both reached and call sites are records.")
+HEADLINE = ("Audited, and the progress holds")
+SUBHEAD = ("Every figure on this page was re-derived from a clean rebuild rather than "
+           "carried forward. The two headline counts are records against the whole "
+           "193-run history, all 1,093 hand-written repairs are physically present, "
+           "and the one apparently-lost high-water mark from August turns out to be a "
+           "runaway the project itself documented and deliberately ended. Nine open "
+           "defects came out of the audit, four of them wrong behaviour happening on "
+           "every single run.")
 
 
 def lifted_function_count():
@@ -209,6 +206,74 @@ def build(hist, sig):
   </section>
 
   <section>
+    <p class="eyebrow">Audit &middot; 3 September 2026</p>
+    <h2>What was checked, and against what</h2>
+    <p>A percentage is only worth printing when there is a denominator behind
+    it. These four have one. Each was measured during the audit, not quoted from
+    an earlier session.</p>
+
+    <div class="vledger">
+      <div class="vrow">
+        <span class="vrow-label">Hand-written repairs present in the translated tree</span>
+        <span class="vrow-frac">1,093 / 1,093</span>
+        <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
+        <span class="vrow-note">Tested by matching each recorded block&rsquo;s exact text in
+        its file. The project&rsquo;s own tool reports whether an edit <em>could</em> be
+        placed, which is not the same question, and is how four repairs went missing
+        earlier the same day.</span>
+      </div>
+
+      <div class="vrow">
+        <span class="vrow-label">Recompiled functions with a real body</span>
+        <span class="vrow-frac">1,656 / 1,656</span>
+        <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
+        <span class="vrow-note">No address in the recompilation list is missing its code,
+        and no function is defined twice anywhere in the tree.</span>
+      </div>
+
+      <div class="vrow">
+        <span class="vrow-label">Tool tests passing</span>
+        <span class="vrow-frac">51 / 51</span>
+        <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
+        <span class="vrow-note">Plus the two new tools&rsquo; own self-checks. The tools are
+        what make the analysis repeatable, so they are tested; the translated code cannot
+        be, since its only real test is whether the game boots.</span>
+      </div>
+
+      <div class="vrow">
+        <span class="vrow-label">Identical runs from a clean rebuild</span>
+        <span class="vrow-frac">2 / 2</span>
+        <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
+        <span class="vrow-note">Rebuilt from source and run twice: {kernel} kernel calls,
+        {heap} heap allocations, {reached} functions reached, {callsites} call sites, both
+        times. A figure that moves between runs cannot be compared with anything.</span>
+      </div>
+    </div>
+
+    <div class="nodenom">
+      <span class="vrow-label">No completion percentage for the port itself</span>
+      <span class="vrow-note">There is nothing honest to divide by. The goal is
+      &ldquo;boots to the main menu&rdquo;, and the remaining work is however many defects
+      stand between here and there &mdash; a number nobody knows. Every percentage on this
+      page measures something countable; inventing one for overall progress would be the
+      most quotable and least true figure here. Direction of travel is the honest
+      substitute, and it is what the chart below shows.</span>
+    </div>
+
+    <div class="note">
+      <h3>The high-water mark that was not one</h3>
+      <p>On 9 August a run recorded <strong>4,000 kernel calls and 826 heap
+      allocations</strong> against today&rsquo;s {kernel} and {heap}, which reads as a
+      severe regression. It is not. That run was a runaway: 4,000 is where the watchdog
+      cuts execution off, and the change that ended it is recorded as removing a dispatch
+      loop running on junk read from an unmapped page. The allocations were that loop
+      allocating garbage.</p>
+      <p>Worth stating plainly, because the project&rsquo;s own progress tool still
+      advertises 4,000 as the best figure ever achieved, and it never was.</p>
+    </div>
+  </section>
+
+  <section>
     <p class="eyebrow">Progression</p>
     <h2>{walls} walls passed across {runs} runs</h2>
     <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
@@ -336,54 +401,86 @@ def build(hist, sig):
   </section>
 
   <section>
-    <p class="eyebrow">What happens next</p>
-    <h2>A wrong idea, killed before it cost a build</h2>
-    <p>The session opened by chasing a hunch: six of fourteen type descriptors
-    appeared to point at another object&rsquo;s data. Checking the project&rsquo;s
-    own record of past conclusions refuted it in seconds. The pattern that looked
-    like structure &mdash; every healthy descriptor&rsquo;s list sitting exactly
-    0x68 bytes past it &mdash; is just the allocator handing out consecutive
-    blocks of a 0x64-byte object. The same mistake had been made and withdrawn
-    months earlier. Nothing was aliased.</p>
-    <p>That is the ledger paying for itself. The wrong idea was appealing, and
-    the only thing that stopped it was having written down why it failed the
-    first time.</p>
-    <div class="note">
-      <h3>What was actually wrong</h3>
-      <p>Measuring instead of guessing found something better. The <em>first</em>
-      lookup worked perfectly &mdash; twenty-three entries, match at index
-      thirteen. The <em>second</em> call was the broken one, and bracketing it
-      showed the stack pointer sixteen bytes lower after a call that should have
-      left it untouched, with a saved register coming back holding a
-      neighbour&rsquo;s value.</p>
-      <p>Seven measurements down the call chain put the sixteen bytes on one
-      routine: the one that stores an entry into a descriptor&rsquo;s field list.
-      Its translated form stops early, and the branch it ends on &mdash; the
-      branch containing the store itself, plus the register restore and argument
-      cleanup &mdash; was never recognised as code. Eight bytes of restore plus
-      eight of cleanup is exactly the sixteen that went missing, and the absent
-      store is why no list ever grew.</p>
-      <p>This is the third time a two-or-three-instruction fragment the translator
-      skipped has turned out to be the whole defect. It is now the first thing to
-      check when a function&rsquo;s translated extent is shorter than its real
-      one.</p>
+    <p class="eyebrow">Open defects</p>
+    <h2>Nine, and four are happening every run</h2>
+    <p>Written up individually so each can be picked up on its own. The red
+    stripe marks wrong behaviour occurring in every single run right now; amber
+    marks a flaw in the tooling that analyses the work rather than in the work
+    itself.</p>
+
+    <div class="risks">
+      <div class="risk live">
+        <span class="risk-id">R3</span>
+        <span class="risk-what">A two-instruction fragment is skipped, so a function returns without restoring its caller&rsquo;s registers</span>
+        <span class="risk-why">The correct repair is written out and deliberately withheld:
+        applying it takes execution from 582 kernel calls to 48, because the broken version
+        was returning early and skipping work that then runs and fails. Blocked on whatever
+        that work hits.</span>
+      </div>
+      <div class="risk live">
+        <span class="risk-id">R4</span>
+        <span class="risk-what">A second skipped fragment, with no repair path at all</span>
+        <span class="risk-why">Recompiling it was tried and measured worse: the tool sizes a
+        function by scanning forward to a return instruction, and here that ran 693 bytes
+        through several unrelated functions when the real one is 41. Its true owner is still
+        unknown.</span>
+      </div>
+      <div class="risk live">
+        <span class="risk-id">R5</span>
+        <span class="risk-what">A newly exposed fragment &mdash; an array fill, a hundred-iteration loop, and a register restore</span>
+        <span class="risk-why">Absent from the previous census because the paths that reach it
+        had not opened yet. Exactly the shape of the defect fixed earlier today, which moved
+        three counters at once. The most promising item on this list.</span>
+      </div>
+      <div class="risk live">
+        <span class="risk-id">R6</span>
+        <span class="risk-what">A fourth skipped fragment the recompiler refuses to handle</span>
+        <span class="risk-why">It reports no terminating instruction, so the existing tool has
+        no answer. Needs either a better size-finder or a hand-determined range.</span>
+      </div>
+      <div class="risk tool">
+        <span class="risk-id">R1</span>
+        <span class="risk-what">The signal the project calls most meaningful is neither recorded nor checked</span>
+        <span class="risk-why">Its own definitions file names &ldquo;code reached&rdquo; first, as
+        the only measure with real resolution. The progress log has no field for it, and the
+        stall detector never tests it. It appears in 39 of 193 entries, in prose.</span>
+      </div>
+      <div class="risk tool">
+        <span class="risk-id">R2</span>
+        <span class="risk-what">The progress tool advertises a best figure that was a runaway</span>
+        <span class="risk-why">Described above. Every session is told it stands far below a
+        record that never existed.</span>
+      </div>
+      <div class="risk tool">
+        <span class="risk-id">R8</span>
+        <span class="risk-what">Restoring hand-written repairs duplicates three functions, every time</span>
+        <span class="risk-why">Deterministic, reproduced three times, and one copy is a hybrid
+        carrying a label belonging to a neighbouring function. A new tool now repairs it by
+        checking that every label inside a function belongs to that function&rsquo;s own address
+        range &mdash; but the duplication itself is unfixed.</span>
+      </div>
+      <div class="risk tool">
+        <span class="risk-id">R9</span>
+        <span class="risk-what">The integrity check reports &ldquo;could be placed&rdquo; as though it meant &ldquo;is present&rdquo;</span>
+        <span class="risk-why">The direct cause of four repairs being lost and a whole baseline
+        being measured wrong earlier today. The presence test this audit used belongs in the
+        tool.</span>
+      </div>
+      <div class="risk">
+        <span class="risk-id">R7</span>
+        <span class="risk-what">One unexplained drop in 193 recorded runs</span>
+        <span class="risk-why">2 August, kernel calls 92 to 72, no note. Every other large
+        movement in the history carries an explanation. Low priority; it is the only gap in an
+        otherwise complete record.</span>
+      </div>
     </div>
-    <p>Kernel calls did not move, and that is expected rather than
-    disappointing: the boot now does far more real work before it stops, which
-    the other three counters show and that one cannot. The project&rsquo;s own
-    rules require a second signal before believing a fix, and here there are
-    three.</p>
+
     <div class="note">
-      <h3>The honest caveat</h3>
-      <p>Regenerating any part of the translated tree silently discards the
-      hand-written repairs inside it, duplicates three functions every time, and
-      leaves a link error behind. None of that is detected by the tool that
-      claims to check it. The full repair sequence is now written down, and a new
-      tool fixes the duplication by checking that every label inside a function
-      belongs to that function&rsquo;s own address range.</p>
-      <p>An archive of the working tree is taken before and after each of these
-      steps now. Last session one was not, and a file that cannot be rebuilt was
-      lost permanently.</p>
+      <h3>Outside the code</h3>
+      <p>The repository holding this project&rsquo;s custom analysis skills has
+      <strong>no backup location</strong> &mdash; it is committed, but on one disk. A copy
+      was archived during the audit, which is a backup and not a mirror. Adding a proper
+      remote is a decision for the owner rather than something to do unasked.</p>
     </div>
   </section>
 

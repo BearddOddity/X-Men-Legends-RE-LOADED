@@ -2816,6 +2816,20 @@
     "workflow"
    ],
    "when": "2026-09-03 04:05"
+  },
+  {
+   "id": 167,
+   "claim": "Full-project audit 2026-09-03: current progress is real and reproducible, and four unresolved stubs are entered on every run",
+   "verdict": "confirmed",
+   "evidence": "PRESERVED FIRST: both mirrored repos confirmed pushed, the two with no remote bundled to recomp-snapshots/repo-bundles/, pre-audit snapshot taken. VERIFIED REAL: rebuilt from source and ran twice - 230 kernel / 136 heap / 292 failed icalls / 196 reached / 551 call sites, identical both runs. 196 and 551 exceed every figure anywhere in the 193-entry history, whose previous highs are 170 and 481. All 1093 recorded manual edits are physically present, tested by exact block text rather than by the tool's own report, with zero groups short. Seeds intact at 1656 of 1656 with bodies and no duplicate definitions. NOT A LOST HIGH-WATER MARK: the 2026-08-09 figures of 4000 kernel calls and 826 heap allocations are a runaway - entry #143 documents the change that ended them as removing the page-zero junk dispatch - so today's numbers are not a regression against them. FOUR STUBS ENTERED EVERY RUN, from a fresh census of all 2122: 0x001995AD (ledger #158, seeding refuted, no fix path), 0x0020B8C6 (ledger #159, inline fix written and held), 0x00340F24 (seeder refuses it, no terminating ret found), and 0x0006702C which is NEW and was not in the earlier census because the paths had not opened yet. 0x0006702C's shape is the same class as today's win: dec eax / mov [ecx+eax*4+0x644], edx / inc edx / cmp edx, 0x64 / jl 0x67000 / pop edi - an array store, a hundred-iteration loop, and a register restore. NINE OPEN ITEMS written up as an isolatable worklist in docs/REGRESSIONS.md, the two most consequential being that progress.py neither records nor gates on 'reached', the signal signals.py calls the only one with any resolution, and that manual_edits.py verify reports placeable as though it were present - which is how four edits were silently lost earlier today. Tree restored after the census and re-verified identical at 230/136/292/196/551.",
+   "tags": [
+    "audit",
+    "census",
+    "stub",
+    "regression",
+    "verification"
+   ],
+   "when": "2026-09-03 06:56"
   }
  ]
 }
