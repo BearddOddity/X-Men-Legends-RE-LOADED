@@ -2608,5 +2608,19 @@
     "message": "Chased 0x0006702C, the new stub the audit census found. It is ONE BYTE - opcode 0x48, dec eax - falling into 0x0006702D, inside an initialiser at 0x00066FE0-0x0006703C that fills a 100-entry table at [ecx+0x644] with sequential values. The jl at 0x0006701D is the NORMAL path, taken on 99 of 100 iterations, so landing in a g_esp += 4 stub returned from the whole function on the first iteration: table unfilled, and the caller left 12 bytes deep because the two prologue pushes and the return address were never popped. sub_0006702D is already seeded and complete, so the fix is one line and needs no seeding. Also rewrote the README for the renamed repo with a full Credits and sources section, and pushed it to the default branch.",
     "note": "THE FIX IS REVERTED, not applied. Measured deterministically both ways: kernel 230 -> 60, heap 136 -> 91, reached 196 -> 175, callsites 551 -> 489, failed icalls 292 -> 513, dispatches 44941 -> 128. Every tracked signal moved the wrong way, so rule #1 applies. The boot then dies somewhere entirely different, sub_0020F860+0x274F reading 0xFC015AD8. This is the THIRD faithful fix a broken stub turned out to be load-bearing for, after ledger #159 and the field-container fix - an empty table read as empty is survivable, a filled one sends execution down paths with their own defects. Patch preserved verbatim in ledger #168 and docs/REGRESSIONS.md R5. Baseline restored and re-verified at 230/136/292/196/551, deterministic 2 of 2.",
     "commit": "4db0c64"
+  },
+  {
+    "kernel_calls": 230,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Fixed R3, R4 and R6 together as asked, followed the fault, and all three collapsed into ONE defect. R3's island fix and R4's seed both applied; R3 alone and R3+R4 measure byte-identical, so R3 accounts for everything, and R4 alone raises kernel calls to 248 while dropping reached from 196 to 143. Both reverted under rule #1. THE FAULT, followed to its cause: with R3 in, the boot dies at sub_001F7930+0x1E5 reading 0xFE000064, a kernel thunk. Two probes on the field walk show outer=00000000 cont=00000000 arr=01098F88 - sub_001F7930 is called with this = NULL, page zero supplies a stale array base, and the walk fabricates elements until one dispatches through 0xFE000000. Nothing is corrupt; page zero is being read as an object. R6 is misclassified: 0x00340F24 is __report_gsfailure, reached from the failure arm of __security_check_cookie, so the stack cookie check is failing every run and the stub is swallowing the abort. Seeding it would abort the process by design. Also fixed the seeder's extent finder, which overshot continuations by scanning to a ret without stopping at the next known function start - it gave 0x001995AD 693 bytes when the real gap is 109.",
+    "note": "Baseline unchanged and re-verified twice at 230/136/292/196/551; R4 left seeded but neutered, one command from re-enabling. THE SINGLE NEXT TARGET is named and shared by all of them: ledger #115 recorded that every call to sub_001F7930 comes from sub_002235D0 with ecx cached from sub_002226E0's return, and that sub_002226E0's ALT path - taken once the guard byte at MEM32(0x5BC508) flips 0 to 1 - returns eax=00000000 as its first result. That NULL is this NULL. Fixing sub_002226E0's alt path, through sub_00209650(0x2221E0) and sub_0020E520 on MEM32(0x5BC274), unblocks R3 and makes R4 testable on a boot that gets further. Ledger #169, #170.",
+    "commit": "4df0529"
   }
 ]

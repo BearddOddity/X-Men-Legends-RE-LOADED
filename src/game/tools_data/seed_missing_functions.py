@@ -217,6 +217,19 @@ def main(argv):
     known = json.load(open(FUNCS_JSON, encoding="utf-8"))
     starts = {int(f["start"], 16) for f in known}
 
+    # Bound for the extent scan below. Kept SEPARATE from `starts`, which
+    # filters which addresses get seeded - adding to that would silently change
+    # what this tool seeds. Previously seeded continuations are real function
+    # starts but are not in functions.json, and without them the bound
+    # overshoots straight into one.
+    bound_starts = set(starts)
+    try:
+        _sl = json.load(open(os.path.join(GAME_DIR, "seed_list.json"),
+                             encoding="utf-8"))
+        bound_starts |= set(_sl.get("addresses", []))
+    except (OSError, ValueError):
+        pass
+
     if args.from_list:
         with open(args.from_list, encoding="utf-8") as f:
             args.va = ["0x%08X" % v for v in json.load(f)["addresses"]]
@@ -280,7 +293,20 @@ def main(argv):
                 "calls_to": [], "called_by": [],
             })
             continue
+        # Stop at the next KNOWN function start when one lies inside the
+        # scan window. function_extent walks to the last `ret` no forward
+        # branch jumps past, which is right for a whole function and wrong
+        # for a CONTINUATION: from a mid-function address the scan sails
+        # through the end of its own function and into the next one. That is
+        # exactly how 0x001995AD was given 693 bytes reaching 0x00199862,
+        # when the gap it actually fills ends at 0x0019961A - and the bad
+        # seed that produced was recorded as evidence against seeding it at
+        # all (ledger #158, since corrected).
+        nxt = min((x for x in bound_starts if va < x < va + MAX_FUNC_BYTES),
+                  default=None)
         end = function_extent(md, data, text, va)
+        if nxt is not None and (end is None or end > nxt):
+            end = nxt
         if end is None:
             skipped.append((va, "no terminating ret found"))
             continue

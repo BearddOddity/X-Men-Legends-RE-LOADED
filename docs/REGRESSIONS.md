@@ -1,6 +1,6 @@
 # Open regressions and defects
 
-Findings from the audit of 2026-09-03, with R5 chased to a conclusion the same day. Each is stated so it can be picked up and
+Findings from the audit of 2026-09-03. R3, R4, R5 and R6 were all chased to conclusions the same day; all four turned out to share one cause. Each is stated so it can be picked up and
 fixed on its own, without re-deriving how it was found. Nothing here is fixed —
 this is the worklist.
 
@@ -59,35 +59,68 @@ prevent.
 **Fix.** Exclude clipped runs from the best-ever calculation, or label them. The
 clip value is a constant and easy to detect.
 
-## R3 — `sub_0020B8C6` is an unresolved stub and is entered on every run
+## R3 and R4 — both correct, both harmful, and both blocked on the same NULL
 
-`0x0020B8C6` is a two-instruction island (`mov ebx, edx` then `jmp 0x0020B88D`).
-Because it is a stub whose whole body is `g_esp += 4`, `sub_0020B850` returns
-without its epilogue, leaving `ebx`/`esi`/`edi` unrestored.
+**Chased together 2026-09-03, as one experiment. Both reverted; the cause they
+share is now named.**
 
-The correct inline fix is written out verbatim in ledger #159 and is **held**,
-not missing: applying it takes the boot from 582 kernel calls to 48, because the
-broken stub had been returning early and skipping work that then runs and fails.
+### What they are
 
-**This is an active wrong behaviour, not a dormant one.** The census below
-confirms it is entered every run.
+**R3** — `0x0020B8C6` is a two-instruction island (`mov ebx, edx`, `jmp
+0x0020B88D`) read as a call target, so `sub_0020B850` returns without its
+epilogue. The inline repair is in ledger #159.
 
-**Fix.** Blocked on whatever fails once the skipped work actually runs. Re-apply
-ledger #159's patch and follow the new fault.
+**R4** — `0x001995AD` is a **109-byte gap**: `sub_00199519` ends exactly there
+and the next known function starts at `0x0019961A`. Ledger #158 rejected seeding
+it partly because "its enclosing function is only 41 bytes" — that was the
+*recompiler's* extent, not the truth. MSVC pads with `int3`, and the real
+function is `0x001994F0`–`0x00199862`, 882 bytes; the recompiler truncated it at
+the first `ret`. The seeder's extent finder was fixed to stop at the next known
+function start, and now reports the correct 109 bytes. Ledger #170.
 
-## R4 — `sub_001995AD` is an unresolved stub and is entered on every run
+### What measuring them proved
 
-Ledger #158 refuted seeding it: `seed_missing_functions.py` derives extent by
-scanning forward to a `ret` and gave it 693 bytes, when its enclosing function
-`sub_001994F0` is only 41 bytes (`0x001994F0-0x00199519`). The seed spanned
-several unrelated functions and measured 578 to 244 kernel calls.
+| configuration | kernel | heap | reached | call sites |
+|---|---|---|---|---|
+| baseline | **230** | **136** | **196** | **551** |
+| R3 alone | 48 | 96 | 169 | 437 |
+| R3 + R4 | 48 | 96 | 169 | 437 |
+| R4 alone | 248 | 87 | 143 | 433 |
 
-So it remains a stub, and it is entered every run. There is currently **no fix
-path** — seeding is wrong and the correct extent is unknown.
+R3 accounts for the entire change — R3+R4 is byte-identical to R3 alone. R4 on
+its own raises kernel calls but drops `reached` from 196 to 143, and `reached`
+is the signal `signals.py` gates on first. So R4's rejection in #158 stands, on
+new evidence and for a different reason: not a wrong extent, but the same
+load-bearing behaviour as everything else in this class.
 
-**Fix.** Determine what `0x001995AD` actually belongs to. It is mid-function
-code; find the real owner and whether it is a continuation that needs inlining
-rather than seeding.
+### The cause they share
+
+With R3 applied the boot dies at `sub_001F7930+0x1E5` reading `0xFE000064`, a
+**kernel thunk** address. Two probes on the field walk show why:
+
+```
+[FW]    outer=01099148 cont=010991B0 arr=01099238 idx=00000012
+[ELEM2] elem=01097DA0 vt=003F7AB0          <- healthy
+...
+[FW]    outer=00000000 cont=00000000 arr=01098F88 idx=00000007
+[ELEM2] elem=00000001 vt=FE000000          <- fabricated
+```
+
+**`sub_001F7930` is called with `this` = NULL.** `MEM32(0+0x28)` reads page zero
+as 0, `MEM32(0+8)` yields the stale word `0x01098F88` which becomes the array
+base, and the walk invents elements until one dispatches through `0xFE000000`.
+Nothing is corrupted — page zero is simply being read as an object.
+
+Ledger #115 already recorded where that NULL comes from: every call to
+`sub_001F7930` arrives from `sub_002235D0` with `ecx` cached from
+`sub_002226E0`'s return, and the **alt path** of `sub_002226E0` — taken once the
+guard byte at `MEM32(0x5BC508)` flips 0 to 1 — returned `eax = 00000000` as its
+first result.
+
+**Next target, and it is a single one:** `sub_002226E0`'s alt path, through
+`sub_00209650(0x2221E0)` and `sub_0020E520` on `MEM32(0x5BC274)`. Fixing that
+unblocks R3, and R4 becomes testable again on a boot that gets further.
+Ledger #169.
 
 ## R5 — `0x0006702C`: found, fixed in one line, and held
 
@@ -128,13 +161,35 @@ the same way.
 
 Ledger #168.
 
-## R6 — `0x00340F24` is entered every run and the seeder cannot repair it
+## R6 — not a missing fragment: the stack-cookie check is failing
 
-`seed_missing_functions.py` refuses it with "no terminating ret found", so the
-existing tool has no answer. It has been hit in both censuses.
+**Reclassified 2026-09-03. Do not seed this.**
 
-**Fix.** Either extend the extent finder to handle whatever terminator this
-function uses, or determine the extent by hand and seed from an explicit range.
+`0x00340F24` is `__report_gsfailure`:
+
+```
+push 8 / push 0x430848 / call 0x3432A8   ; handler setup
+call 0x345B7F / or [ebp-4], -1
+push 3 / call 0x3428C6 / int3            ; abort
+```
+
+It never returns, which is why the seeder reports "no terminating ret found" —
+the tool is right to refuse. It is reached from `0x00340F5D`, the failure arm of
+`__security_check_cookie` at `0x00340F54`:
+
+```
+cmp ecx, MEM32(0x47A050) / jne 0x340F5D / ret
+```
+
+So **the stack cookie check is failing on every run**, and the stub is
+swallowing the abort. Seeding it would make the process abort by design — the
+opposite of a repair.
+
+The cookie global *is* written, by two stores in `recomp_0025.c`. The open
+question is whether that initialiser runs before the checks do, or whether a
+real overrun is being detected. Either way this is a symptom of something else,
+and it is the only item on this list that is a *detector firing* rather than a
+missing piece of code. Ledger #169.
 
 ## R7 — one undocumented drop in the recorded history
 

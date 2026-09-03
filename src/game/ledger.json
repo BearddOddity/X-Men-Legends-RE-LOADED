@@ -2845,6 +2845,36 @@
     "regression"
    ],
    "when": "2026-09-03 07:14"
+  },
+  {
+   "id": 169,
+   "claim": "R3, R4 and R6 all reduce to one defect: sub_001F7930 is called with this = NULL, and mapped page zero fabricates a field array from it",
+   "verdict": "confirmed",
+   "evidence": "FOLLOWED THE FAULT TO ITS CAUSE. With R3 applied the boot dies at sub_001F7930+0x1E5 reading 0xFE000064, a KERNEL THUNK address. Two probes at the field walk - one on the outer object and container, one on each element and its vtable - show the transition exactly. Healthy: outer=01099148 cont=010991B0 arr=01099238, elements 01097DA0/01097DD8/01099428 with real vtables 003F7AB0 and 003F7F90. Then: outer=00000000 cont=00000000 arr=01098F88. The outer is NULL, so MEM32(0+0x28) reads page zero as 0 and MEM32(0+8) yields the stale word 01098F88, which becomes the array base. The walk then fabricates elements 0,0,0,0,0,00000681,003F7AB0 and finally elem=00000001 vt=FE000000, and MEM32(1) read as a vtable gives a kernel thunk, so the dispatch at +0x64 faults at 0xFE000064. Nothing is corrupt - page zero is simply being read as an object. ATTRIBUTION, measured. R3 alone and R3+R4 are byte-identical at 48/96/4/169/437, so R3 accounts for the whole change; R4 contributes nothing on this boot. R4 ALONE is 248/87/435/143/433 - kernel calls UP from 230 but reached DOWN from 196 and call sites down from 551, so it is a regression on the signal signals.py gates first. Both reverted; baseline restored and re-verified twice at 230/136/292/196/551. R6 IS MISCLASSIFIED and must not be seeded. 0x00340F24 is __report_gsfailure: push 8 / push 0x430848 / call 0x3432A8 / call 0x345B7F / or [ebp-4],-1 / push 3 / call 0x3428C6 / int3. It is reached from 0x00340F5D, the failure arm of __security_check_cookie at 0x00340F54 (cmp ecx, MEM32(0x47A050) / jne / ret). So the stack cookie check is FAILING and the stub is swallowing the abort. The cookie global IS written, by two stores in recomp_0025.c, so the open question is whether that initialiser runs before the checks do. Seeding this would make the process abort by design and is the wrong action. THE COMMON CAUSE. Ledger #115 recorded that every call to sub_001F7930 comes from sub_002235D0 with ecx = esi cached from sub_002226E0's return, and that the ALT path of sub_002226E0 - taken once the guard byte at MEM32(0x5BC508) flips 0 to 1 - returned eax=00000000 as its FIRST result. That NULL is this NULL. sub_002226E0's alt path, through sub_00209650(0x2221E0) and sub_0020E520 on MEM32(0x5BC274), is the single next target, and it is what R3 has been blocked on all along.",
+   "tags": [
+    "root-cause",
+    "null-this",
+    "page-zero",
+    "sub_001F7930",
+    "sub_002226E0",
+    "R3",
+    "R4",
+    "R6"
+   ],
+   "when": "2026-09-03 07:26"
+  },
+  {
+   "id": 170,
+   "claim": "seed_missing_functions.py overshoots a continuation's extent because it scans to a ret without stopping at the next known function start",
+   "verdict": "confirmed",
+   "evidence": "CORRECTS THE REASONING IN LEDGER #158, though not its conclusion. #158 rejected seeding 0x001995AD partly on the grounds that its enclosing function sub_001994F0 is only 41 bytes. That is the RECOMPILER's extent, not the truth: MSVC pads with int3, and the real function runs 0x001994F0-0x00199862, 882 bytes. The recompiler truncated it at the first ret at 0x00199516. The genuine gap is 0x001995AD-0x0019961A, 109 bytes, because sub_00199519 ends exactly at 0x001995AD and the next known function starts at 0x0019961A. The seeder gave it 693 bytes reaching 0x00199862, sailing through the end of the gap and into a neighbour, because function_extent walks to the last ret no forward branch jumps past - correct for a whole function, wrong for a continuation. FIXED: the extent is now bounded by the next known function start. The bound set is kept SEPARATE from the 'starts' set, which filters which addresses get seeded, because adding to that would silently change what the tool seeds; and it unions in seed_list.json, since previously seeded continuations are real function starts that functions.json does not contain - without them the bound overshot straight into one. Verified: the same command now reports 0x001995AD-0x0019961A, 109 bytes. #158's CONCLUSION still stands on new evidence: seeded with the correct 109-byte extent, sub_001995AD still measures 248/87/435/143/433 against a 230/136/292/196/551 baseline - kernel up, reached and call sites down. It is harmful for the load-bearing reason, not the extent reason.",
+   "tags": [
+    "tooling",
+    "seeder",
+    "extent",
+    "supersedes-158"
+   ],
+   "when": "2026-09-03 07:27"
   }
  ]
 }
