@@ -35,14 +35,14 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Audited, and the progress holds")
-SUBHEAD = ("Every figure on this page was re-derived from a clean rebuild rather than "
-           "carried forward. The two headline counts are records against the whole "
-           "193-run history, all 1,093 hand-written repairs are physically present, "
-           "and the one apparently-lost high-water mark from August turns out to be a "
-           "runaway the project itself documented and deliberately ended. Nine open "
-           "defects came out of the audit, four of them wrong behaviour happening on "
-           "every single run.")
+HEADLINE = ("Four open defects turned out to be one")
+SUBHEAD = ("Four of the nine faults from the audit looked independent: four "
+           "places where the translator skipped a fragment of code. Repairing "
+           "them together and measuring each in isolation showed they share a "
+           "single cause, and one of them was not a missing fragment at all but "
+           "a safety check firing. The project now has one target instead of "
+           "four: a specific function handing back an empty pointer where an "
+           "object belongs.")
 
 
 def lifted_function_count():
@@ -402,85 +402,73 @@ def build(hist, sig):
 
   <section>
     <p class="eyebrow">Open defects</p>
-    <h2>Nine, and four are happening every run</h2>
-    <p>Written up individually so each can be picked up on its own. The red
-    stripe marks wrong behaviour occurring in every single run right now; amber
-    marks a flaw in the tooling that analyses the work rather than in the work
-    itself.</p>
+    <h2>One target, not four</h2>
+    <p>The audit listed four faults as wrong behaviour on every run. Repairing
+    them in one experiment and then measuring each on its own is what showed
+    they are the same problem seen from four places.</p>
 
-    <div class="risks">
-      <div class="risk live">
-        <span class="risk-id">R3</span>
-        <span class="risk-what">A two-instruction fragment is skipped, so a function returns without restoring its caller&rsquo;s registers</span>
-        <span class="risk-why">The correct repair is written out and deliberately withheld:
-        applying it takes execution from 582 kernel calls to 48, because the broken version
-        was returning early and skipping work that then runs and fails. Blocked on whatever
-        that work hits.</span>
-      </div>
-      <div class="risk live">
-        <span class="risk-id">R4</span>
-        <span class="risk-what">A second skipped fragment, with no repair path at all</span>
-        <span class="risk-why">Recompiling it was tried and measured worse: the tool sizes a
-        function by scanning forward to a return instruction, and here that ran 693 bytes
-        through several unrelated functions when the real one is 41. Its true owner is still
-        unknown.</span>
-      </div>
-      <div class="risk live">
-        <span class="risk-id">R5</span>
-        <span class="risk-what">A newly exposed fragment &mdash; an array fill, a hundred-iteration loop, and a register restore</span>
-        <span class="risk-why">Absent from the previous census because the paths that reach it
-        had not opened yet. Exactly the shape of the defect fixed earlier today, which moved
-        three counters at once. The most promising item on this list.</span>
-      </div>
-      <div class="risk live">
-        <span class="risk-id">R6</span>
-        <span class="risk-what">A fourth skipped fragment the recompiler refuses to handle</span>
-        <span class="risk-why">It reports no terminating instruction, so the existing tool has
-        no answer. Needs either a better size-finder or a hand-determined range.</span>
-      </div>
-      <div class="risk tool">
-        <span class="risk-id">R1</span>
-        <span class="risk-what">The signal the project calls most meaningful is neither recorded nor checked</span>
-        <span class="risk-why">Its own definitions file names &ldquo;code reached&rdquo; first, as
-        the only measure with real resolution. The progress log has no field for it, and the
-        stall detector never tests it. It appears in 39 of 193 entries, in prose.</span>
-      </div>
-      <div class="risk tool">
-        <span class="risk-id">R2</span>
-        <span class="risk-what">The progress tool advertises a best figure that was a runaway</span>
-        <span class="risk-why">Described above. Every session is told it stands far below a
-        record that never existed.</span>
-      </div>
-      <div class="risk tool">
-        <span class="risk-id">R8</span>
-        <span class="risk-what">Restoring hand-written repairs duplicates three functions, every time</span>
-        <span class="risk-why">Deterministic, reproduced three times, and one copy is a hybrid
-        carrying a label belonging to a neighbouring function. A new tool now repairs it by
-        checking that every label inside a function belongs to that function&rsquo;s own address
-        range &mdash; but the duplication itself is unfixed.</span>
-      </div>
-      <div class="risk tool">
-        <span class="risk-id">R9</span>
-        <span class="risk-what">The integrity check reports &ldquo;could be placed&rdquo; as though it meant &ldquo;is present&rdquo;</span>
-        <span class="risk-why">The direct cause of four repairs being lost and a whole baseline
-        being measured wrong earlier today. The presence test this audit used belongs in the
-        tool.</span>
-      </div>
-      <div class="risk">
-        <span class="risk-id">R7</span>
-        <span class="risk-what">One unexplained drop in 193 recorded runs</span>
-        <span class="risk-why">2 August, kernel calls 92 to 72, no note. Every other large
-        movement in the history carries an explanation. Low priority; it is the only gap in an
-        otherwise complete record.</span>
-      </div>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Configuration</th><th>Kernel calls</th><th>Heap</th><th>Reached</th><th>Call sites</th></tr></thead>
+        <tbody>
+          <tr><td>baseline</td><td class="n">230</td><td class="n">136</td><td class="n">196</td><td class="n">551</td></tr>
+          <tr><td>first repair alone</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
+          <tr><td>both repairs</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
+          <tr><td>second repair alone</td><td class="n">248</td><td class="n">87</td><td class="n">143</td><td class="n">433</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="track-cap">Both repairs together are <em>identical</em> to the first
+    alone, so the second changes nothing on this boot. On its own the second
+    raises kernel calls while dropping the measure of how much distinct code
+    runs &mdash; which is the one the project trusts first. Both were reverted.</p>
+
+    <div class="note">
+      <h3>What the failure actually is</h3>
+      <p>With the first repair in place, execution dies reading an address in the
+      region reserved for calls into the operating system &mdash; somewhere no
+      object should ever live. Two measurements on the loop that fails show the
+      moment it goes wrong. The healthy passes carry real objects with real
+      method tables. Then one pass arrives with <strong>an empty pointer where the
+      object should be</strong>.</p>
+      <p>From there nothing is corrupted, which is the counter-intuitive part. The
+      address zero is a readable page in this runtime, so reading &ldquo;the
+      object&rsquo;s field list&rdquo; through an empty pointer returns a leftover
+      value that looks like a plausible list. The loop then walks that leftover,
+      inventing entries until one of them is treated as a method table and
+      called. The crash is four steps downstream of the actual mistake.</p>
     </div>
 
     <div class="note">
-      <h3>Outside the code</h3>
-      <p>The repository holding this project&rsquo;s custom analysis skills has
-      <strong>no backup location</strong> &mdash; it is committed, but on one disk. A copy
-      was archived during the audit, which is a backup and not a mirror. Adding a proper
-      remote is a decision for the owner rather than something to do unasked.</p>
+      <h3>The one that was not a defect at all</h3>
+      <p>The fourth item is not missing code. It is the compiler&rsquo;s own
+      stack-corruption detector, and the placeholder standing in for it has been
+      quietly swallowing the alarm on every run. Filling it in would make the
+      program abort deliberately &mdash; correct, and worse. It is a symptom
+      pointing at something else, and it is now recorded as one rather than
+      queued as a repair.</p>
+    </div>
+
+    <p>Two tools were improved along the way. The one that recompiles a missing
+    fragment was sizing it by scanning forward to the next return instruction,
+    with no upper bound &mdash; so a fragment in the middle of a function ran
+    straight past the end of it and into the next. It now stops at the next known
+    function. That also corrects an earlier conclusion in the project&rsquo;s
+    record, which had rejected a repair partly because a function looked 41 bytes
+    long when it is really 882; the 41 was the translator&rsquo;s own truncated
+    guess, not the truth.</p>
+
+    <div class="note">
+      <h3>The honest caveat</h3>
+      <p>Three separate faithful repairs have now each made the headline number
+      worse, and each was reverted. That is not three failures. Each one removed a
+      placeholder that had been returning early, and the code it was standing in
+      front of then ran and hit its own defect. The placeholders were load-bearing.
+      Expect the next one to behave the same way, and treat a drop after a
+      correct repair as information rather than a setback.</p>
+      <p>Every repair discussed here is preserved word for word in the
+      project&rsquo;s record, so none of this has to be re-derived when the blocking
+      defect is fixed.</p>
     </div>
   </section>
 

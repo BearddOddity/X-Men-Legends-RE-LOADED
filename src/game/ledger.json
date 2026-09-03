@@ -2875,6 +2875,22 @@
     "supersedes-158"
    ],
    "when": "2026-09-03 07:27"
+  },
+  {
+   "id": 171,
+   "claim": "The NULL this is a correctly-refused abstract type whose NULL gets CACHED at 0x5BC218, and it does not come from sub_002226E0's alt path",
+   "verdict": "confirmed",
+   "evidence": "FULL CHAIN, every step by probe. (1) sub_0020E520 returns NULL only ONCE per boot, from a real object: NULLRET this=010977C0 flag1A=01 vt=003F5D88. That return is FAITHFUL - the original at 0x0020E53B is cmp byte [esi+0x1A],1 / jne 0x20E547 / xor eax,eax / ret 4, an explicit refusal to instantiate. (2) THE FLAG IS SET DELIBERATELY. Probing both writers of +0x1A: the constructor sub_00216EE0 writes 00, then the registrar sub_002235D0 overwrites with 01 - W16EE0 obj=010977C0 wrote=00 then W235D0 obj=010977C0 wrote=01. Its source is MEM8(esp + 0x11C), a stack argument to sub_002235D0, i.e. a registration parameter. It writes 01 for 010977C0 and 01097858 and 00 for 01091AB0, 01096BB8, 01097518 and 01097728, so this is a per-type declaration, not corruption. The type is abstract. (3) NO CHAIN WALK IS INVOLVED. CH0 shows enter this=010977C0 fwd=00000000, so the +0x3C forwarder loop never runs; esi at the NULL equals ecx at entry. (4) CORRECTS LEDGER #115's ATTRIBUTION. recomp_where on the NULL resolves the caller as sub_00213740+0x2D4, NOT sub_002226E0's alt path. sub_00213740 passes ecx = MEM32(0x5BC214). #115's claim that the alt path supplies this NULL is stale for the current tree. (5) THE CALLER HANDLES IT, AND THAT IS THE PROBLEM. The original at 0x00213787 is: call 0x20E520 / test eax,eax / mov [0x5BC218],eax / je 0x2137EC. So it checks the NULL correctly - and CACHES it. sub_00213740 is a lazy singleton getter, and every later reader of 0x5BC218 gets NULL. That is the NULL that reaches sub_001F7930 as its 'this', where mapped page zero then fabricates a field array from MEM32(0+8) and the walk invents elements until one dispatches through 0xFE000000. (6) THE OPEN QUESTION IS NARROW: why does MEM32(0x5BC214) hold an ABSTRACT type. Nothing in the tree writes it - grep for MEM32(0x5BC214) = finds zero writers - yet it holds heap object 010977C0 at runtime, so it is written through a computed address, or by code reachable only via a data pointer and therefore never translated. That last class has produced the active wall three times before. Baseline unchanged and re-verified twice at 230/136/292/196/551.",
+   "tags": [
+    "root-cause",
+    "null",
+    "abstract-type",
+    "sub_00213740",
+    "sub_0020E520",
+    "data-pointer",
+    "supersedes-115"
+   ],
+   "when": "2026-09-03 07:39"
   }
  ]
 }
