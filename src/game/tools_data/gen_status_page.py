@@ -35,18 +35,17 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Nine walls broken in one session, and the pattern behind them "
-            "has a scanner now")
-SUBHEAD = ("Walls 42 through 50 fell on 2 September. All of them traced back to one "
-           "defect in how the translator saves the stack pointer around indirect "
-           "calls: a failed call rolled the stack back past a function's saved "
-           "registers, so it returned a stale pointer to its caller. In the worst "
-           "case an object initialiser then ran twice on one object and never on "
-           "another, freeing memory that was still in use. The project's own "
-           "callee-save checker named the culprit in a single run after two sessions "
-           "of hand-probing had not; a new scanner then found the same defect at 284 "
-           "more sites, and fixing them all broke another wall. Execution now reaches "
-           "530 kernel calls and 460 call sites, up from 514 and 445.")
+HEADLINE = ("Eleven walls broken, and the defect behind all of them is now "
+            "measured rather than guessed")
+SUBHEAD = ("Walls 42 through 52 fell on 2 September. Every one traced back to two "
+           "mechanical faults: a translator bug that let a failed indirect call "
+           "return a stale pointer to its caller, and type descriptors whose field "
+           "container is never created. Registration does run for those "
+           "descriptors - it writes their fields through a null pointer into "
+           "mapped page zero, which is why a dozen unrelated-looking crashes all "
+           "read the same garbage. The fix is written and verified, and is held "
+           "back by one older defect standing in front of it. Execution reaches "
+           "578 kernel calls and 481 call sites, up from 514 and 445.")
 
 
 def lifted_function_count():
@@ -333,6 +332,43 @@ def build(hist, sig):
       shape &mdash; 609 orphan functions, then 512 data-referenced pointers
       &mdash; have each produced more movement than any single-function fix in
       this project's history.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">What happens next</p>
+    <h2>One named target unlocks the rest</h2>
+    <p>The sequence below is not a wish list. Each step is blocked only by the
+    one above it, and the first has already been named by the project's own
+    callee-save checker.</p>
+    <div class="note">
+      <h3>1 &mdash; <code>sub_0021E970</code></h3>
+      <p>It fails to restore <code>esi</code>, turning a live object pointer into
+      <code>0x17</code>. That small integer is the one an earlier investigation
+      chased for weeks. Unlike the five sites fixed this session it saves its
+      registers correctly, so something deeper misaligns its epilogue. Clearing
+      it clears the older wall that everything else waits behind.</p>
+      <h3>2 &mdash; re-apply the field-container fix</h3>
+      <p>A single edit, already written and verified to work: create the field
+      container at registration when a descriptor has none. It was reverted only
+      because the wall above sits in front of it.</p>
+      <h3>3 &mdash; retire the guards</h3>
+      <p>Ten of this session's changes are diagnostic bypasses, and each says so
+      in its own comment. With registration writing into real containers they
+      should become inert. Every one gets removed and re-measured on its own.</p>
+    </div>
+    <p>Two other threads stay open. A scanner written this session found 379
+    indirect calls that mix register saves with argument pushes; none can be
+    corrected mechanically, and each is a latent version of the defect that cost
+    wall 42. And one wall is deliberately left unguarded, because it sits inside
+    the allocator's own free list, where a wrong skip corrupts the heap silently
+    instead of crashing.</p>
+    <div class="note">
+      <h3>The honest caveat</h3>
+      <p>Part of the depth reported above rests on those bypasses rather than on
+      correct behaviour. Applying the real fix will make the numbers look worse
+      before they look better, and that is the right trade: a bypass that becomes
+      load-bearing has stopped being a bypass.</p>
     </div>
   </section>
 
