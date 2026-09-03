@@ -2891,6 +2891,20 @@
     "supersedes-115"
    ],
    "when": "2026-09-03 07:39"
+  },
+  {
+   "id": 172,
+   "claim": "The current wall is sub_002219A0 pushing the small integer 2 where an allocator pointer belongs, and the guard meant to catch it is dead code",
+   "verdict": "confirmed",
+   "evidence": "TRACED IN THREE PROBES. (1) A probe at loc_0020E56D printing the allocator and its vtable shows 83 healthy calls - alloc=01088A90 vt=003F4770 - then one fatal call with alloc=00000002 vt=FFFE0000. MEM32(2) reads mapped page zero as 0xFFFE0000, and MEM32(0xFFFE0000 + 0xCC) is the reported fault address 0xFFFE00CC. Small integer where a pointer belongs is ledger #149's signature. (2) WHICH PATH SUPPLIES IT. Probes on both candidate producers - the return of sub_001E9B80 at loc_0020E561 and the return of sub_001F5C20 - fired ZERO times on the fatal call, so neither produces it. The value arrives on the direct path: eax = MEM32(esp + 8), the ARGUMENT. (3) THE GUARD IS DEAD CODE. sub_0020E547 reads the argument and the GENERATED line tests it first: if (TEST_NZ(eax, eax)) goto loc_0020E56D. The manual plausible-pointer guard sits immediately AFTER that line with the same condition plus a heap-range test, so for any non-zero eax the generated line has already jumped and the guard never executes. Its own comment says 'keep the plausible-pointer guard too' for exactly this eax=-1 case; it has never been in force. Insert-only placement is what did it - the guard needed to precede the line it constrains, not follow it. (4) THE CALLER. recomp_where on the argument resolves call #84 of 84 as sub_002219A0+0x839, under sub_00209470 and sub_0021DE80. So sub_002219A0 pushes 2 where an allocator pointer belongs. That is the single next target. NOT FIXED - the dead guard is a diagnostic bypass and enabling it would change behaviour without addressing the cause, so it is recorded rather than switched on. Baseline unchanged, re-verified twice at 230/136/292/196/551.",
+   "tags": [
+    "wall",
+    "small-integer",
+    "sub_002219A0",
+    "sub_0020E547",
+    "dead-guard"
+   ],
+   "when": "2026-09-03 07:45"
   }
  ]
 }

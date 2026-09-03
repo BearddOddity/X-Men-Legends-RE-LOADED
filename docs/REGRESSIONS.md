@@ -191,6 +191,40 @@ real overrun is being detected. Either way this is a symptom of something else,
 and it is the only item on this list that is a *detector firing* rather than a
 missing piece of code. Ledger #169.
 
+## R10 — a manual guard that has never executed
+
+In `sub_0020E547` the generated line runs **before** the guard meant to
+constrain it:
+
+```c
+eax = MEM32(esp + 8);
+if (TEST_NZ(eax, eax)) goto loc_0020E56D;                     /* generated */
+if (TEST_NZ(eax, eax) && eax >= 0x00880000u && ...) goto ...  /* guard - dead */
+```
+
+For any non-zero `eax` the generated line has already jumped, so the
+plausible-pointer guard never runs. Its own comment says to keep it precisely
+for the `eax = -1` case it was written for. It has never been in force.
+
+`manual_edits.py` is insert-only, and this guard needed to **precede** the line
+it constrains rather than follow it. Worth a sweep: any guard whose condition
+duplicates the generated line immediately above it is dead the same way.
+
+Not switched on — enabling a diagnostic bypass does not address the cause, and
+the cause is now known (below). Ledger #172.
+
+## The current wall, and it is one function away
+
+`sub_0020E547` faults reading `0xFFFE00CC`. Eighty-three calls carry a healthy
+allocator; the eighty-fourth carries **`alloc = 00000002`**. `MEM32(2)` reads
+mapped page zero as `0xFFFE0000`, and `MEM32(0xFFFE0000 + 0xCC)` is the fault.
+
+Probes on both candidate producers fired zero times on the fatal call, so the 2
+arrives as the **argument**, and `recomp_where` names the caller:
+**`sub_002219A0+0x839`**. A small integer where a pointer belongs is ledger
+#149's signature — callee-saved corruption. That is the next target.
+
+
 ## R7 — one undocumented drop in the recorded history
 
 Entry #26 (2026-08-02), kernel calls 92 to 72, with no note. Every other large

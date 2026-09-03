@@ -2636,5 +2636,19 @@
     "message": "Chased the NULL to its end. It is not a bug in the function that returns it: sub_0020E520 refuses to instantiate an abstract type, exactly as the original does (cmp byte [esi+0x1A],1 / xor eax,eax). Probing both writers of that flag shows the constructor writing 00 and the registrar sub_002235D0 overwriting with 01, sourced from a stack argument - a per-type registration parameter, set for two types and clear for four. The type really is abstract. recomp_where also corrects ledger #115: the caller is sub_00213740, not sub_002226E0's alt path, and there is no forwarder-chain walk involved. THE ACTUAL DEFECT is that sub_00213740 is a lazy singleton getter which handles the NULL correctly and then CACHES it - test eax,eax / mov [0x5BC218],eax / je - so every later reader of 0x5BC218 gets NULL, and that is the NULL that reaches sub_001F7930 as its this and lets page zero fabricate a field array.",
     "note": "No behaviour change; diagnosis only. Probes stripped, baseline re-verified twice at 230/136/292/196/551, tree clean and manual_edits 1093/1093. THE REMAINING QUESTION IS NARROW: why does MEM32(0x5BC214) hold an abstract type. Nothing in the tree writes it - zero hits for MEM32(0x5BC214) = - yet it holds heap object 010977C0 at runtime, so it is written through a computed address or by code reachable only via a data pointer and never translated. That last class has produced the active wall three times before, and find_missing_functions.py exists for it. Ledger #171.",
     "commit": "85e7364"
+  },
+  {
+    "kernel_calls": 230,
+    "failed_icalls": 292,
+    "total_icalls": 44941,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 136,
+    "crash_in": "sub_0020E547+0x1C3",
+    "fault_va": "0xFFFE00CC",
+    "date": "2026-09-03",
+    "message": "Pivoted from the R3 wall back to the CURRENT wall and traced it in three probes. sub_0020E547 faults reading 0xFFFE00CC: 83 healthy calls carry alloc=01088A90 vt=003F4770, then one carries alloc=00000002, and MEM32(2) reads mapped page zero as 0xFFFE0000 so MEM32(0xFFFE0000+0xCC) is the fault. Probes on both candidate producers - the returns of sub_001E9B80 and sub_001F5C20 - fired zero times on the fatal call, so the 2 arrives as the ARGUMENT, and recomp_where names the caller: sub_002219A0+0x839. Also settled the abstract-type question from the last entry: the registration thunk at 0x0021EF70 pushes slot 0x5BC214 with first argument 1 while its neighbour pushes 0 for slot 0x5BC21C, so the game itself declares that type abstract and the NULL is intended, not a defect.",
+    "note": "Diagnosis only, no behaviour change; probes stripped, baseline re-verified twice at 230/136/292/196/551, manual_edits 1093/1093, no duplicates. A DEAD GUARD FOUND: in sub_0020E547 the generated line if (TEST_NZ(eax, eax)) goto loc_0020E56D runs BEFORE the manual plausible-pointer guard that carries the same condition plus a heap-range test, so for any non-zero eax the jump has already happened and the guard has never executed. Its own comment says to keep it for the eax=-1 case. Insert-only placement caused it - the guard needed to precede the line it constrains. Left in place rather than switched on, since enabling a bypass does not address the cause. Next target: sub_002219A0+0x839 pushing 2 where an allocator pointer belongs. Ledger #172.",
+    "commit": "d8e21cd"
   }
 ]
