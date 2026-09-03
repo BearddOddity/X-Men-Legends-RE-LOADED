@@ -442,3 +442,58 @@ instrument/fix/regression-test discipline for hard bugs. Complements, doesn't
 replace, `## The 15 rules` above: its ranked-falsifiable-hypothesis step
 (Phase 3) is worth running before reaching for `probe.py` on a new wall.
 
+
+---
+
+## Assigned powers
+
+<!-- 2026-09-03 assigned by skill-manager at the boot-to-menu debugging stage.
+     Same ten as `D:\My apps\Reverse Engineer Brain`, which is this project's
+     knowledge side; the two rosters are kept identical on purpose so moving
+     between the repos needs no switching step. Standing for this project. Do
+     not re-derive; change only on an explicit shift. -->
+
+**Stage:** Long-horizon debugging of the recompiled boot. The translation is
+essentially finished; getting it to *execute* is the whole remaining problem.
+Work is measured fixes, purpose-built instruments, and a ledger of confirmed
+and refuted claims — not fresh reversing, and not feature building.
+
+These powers are in force for this project. Use them when the work touches
+their subject, whether or not they are named.
+
+| Power | In force for |
+|---|---|
+| `oddity-re:ghidra-mcp-usage` | Every wall gets decompiled before it gets fixed; `tools/ghidra_naming/` automates the annotation |
+| `oddity-re:re-project-loop` | `progress.py`, `ledger.json` and the project memory ARE the cross-session ledger this method describes — rules #13 and #15 |
+| `oddity-re:re-lab-ops` | The Kali/WSLg lab holds the mirror, Ghidra and the Wine runs |
+| `offensive-claude:reverse-engineering` | Technique catalogue for the XBE, the x86 lifter and the Alchemy engine internals |
+| `mcp-server-dev:build-mcp-server` | `tools/mcp_server/` is the OddityRecomp MCP server that drives build, run, ledger and progress |
+| `superpowers:test-driven-development` | `tools_data/test_*.py` is a real target, and rules #4 and #9 say build the tool and the detector |
+| `superpowers:systematic-debugging` | The walls are the work; complements `.claude/skills/diagnosing-bugs` rather than replacing it |
+| `superpowers:verification-before-completion` | Rules #1, #7 and #8 are this power written as house rules — build and run before and after, two runs per number, a second signal per fix |
+| `plugin-dev:skill-development` | `.claude/skills/` holds six locally authored skills, including `wayfinder` and `diagnosing-bugs` |
+| `caveman:caveman` | At **lite**: compressed but complete sentences. Rule #12 governs — articles and full grammar stay, because that is what dyslexia needs; only the filler goes |
+
+**Not assigned, deliberately:**
+
+- `oddity-re:crackme-workflow` — nothing here is a licence check or a protected
+  binary; `re-project-loop` covers the long-horizon method that does apply.
+- `oddity-re:anti-debug-reference` — the XBE is neither packed nor obfuscated.
+- `android-reverse-engineering` — reads as adjacent and is not. This is an Xbox
+  x86 XBE; there is no APK, DEX or JVM bytecode anywhere.
+- `caveman:investigate-first` — real overlap with `superpowers:systematic-debugging`
+  and with `.claude/skills/diagnosing-bugs`. Two investigation methods is one
+  too many; three is noise.
+- `caveman:surgical-patch`, `safe-refactor`, `migration`, `lean-build` — rule #6
+  ("fix only as wide as the evidence") and rule #10 ("don't tidy what you can't
+  prove is inert") already carry the narrow-fix discipline, and carry it with
+  this project's own incidents attached.
+- `caveman:cavecrew` and `superpowers:dispatching-parallel-agents` — subagents
+  start cold and re-derive context the ledger already holds. Use only when
+  explicitly asked.
+- The offensive kill chain (`initial-access`, `privesc-*`, `edr-evasion`,
+  `red-team-ops` and the rest) — there is no engagement here. Only the analysis
+  powers from that plugin apply.
+- `oddity-re:log-analysis`, `blue-team-defense`, `csoc-automation`,
+  `grc-compliance`, `ot-ics-security` — installed for other work; this project
+  runs no defensive operations.
