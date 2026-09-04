@@ -3130,6 +3130,20 @@
     "correction"
    ],
    "when": "2026-09-03 23:02"
+  },
+  {
+   "id": 189,
+   "claim": "Nothing emptied a container: there is no container. A lazy singleton getter, sub_00123590, returns NULL and every caller below uses it as a this pointer, so the -1 \"size\" is guest page zero being read as an object.",
+   "verdict": "confirmed",
+   "evidence": "The premise of the question was wrong and the first probe said so. A probe on sub_00204800's entry, firing only when the size field is negative, printed the object pointer as 0x00000000. So esi is NULL and the three \"fields\" are guest page zero: MEM32(4) happens to hold 0xFFFFFFFF, MEM32(0xC) and MEM32(0x10) hold 0. That is the whole of the \"container with -1 items and no storage\" - a null pointer read as a structure. Ledger #171 and #173 both ended at the same shape.\n\nThe struct layout is nonetheless established, from sub_00204800's own grow test at recomp_0015.c:18000-18004: it compares MEM32(esi+4) against MEM32(esi+0xC) and only reallocates when they are equal, which is push_back's size == capacity check, so +4 is size, +0xC capacity, +0x10 buffer.\n\nWalking the NULL up, each step from a recomp_where frame walk rather than the crash log's raw stack scan. sub_00204800 is called from sub_0020A360+0x462 with ecx = edi, where edi was set to sub_0020A360's own this at entry; the NULL test there at recomp_0015.c:30293 is on the GLOBAL at 0x5BB7E4, not on this, so a null this passes straight through. sub_0020A360 is reached from sub_0020DA95, a mid-function fragment whose this is MEM32(ebp); a probe printed ebp itself as 0x00000000, so that read is page zero rather than a slot that happens to hold zero. ebp is not a frame pointer here: its parent sub_0020DA80 does ebp = ecx at recomp_0015.c:37620, the FPO scratch use recomp_types.h documents, and bridges it to the fragment with g_seh_ebp = ebp. A third probe caught sub_0020DA80 entered with ecx = 0 and named its caller as sub_0021ABE0.\n\nsub_0021ABE0 is where the NULL is born, and it is three lines at recomp_0016.c:2635-2640: push eax, call sub_00123590, ecx = eax, call sub_0020DA80. The return value of sub_00123590 becomes the this pointer with no check.\n\nsub_00123590 is a lazy singleton getter over the slot at 0x5BC528, and the lifted code is faithful to the original. It reads the slot and returns early if non-zero; otherwise it allocates 0x10 bytes through sub_001F4E60, and if that returns zero it takes loc_001235E3, which does eax = 0, writes that zero back into MEM32(0x5BC528), and returns it. So a failed allocation is reported as a null singleton and every caller below dereferences it. Note it does NOT permanently cache the failure the way ledger #171's getter does - a zero in the slot fails the non-zero test, so the next call retries the allocation - which means this is a repeated failure rather than one poisoned cache.\n\nWhat is NOT established: why the 16-byte allocation fails. The engine allocator's own trace in this run reports 23 pointers with 0 failures, so either sub_001F4E60 is a different allocator from the traced one or the failure is inside the constructor path at sub_00202CC0 rather than the allocation. That is the next measurement, and it is one probe on sub_00123590 printing the return of sub_001F4E60 at recomp_0007.c:53589.\n\nProbes stripped, 25 lines removed, and the baseline re-verified identical at 173 reached, 499 call sites, 296,019 bytes.",
+   "tags": [
+    "wall",
+    "null-this",
+    "page-zero",
+    "singleton",
+    "sub_00123590"
+   ],
+   "when": "2026-09-03 23:12"
   }
  ]
 }
