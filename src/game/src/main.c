@@ -78,6 +78,12 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size);
 typedef void (*recomp_func_t)(void);
 extern recomp_func_t recomp_lookup(uint32_t xbox_va);
 
+/* Defined further down this file and called from the crash and watchdog paths
+ * above it. Declared here because main.c does not include recomp_types.h, so
+ * the call would otherwise be an implicit int declaration that collides with
+ * the void definition (C2371). */
+void recomp_abi_depth_dump(void);
+
 /* ── Crash-report helpers ──────────────────────────────────── */
 
 /*

@@ -219,6 +219,33 @@ void recomp_icall_reject_dump(void);
 void recomp_icall_failsite_log(const char *file, int line);
 void recomp_icall_failsite_dump(void);
 
+/**
+ * Census of the depth every executed DIRECT call site returns at, recorded
+ * once per site on its first return and dumped from the crash path.
+ *
+ * The drift check on RECOMP_ABI_CALL only fires when a site returns DIFFERENT
+ * depths, so a callee that over-pops CONSISTENTLY is invisible to it - its
+ * delta is simply wrong and constant. That is the blind spot this closes, and
+ * it matters for finding which callee in a chain is the ORIGIN of an over-pop
+ * rather than merely the first frame seen to be inconsistent, since every
+ * frame above the origin inherits the damage.
+ *
+ * Absolute correctness is not decidable at the call site: the right answer is
+ * the callee's own epilogue constant N in "esp += N; return;", which the macro
+ * cannot see. It is entirely decidable offline - record what each site actually
+ * returned, then compare against N read out of gen/. Only executed sites are
+ * recorded, 551 of the 55,801 in the tree, so the census stays readable.
+ *
+ * Declared unconditionally, and note WHY: main.c calls the dump from the crash
+ * path in both configurations, so a prototype hidden inside RECOMP_CHECK_ABI
+ * leaves an implicit int declaration that collides with the void definition
+ * later in the same file (C2371). The note function is a no-op reference
+ * outside the ABI build, where the macro never calls it.
+ */
+void recomp_abi_depth_note(const char *fn, const char *file, int line,
+                           int64_t delta);
+void recomp_abi_depth_dump(void);
+
 /* ================================================================
  * Coverage: how much of the game actually ran
  * ================================================================ */
@@ -402,26 +429,10 @@ void xbox_WatchPollVA(uint32_t va);
 void recomp_abi_esp_drift(const char *fn, const char *file, int line,
                           int64_t first, int64_t now);
 
-/*
- * Census of the depth every executed direct call site returns at, recorded
- * once per site on its first return and dumped on the way out.
- *
- * The drift check below only fires when a site returns DIFFERENT depths, so a
- * callee that over-pops CONSISTENTLY is invisible to it - its delta is simply
- * wrong and constant. That is the blind spot this closes, and it matters for
- * finding which callee in a chain is the origin rather than merely the first
- * one seen to be inconsistent.
- *
- * Absolute correctness is not decidable in the macro, because the right answer
- * is the callee's own epilogue constant N in "esp += N; return;" and the call
- * site cannot see it. It is entirely decidable OFFLINE: record what each site
- * actually returned, then compare against N read out of gen/. Only the sites
- * that execute are recorded - 551 of them at present, against 55,801 in the
- * tree - so the census stays small enough to read.
- */
-void recomp_abi_depth_note(const char *fn, const char *file, int line,
-                           int64_t delta);
-void recomp_abi_depth_dump(void);
+/* The depth-census prototypes live outside this #ifdef, beside the failsite
+ * pair - main.c calls recomp_abi_depth_dump() from the crash path in BOTH
+ * configurations, and an implicit declaration there conflicts with the void
+ * definition further down the same file (C2371). */
 
 /*
  * RECOMP_ABI_CALL - direct call, checked for callee-saved registers, for esp

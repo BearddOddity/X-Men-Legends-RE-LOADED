@@ -3058,6 +3058,21 @@
     "sub_002235D0"
    ],
    "when": "2026-09-03 19:28"
+  },
+  {
+   "id": 184,
+   "claim": "The deepest direct-call over-popper cannot be resolved along direct edges: sub_002235D0's 16 bytes enter through an INDIRECT call, placing the origin inside a cycle with sub_00221900 and sub_00221070. A separate absolute census also found sub_001A06E8 over-popping 24 consistently, which the drift check structurally could not see.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #183's drift check only fires when one call site returns DIFFERENT depths, so a callee that over-pops CONSISTENTLY is invisible to it - the delta is simply wrong and constant. That blind spot is closed by recording the depth every executed direct call site returns at, once per site, and judging it offline in tools_data/audit_call_depth.py against the callee's own epilogue constant N from \"esp += N; return;\", which is the correct delta and which the call site cannot see. Only executed sites are recorded, 540 of the 55,801 in the tree, so the census is readable.\n\nFive sites return more than the callee owns. sub_001A06E8 owns 4 and returned +28, over-popping 24, at recomp_0011.c:33416. sub_002235D0 owns 4 and returned +20, over-popping 16, at recomp_0016.c:17182. sub_00209470 owns 12 and returned +28, over-popping 16, at recomp_0016.c:15994. sub_0020E520 owns 8 and returned +16, over-popping 8, at recomp_0016.c:13621. sub_00209650 owns 4 and returned +8, over-popping 4, at recomp_0016.c:13614. A further 85 sites call functions with no epilogue in gen/, stubbed or otherwise, and are not judged.\n\nsub_001A06E8 is the census's own find, invisible to the drift check because it is consistent, and it is the only one of the five that is an SEH function: it opens at recomp_0011.c:30347-30349 with push 0x68, push 0x3E1B58, call sub_003432A8, the __SEH_prolog idiom. Checking all five for that call returns 1 for sub_001A06E8 and 0 for the other four, so the tempting single explanation - that these are all __SEH_prolog/__SEH_epilog asymmetry - is refuted for the four that matter. sub_001A06E8's +24 is plausibly that asymmetry and is a separate thread; CLAUDE.md already records the __SEH_epilog save-area replacement as retired after three rejections, so it is not to be reopened casually.\n\nOn the wall itself the question \"which callee is deepest\" turns out to be malformed as asked. Ledger #178 established sub_002235D0 is statically balanced on every path, and this census shows every one of its DIRECT callees returning correctly, so its 16 bytes cannot originate in its own body or below a direct edge. They arrive through an indirect one. The icall delta check names exactly two +16 targets, sub_00221070 and sub_00221900, and those are precisely the function pointers sub_00221900 hands to sub_002235D0: recomp_0016.c:17171-17182 shows it pushing 0x221070 and 0x21EF70 among its 11 arguments before calling sub_002235D0 directly, and sub_002235D0 calls its pointer arguments back through MEM32(esp + 0x124), 0x128 and 0x138. So the damage travels a CYCLE - sub_00221900 direct to sub_002235D0, sub_002235D0 indirect to sub_00221070 and sub_00221900 - and a direct-callee graph cannot order it, because the edge carrying the 16 bytes is the indirect one the graph does not contain.\n\nThe next step follows from that and is narrow: the icall instrument already records each failing target VA, so pairing every icall delta with its CALLER closes the missing edges and makes the cycle orderable. Structural note for whoever does it: sub_00221900 is a pure 12-push forwarder with no indirect calls and one direct call, whereas sub_00221070 has 51 pushes, 8 indirect and 12 direct call sites, so sub_00221070 is where the work is.\n\nInstrument only, no behaviour change: both configurations build clean and the normal build's stderr.txt is byte-identical to baseline at 311,619 bytes.",
+   "tags": [
+    "esp",
+    "wall",
+    "census",
+    "cycle",
+    "sub_001A06E8",
+    "sub_00221070"
+   ],
+   "when": "2026-09-03 21:12"
   }
  ]
 }
