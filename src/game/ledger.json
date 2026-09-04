@@ -3215,6 +3215,20 @@
     "sub_00202B87"
    ],
    "when": "2026-09-03 23:54"
+  },
+  {
+   "id": 195,
+   "claim": "The page-zero trap census refutes the plan to reach this wall by bypassing network: only 7 of 92 resolved null-read sites are game_network and the earliest is site #42. sub_001A06E8's +24 is the shared-epilogue shape - it calls __SEH_prolog and no epilog in the same fragment.",
+   "verdict": "refuted",
+   "evidence": "RECOMP_TRAP_PAGE_ZERO maps guest 0x0-0xFFF PAGE_NOACCESS and censuses first reads. The run reports 115 distinct read sites, of which 92 resolve against the build_page0 map. Joining those against the Category the lifter already writes into every function header gives the distribution: 48 sites uncategorised, 31 game_vtable, 7 game_network, 6 unresolved. The earliest game_network site is #42, so 41 null reads happen before network touches page zero at all.\n\nThat is a direct refutation of bypassing network to move THIS wall. The intent to replace the subsystem stands on its own merits and is unaffected; what is refuted is the expectation that stubbing it would help the current failure. The null-pointer traffic is overwhelmingly uncategorised and vtable code.\n\nThe census also names the true first offender, which no previous instrument could. Site #1 is sub_001A3639 reading guest 0x250. Its opening instructions are mov eax,[0x3C6CCC] / mov eax,[eax], so it dereferences a global pointer that is null and then indexes it - the project's documented dominant defect class, a global whose initialiser was never translated because it is only reachable through a data pointer. Sites #2 to #7 are kernel_thunk_dispatch reading 0x630, 0x688 and 0x734, which recomp_types.h already documents as expected while g_fs_base is 0 and fs:[0] collapses to MEM32(0); those are not defects. Site #61 reads guest 0xDC from sub_00202B87+0x3EB, which is exactly the vtable slot in ledger #194's chain, so the trap independently confirms that finding.\n\nOn sub_001A06E8, whose +24 over-pop has been unexplained since ledger #184: it calls __SEH_prolog at 0x003432A8 exactly once and calls NO epilog anywhere in its own body, whose only epilogue is a bare \"esp += 4; return;\". The function ends by tail-calling continuation fragments sub_001A0A97 and sub_001A0B04, so the matching epilog lives in one of those. That is the same shared-epilogue shape as sub_0020E520 in ledger #186, where the repair was a capture point spanning prologue saves. Not yet proved to be the same defect, and deliberately not pursued further: the subsystem is being replaced.\n\nDocumented rather than stubbed. docs/SUBSYSTEM_game_network.md lists all 3,001 functions with their addresses and which 4 the boot reaches, generated from the tool so it can be regenerated rather than hand-maintained. Nothing is stubbed: 4 of 3,001 reached says almost nothing has had a chance to run before the boot dies in the CRT initialisers, not that 2,997 are inert, and three faithful repairs have already been reverted here for exactly that misreading.\n\nNew tool: page0_by_category.py, joining the trap census to the map and the category annotations. Diagnostic build only; the normal baseline is untouched at 173 reached, 499 call sites, 296,019 bytes.",
+   "tags": [
+    "page-zero",
+    "network",
+    "census",
+    "sub_001A3639",
+    "sub_001A06E8"
+   ],
+   "when": "2026-09-04 00:13"
   }
  ]
 }
