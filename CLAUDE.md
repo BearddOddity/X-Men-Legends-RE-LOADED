@@ -29,12 +29,18 @@ location, so the lab tree is what `progress`, `ledger`, `function`, `faithful`,
 lab-side and committed from there.
 
 **Use Windows only to build and run**, via the `build_*.bat` / `run_*.bat`
-scripts. That split is not a portability gap waiting to be closed. The target is
-a native Windows executable by design: `windows.h` in 11 runtime files, D3D8
-graphics, XAudio2 and DirectSound audio, XInput, and a Vectored Exception
-Handler for the crash path. Wine would load it, but this project's whole method
-rests on byte-identical deterministic runs — that is how an empty diagnostic is
-told apart from a lost one — and Wine puts a variable under exactly that signal.
+scripts. That is where the target builds *today*: `windows.h` is included by 11
+runtime files, graphics are D3D8, audio is XAudio2 and DirectSound, input is
+XInput, and the crash path is a Vectored Exception Handler.
+
+**Cross-platform Linux + Windows is an intended goal**, so read the list above
+as the current port surface rather than as a permanent boundary. It is the
+inventory of what a native Linux build has to replace. Until that exists the
+build stays on Windows, and running the Windows binary under Wine is not a
+shortcut to it: the method here rests on byte-identical deterministic runs —
+that is how an empty diagnostic is told apart from a lost one — and Wine puts a
+variable under exactly that signal. A real second target does not; it gives two
+independent deterministic runs to compare, which is worth more than either.
 
 **After every Windows build, copy the artifacts back to the lab.**
 `src/recomp/gen/` and `stderr.txt` are gitignored build output, so a `git pull`
