@@ -35,17 +35,16 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The empty pointer has a cause, and it is the stack")
-SUBHEAD = ("The run stops because one routine hands back an empty pointer where "
-           "an object belongs. That empty pointer is now explained. Certain "
-           "routines finish by discarding sixteen more bytes of working space "
-           "than they were given, so the caller afterwards reads the wrong slot "
-           "and picks up a stray number instead of its object. Nothing was "
-           "watching for that. Three measuring tools were built to see it, each "
-           "catching what the one before it structurally could not, and the last "
-           "named the offending routine on its first run. The origin is not a "
-           "single routine but a loop of three that call each other, which is "
-           "why every earlier attempt to pin it on one of them failed.")
+HEADLINE = ("The stack bug is fixed, and the boot now reaches new ground")
+SUBHEAD = ("The routine that discarded eight bytes too many has been repaired, "
+           "and the whole cascade above it went with it: five over-popping "
+           "call sites became three, and the two worst vanished. The program "
+           "no longer stops where it did. It now runs a long way further and "
+           "stops somewhere new, trying to insert into a list that does not "
+           "exist - the list reports it holds minus one items and its storage "
+           "pointer is empty, so the copy is asked for a negative length from "
+           "an empty address. The headline counters went DOWN, which is "
+           "expected and is explained below.")
 
 
 def lifted_function_count():
@@ -443,85 +442,72 @@ def build(hist, sig):
     </div>
 
     <div class="note">
-      <h3>Where the empty pointer comes from</h3>
-      <p>It is the stack. Every routine is handed a block of working space and is
-      expected to give back exactly what it took. Some of these give back
-      <strong>sixteen bytes more than they were given</strong>. The caller then
-      looks for its own value one slot too far along, finds whatever was lying
-      there, and carries on with a stray number where a pointer belonged. That
-      stray number is the empty pointer described above.</p>
-      <p>This was invisible for months because the existing check only asked
-      whether the working space had run away entirely &mdash; off the end of an
-      eight-megabyte region. Being sixteen bytes wrong sits comfortably inside
-      that, so it never triggered. The check was asking the wrong question, not
-      failing to ask it.</p>
+      <h3>What the stack bug was</h3>
+      <p>Every routine is handed a block of working space and must give back
+      exactly what it took. One routine gave back <strong>eight bytes more than
+      it was given</strong>, on one of its two exits. The caller then looked for
+      its own values one slot too far along and carried on with whatever was
+      lying there.</p>
+      <p>The cause was a bookkeeping mistake in the translation, and the
+      original program was innocent. Two registers are saved at the start of the
+      routine and restored at the end; the translator recorded its
+      &ldquo;restore the stack to here&rdquo; mark <em>above</em> those two
+      saves instead of below them. When a call through a stored address failed,
+      the stack was rewound past the saves, and the restore at the end then ran
+      from the wrong place. Two registers, eight bytes, exactly the amount
+      measured.</p>
+      <p>This was read out of the original machine code before anything was
+      changed, not guessed: the original saves those two registers and restores
+      them in the matching order, so it is balanced and the translation was not.
+      A tool the project already had flags the same line independently, and
+      lists <strong>761 more places</strong> with the same shape.</p>
     </div>
 
     <div class="note">
-      <h3>Three tools, each seeing what the last could not</h3>
-      <p>The first watches calls made through a stored address and compares the
-      working space before and after. It named a routine immediately, and also
-      revealed that most of what it flagged was harmless: of 167 complaints only
-      ten were real, the other 157 being a normal bookkeeping step that had been
-      miscounted as damage. That correction matters, because the surface to
-      investigate shrank from 167 to 10.</p>
-      <p>The second covers ordinary direct calls, which nothing had ever checked
-      for this. It is self-calibrating: rather than needing a table of what each
-      routine should give back, it records what a call site returns the first
-      time and complains when the same site later disagrees with itself. On its
-      first run it named the routine behind the current stopping point, matching
-      a result that had previously taken a day of hand measurement.</p>
-      <p>The third exists because the second has a blind spot: a routine that is
-      <em>consistently</em> wrong never disagrees with itself. So every call site
-      now records what it gave back, and the judging is done afterwards against
-      what each routine is actually entitled to. That immediately found a
-      further routine discarding twenty-four bytes on every single call, which
-      neither of the first two could ever have seen.</p>
+      <h3>One eight-byte correction, and the whole cascade went</h3>
+      <p>Fixing that single line removed far more than itself, which is what
+      confirms the routines above it were victims rather than causes:</p>
+      <ul>
+        <li>Call sites handing back too much: <strong>five down to three</strong></li>
+        <li>The two largest offenders, at sixteen bytes each: <strong>gone</strong></li>
+        <li>A third, at sixteen bytes: down to four</li>
+      </ul>
+      <p>It also explains the old stopping point exactly. The failing call was
+      reading an address built from a corrupted value, and that address
+      <em>is</em> the address the program used to die on. The damage and the
+      crash were the same line of code.</p>
     </div>
 
     <div class="note">
-      <h3>Why no single routine is to blame</h3>
-      <p>The obvious next question is which routine is deepest, so the others can
-      be dismissed as inheriting its damage. The question has no answer as posed.
-      The routine at the stopping point was proved sound on every path through
-      it, and all the ordinary calls it makes give back exactly what they should.
-      The damage arrives through a call made via a stored address &mdash; and the
-      stored addresses it calls are the ones its own caller handed it moments
-      earlier. <strong>The three routines form a loop</strong>, and a map built
-      from ordinary calls alone cannot order a loop whose damaging link is not an
-      ordinary call.</p>
-      <p>The next tool is therefore a small one: the existing check already knows
-      which stored address was called, and needs only to record who called it.
-      That completes the map.</p>
+      <h3>Where it stops now, and why the counters fell</h3>
+      <p>The program runs a long way further and stops somewhere new. It is
+      trying to <strong>insert an item into a list that was never set up</strong>:
+      the list says it holds minus one items, and its storage pointer is empty.
+      The insert works out how much to shift by from those two numbers, so it
+      asks to copy a negative length from an empty address, and the copy routine
+      fails on the spot.</p>
+      <p>Those two values were read from a probe placed on the copy routine
+      itself, firing only on an implausible call so the millions of healthy ones
+      stayed silent. That matters: an earlier attempt to name the caller used the
+      list of addresses printed with the crash, and <strong>that list is not
+      trustworthy</strong> - it is a raw scan of the stack that includes stale
+      leftovers, and one of the project's own tools refuses to read it for
+      exactly that reason. The conclusion drawn from it was withdrawn and
+      re-established properly.</p>
+      <p><strong>The headline counters fell</strong> - functions reached 196 to
+      173, call sites 551 to 499. That is not a regression being hidden. The
+      repair changes which path the program takes, so the counters are now
+      measuring a different program, and the old and new numbers are not
+      comparable. The decision to keep the fix rather than revert it was taken
+      deliberately, because unlike three earlier cases this one is not a
+      placeholder being removed - it is a translation error proved wrong against
+      the original, and putting it back would restore known-broken behaviour.</p>
     </div>
-
-    <div class="note">
-      <h3>The one that was not a defect at all</h3>
-      <p>The fourth item is not missing code. It is the compiler&rsquo;s own
-      stack-corruption detector, and the placeholder standing in for it has been
-      quietly swallowing the alarm on every run. Filling it in would make the
-      program abort deliberately &mdash; correct, and worse. It is a symptom
-      pointing at something else, and it is now recorded as one rather than
-      queued as a repair.</p>
-    </div>
-
-    <p>Two tools were improved along the way. The one that recompiles a missing
-    fragment was sizing it by scanning forward to the next return instruction,
-    with no upper bound &mdash; so a fragment in the middle of a function ran
-    straight past the end of it and into the next. It now stops at the next known
-    function. That also corrects an earlier conclusion in the project&rsquo;s
-    record, which had rejected a repair partly because a function looked 41 bytes
-    long when it is really 882; the 41 was the translator&rsquo;s own truncated
-    guess, not the truth.</p>
 
     <div class="note">
       <h3>The honest caveat</h3>
-      <p><strong>Nothing on this page is a repair.</strong> The headline numbers
-      have not moved and were not expected to: every change described here is a
-      measuring instrument, and each was checked to be behaviour-neutral by
-      confirming the ordinary build produces a log identical to the previous one
-      byte for byte. Understanding moved a long way; the program still stops in
-      the same place.</p>
+      <p><strong>This one is a real repair, and it is the first that was kept.</strong> Three earlier faithful repairs each made the headline numbers worse and each was reverted, because each removed a placeholder that had been returning early and the code behind it then hit its own defect. This one removes no placeholder: it corrects a translation error proved wrong against the original machine code, so reverting it would put known-broken behaviour back. The drop in the counters was accepted deliberately, after checking, and not quietly absorbed.</p>
+      <p><strong>What is still unknown.</strong> The list being inserted into has minus one items and no storage, but <em>what left it in that state has not been found</em>. Naming the routine that owns it is the next job, and nothing on this page should be read as having identified it.</p>
       <p>Three separate faithful repairs have each made the headline number
       worse, and each was reverted. That is not three failures. Each removed a
       placeholder that had been returning early, and the code it stood in front

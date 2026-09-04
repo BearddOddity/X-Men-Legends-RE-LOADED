@@ -281,20 +281,20 @@
     <div class="stamp">
       <span>2026-09-03</span>
       <span>default.xbe &middot; XDK 5849</span>
-      <span>202 recorded runs</span>
+      <span>203 recorded runs</span>
       <span>generated, not hand-written</span>
     </div>
   </header>
 
   <section class="wall" style="border-left-color:var(--blocked)">
     <div class="wall-row"><span class="tn-label">Where it stands right now</span></div>
-    <h3 style="margin-top:.2rem">The empty pointer has a cause, and it is the stack</h3>
-    <p class="track-cap">The run stops because one routine hands back an empty pointer where an object belongs. That empty pointer is now explained. Certain routines finish by discarding sixteen more bytes of working space than they were given, so the caller afterwards reads the wrong slot and picks up a stray number instead of its object. Nothing was watching for that. Three measuring tools were built to see it, each catching what the one before it structurally could not, and the last named the offending routine on its first run. The origin is not a single routine but a loop of three that call each other, which is why every earlier attempt to pin it on one of them failed.</p>
+    <h3 style="margin-top:.2rem">The stack bug is fixed, and the boot now reaches new ground</h3>
+    <p class="track-cap">The routine that discarded eight bytes too many has been repaired, and the whole cascade above it went with it: five over-popping call sites became three, and the two worst vanished. The program no longer stops where it did. It now runs a long way further and stops somewhere new, trying to insert into a list that does not exist - the list reports it holds minus one items and its storage pointer is empty, so the copy is asked for a negative length from an empty address. The headline counters went DOWN, which is expected and is explained below.</p>
     <div class="wall-row" style="margin-top:.4rem">
-      <span>wall <strong>None</strong></span>
+      <span>wall <strong>C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll</strong></span>
       <span>230 kernel calls</span>
-      <span>202 runs</span>
-      <span>48 walls passed</span>
+      <span>203 runs</span>
+      <span>49 walls passed</span>
       <span>updated 2026-09-03</span>
     </div>
   </section>
@@ -304,9 +304,9 @@
       <div><span class="tn-label">Functions translated to C</span>
            <span class="tn-val num">28,322</span></div>
       <div><span class="tn-label">Call sites executed</span>
-           <span class="tn-val num reached">551</span></div>
+           <span class="tn-val num reached">499</span></div>
       <div><span class="tn-label">Walls passed</span>
-           <span class="tn-val num">48</span></div>
+           <span class="tn-val num">49</span></div>
     </div>
     <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
     <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
@@ -314,7 +314,7 @@
     inside the C runtime's static initialisers, before the game proper starts.</p>
     <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
     counts distinct <em>direct</em> call sites. A separate counter tracks
-    196 functions entered through <em>indirect</em> calls. Neither is a
+    173 functions entered through <em>indirect</em> calls. Neither is a
     clean count of functions executed, and an earlier version of this page
     presented the second as though it were.</p>
   </section>
@@ -359,7 +359,7 @@
         <span class="vrow-frac">2 / 2</span>
         <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
         <span class="vrow-note">Rebuilt from source and run twice: 230 kernel calls,
-        136 heap allocations, 196 functions reached, 551 call sites, both
+        101 heap allocations, 173 functions reached, 499 call sites, both
         times. A figure that moves between runs cannot be compared with anything.</span>
       </div>
     </div>
@@ -377,7 +377,7 @@
     <div class="note">
       <h3>The high-water mark that was not one</h3>
       <p>On 9 August a run recorded <strong>4,000 kernel calls and 826 heap
-      allocations</strong> against today&rsquo;s 230 and 136, which reads as a
+      allocations</strong> against today&rsquo;s 230 and 101, which reads as a
       severe regression. It is not. That run was a runaway: 4,000 is where the watchdog
       cuts execution off, and the change that ended it is recorded as removing a dispatch
       loop running on junk read from an unmapped page. The allocations were that loop
@@ -389,26 +389,26 @@
 
   <section>
     <p class="eyebrow">Progression</p>
-    <h2>48 walls passed across 202 runs</h2>
+    <h2>49 walls passed across 203 runs</h2>
     <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
     inflate it &mdash; which is why the count of distinct crash sites matters
     more: reaching a new one means the previous wall was passed, and that cannot
     be faked by spinning.</p>
-    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 202 recorded runs, ending at 230"><polyline points="0.0,112.9 3.4,112.7 6.8,112.6 10.1,112.4 13.5,111.9 16.9,111.9 20.3,112.3 23.7,111.8 27.1,111.8 30.4,111.8 33.8,111.8 37.2,110.6 40.6,110.6 44.0,110.6 47.4,110.6 50.7,109.7 54.1,109.7 57.5,109.7 60.9,108.9 64.3,108.9 67.7,108.9 71.0,108.9 74.4,108.9 77.8,108.9 81.2,108.9 84.6,110.5 88.0,110.5 91.3,110.5 94.7,111.8 98.1,111.8 101.5,111.8 104.9,111.8 108.3,111.8 111.6,111.8 115.0,111.5 118.4,112.9 121.8,111.5 125.2,112.9 128.6,112.2 131.9,100.6 135.3,100.6 138.7,100.6 142.1,100.6 145.5,100.6 148.9,100.6 152.2,100.6 155.6,100.6 159.0,100.6 162.4,100.6 165.8,100.6 169.2,100.6 172.5,112.6 175.9,100.6 179.3,100.6 182.7,100.6 186.1,100.6 189.5,100.6 192.8,100.6 196.2,109.7 199.6,109.7 203.0,109.7 206.4,109.7 209.8,112.0 213.1,111.7 216.5,111.7 219.9,111.7 223.3,111.7 226.7,111.7 230.0,111.8 233.4,111.8 236.8,111.8 240.2,111.8 243.6,111.8 247.0,111.8 250.3,111.8 253.7,111.8 257.1,113.5 260.5,111.8 263.9,111.8 267.3,111.8 270.6,108.3 274.0,108.3 277.4,108.3 280.8,108.3 284.2,6.3 287.6,6.3 290.9,6.3 294.3,6.3 297.7,6.3 301.1,6.3 304.5,4.0 307.9,4.0 311.2,4.0 314.6,4.3 318.0,4.3 321.4,4.3 324.8,4.3 328.2,4.0 331.5,4.0 334.9,111.0 338.3,111.4 341.7,111.0 345.1,111.0 348.5,109.7 351.8,112.6 355.2,112.6 358.6,112.6 362.0,112.6 365.4,112.6 368.8,112.6 372.1,112.6 375.5,112.6 378.9,112.6 382.3,112.6 385.7,94.9 389.1,94.9 392.4,94.9 395.8,94.9 399.2,94.9 402.6,94.9 406.0,94.9 409.4,94.9 412.7,94.9 416.1,94.9 419.5,90.0 422.9,90.0 426.3,90.0 429.7,90.0 433.0,90.0 436.4,90.0 439.8,90.0 443.2,90.0 446.6,90.0 450.0,90.0 453.3,90.0 456.7,90.0 460.1,90.0 463.5,90.0 466.9,4.0 470.2,4.0 473.6,4.0 477.0,4.0 480.4,98.6 483.8,98.6 487.2,98.6 490.5,98.6 493.9,98.6 497.3,82.6 500.7,82.6 504.1,82.6 507.5,82.6 510.8,82.6 514.2,82.6 517.6,82.6 521.0,82.6 524.4,82.6 527.8,82.6 531.1,82.6 534.5,82.6 537.9,82.6 541.3,82.6 544.7,76.5 548.1,76.5 551.4,76.5 554.8,76.5 558.2,76.5 561.6,76.5 565.0,76.5 568.4,76.5 571.7,76.5 575.1,76.5 578.5,76.5 581.9,76.5 585.3,76.5 588.7,76.5 592.0,76.5 595.4,76.5 598.8,76.5 602.2,76.5 605.6,76.5 609.0,76.5 612.3,76.5 615.7,75.2 619.1,75.2 622.5,75.2 625.9,71.5 629.3,71.5 632.6,71.5 636.0,71.5 639.4,71.5 642.8,71.2 646.2,98.3 649.6,98.3 652.9,98.3 656.3,98.3 659.7,98.3 663.1,98.3 666.5,98.3 669.9,98.3 673.2,98.3 676.6,98.3 680.0,98.3" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="98.3" r="3.5" fill="var(--accent)"/></svg>
+    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 203 recorded runs, ending at 230"><polyline points="0.0,112.9 3.4,112.7 6.7,112.6 10.1,112.4 13.5,111.9 16.8,111.9 20.2,112.3 23.6,111.8 26.9,111.8 30.3,111.8 33.7,111.8 37.0,110.6 40.4,110.6 43.8,110.6 47.1,110.6 50.5,109.7 53.9,109.7 57.2,109.7 60.6,108.9 64.0,108.9 67.3,108.9 70.7,108.9 74.1,108.9 77.4,108.9 80.8,108.9 84.2,110.5 87.5,110.5 90.9,110.5 94.3,111.8 97.6,111.8 101.0,111.8 104.4,111.8 107.7,111.8 111.1,111.8 114.5,111.5 117.8,112.9 121.2,111.5 124.6,112.9 127.9,112.2 131.3,100.6 134.7,100.6 138.0,100.6 141.4,100.6 144.8,100.6 148.1,100.6 151.5,100.6 154.9,100.6 158.2,100.6 161.6,100.6 165.0,100.6 168.3,100.6 171.7,112.6 175.0,100.6 178.4,100.6 181.8,100.6 185.1,100.6 188.5,100.6 191.9,100.6 195.2,109.7 198.6,109.7 202.0,109.7 205.3,109.7 208.7,112.0 212.1,111.7 215.4,111.7 218.8,111.7 222.2,111.7 225.5,111.7 228.9,111.8 232.3,111.8 235.6,111.8 239.0,111.8 242.4,111.8 245.7,111.8 249.1,111.8 252.5,111.8 255.8,113.5 259.2,111.8 262.6,111.8 265.9,111.8 269.3,108.3 272.7,108.3 276.0,108.3 279.4,108.3 282.8,6.3 286.1,6.3 289.5,6.3 292.9,6.3 296.2,6.3 299.6,6.3 303.0,4.0 306.3,4.0 309.7,4.0 313.1,4.3 316.4,4.3 319.8,4.3 323.2,4.3 326.5,4.0 329.9,4.0 333.3,111.0 336.6,111.4 340.0,111.0 343.4,111.0 346.7,109.7 350.1,112.6 353.5,112.6 356.8,112.6 360.2,112.6 363.6,112.6 366.9,112.6 370.3,112.6 373.7,112.6 377.0,112.6 380.4,112.6 383.8,94.9 387.1,94.9 390.5,94.9 393.9,94.9 397.2,94.9 400.6,94.9 404.0,94.9 407.3,94.9 410.7,94.9 414.1,94.9 417.4,90.0 420.8,90.0 424.2,90.0 427.5,90.0 430.9,90.0 434.3,90.0 437.6,90.0 441.0,90.0 444.4,90.0 447.7,90.0 451.1,90.0 454.5,90.0 457.8,90.0 461.2,90.0 464.6,4.0 467.9,4.0 471.3,4.0 474.7,4.0 478.0,98.6 481.4,98.6 484.8,98.6 488.1,98.6 491.5,98.6 494.9,82.6 498.2,82.6 501.6,82.6 505.0,82.6 508.3,82.6 511.7,82.6 515.0,82.6 518.4,82.6 521.8,82.6 525.1,82.6 528.5,82.6 531.9,82.6 535.2,82.6 538.6,82.6 542.0,76.5 545.3,76.5 548.7,76.5 552.1,76.5 555.4,76.5 558.8,76.5 562.2,76.5 565.5,76.5 568.9,76.5 572.3,76.5 575.6,76.5 579.0,76.5 582.4,76.5 585.7,76.5 589.1,76.5 592.5,76.5 595.8,76.5 599.2,76.5 602.6,76.5 605.9,76.5 609.3,76.5 612.7,75.2 616.0,75.2 619.4,75.2 622.8,71.5 626.1,71.5 629.5,71.5 632.9,71.5 636.2,71.5 639.6,71.2 643.0,98.3 646.3,98.3 649.7,98.3 653.1,98.3 656.4,98.3 659.8,98.3 663.2,98.3 666.5,98.3 669.9,98.3 673.3,98.3 676.6,98.3 680.0,98.3" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="98.3" r="3.5" fill="var(--accent)"/></svg>
     <p class="track-cap">Clipped at 1,456 so one spin artefact does not flatten
     the series. Latest run: <strong>230</strong> kernel calls,
-    136 heap allocations, ending in crash.</p>
+    101 heap allocations, ending in crash.</p>
 
     <div class="scroller">
       <table>
         <thead><tr><th>First reached</th><th>Wall</th><th>Kernel calls</th></tr></thead>
         <tbody>
+          <tr><td class="n">2026-09-03</td><td class="n">C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-03</td><td class="n">sub_0020E547+0x1C3</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-03</td><td class="n">sub_00209414+0x3F6</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001EBA9E+0x1A4</td><td class="n">578</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001E8800+0x182</td><td class="n">530</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_00221070+0x647</td><td class="n">530</td></tr>
-          <tr><td class="n">2026-09-02</td><td class="n">sub_00209414+0x3FA</td><td class="n">530</td></tr>
         </tbody>
       </table>
     </div>
@@ -418,9 +418,9 @@
       <div class="metric"><span class="metric-k">First 101 runs</span>
         <span class="metric-val">32 walls</span>
         <span class="track-cap">3.2 runs each</span></div>
-      <div class="metric"><span class="metric-k">Last 101 runs</span>
-        <span class="metric-val">16 walls</span>
-        <span class="track-cap">6.3 runs each</span></div>
+      <div class="metric"><span class="metric-k">Last 102 runs</span>
+        <span class="metric-val">17 walls</span>
+        <span class="track-cap">6.0 runs each</span></div>
       <div class="metric"><span class="metric-k">Median wall</span>
         <span class="metric-val">2 runs</span></div>
       <div class="metric"><span class="metric-k">Worst wall</span>
@@ -559,85 +559,72 @@
     </div>
 
     <div class="note">
-      <h3>Where the empty pointer comes from</h3>
-      <p>It is the stack. Every routine is handed a block of working space and is
-      expected to give back exactly what it took. Some of these give back
-      <strong>sixteen bytes more than they were given</strong>. The caller then
-      looks for its own value one slot too far along, finds whatever was lying
-      there, and carries on with a stray number where a pointer belonged. That
-      stray number is the empty pointer described above.</p>
-      <p>This was invisible for months because the existing check only asked
-      whether the working space had run away entirely &mdash; off the end of an
-      eight-megabyte region. Being sixteen bytes wrong sits comfortably inside
-      that, so it never triggered. The check was asking the wrong question, not
-      failing to ask it.</p>
+      <h3>What the stack bug was</h3>
+      <p>Every routine is handed a block of working space and must give back
+      exactly what it took. One routine gave back <strong>eight bytes more than
+      it was given</strong>, on one of its two exits. The caller then looked for
+      its own values one slot too far along and carried on with whatever was
+      lying there.</p>
+      <p>The cause was a bookkeeping mistake in the translation, and the
+      original program was innocent. Two registers are saved at the start of the
+      routine and restored at the end; the translator recorded its
+      &ldquo;restore the stack to here&rdquo; mark <em>above</em> those two
+      saves instead of below them. When a call through a stored address failed,
+      the stack was rewound past the saves, and the restore at the end then ran
+      from the wrong place. Two registers, eight bytes, exactly the amount
+      measured.</p>
+      <p>This was read out of the original machine code before anything was
+      changed, not guessed: the original saves those two registers and restores
+      them in the matching order, so it is balanced and the translation was not.
+      A tool the project already had flags the same line independently, and
+      lists <strong>761 more places</strong> with the same shape.</p>
     </div>
 
     <div class="note">
-      <h3>Three tools, each seeing what the last could not</h3>
-      <p>The first watches calls made through a stored address and compares the
-      working space before and after. It named a routine immediately, and also
-      revealed that most of what it flagged was harmless: of 167 complaints only
-      ten were real, the other 157 being a normal bookkeeping step that had been
-      miscounted as damage. That correction matters, because the surface to
-      investigate shrank from 167 to 10.</p>
-      <p>The second covers ordinary direct calls, which nothing had ever checked
-      for this. It is self-calibrating: rather than needing a table of what each
-      routine should give back, it records what a call site returns the first
-      time and complains when the same site later disagrees with itself. On its
-      first run it named the routine behind the current stopping point, matching
-      a result that had previously taken a day of hand measurement.</p>
-      <p>The third exists because the second has a blind spot: a routine that is
-      <em>consistently</em> wrong never disagrees with itself. So every call site
-      now records what it gave back, and the judging is done afterwards against
-      what each routine is actually entitled to. That immediately found a
-      further routine discarding twenty-four bytes on every single call, which
-      neither of the first two could ever have seen.</p>
+      <h3>One eight-byte correction, and the whole cascade went</h3>
+      <p>Fixing that single line removed far more than itself, which is what
+      confirms the routines above it were victims rather than causes:</p>
+      <ul>
+        <li>Call sites handing back too much: <strong>five down to three</strong></li>
+        <li>The two largest offenders, at sixteen bytes each: <strong>gone</strong></li>
+        <li>A third, at sixteen bytes: down to four</li>
+      </ul>
+      <p>It also explains the old stopping point exactly. The failing call was
+      reading an address built from a corrupted value, and that address
+      <em>is</em> the address the program used to die on. The damage and the
+      crash were the same line of code.</p>
     </div>
 
     <div class="note">
-      <h3>Why no single routine is to blame</h3>
-      <p>The obvious next question is which routine is deepest, so the others can
-      be dismissed as inheriting its damage. The question has no answer as posed.
-      The routine at the stopping point was proved sound on every path through
-      it, and all the ordinary calls it makes give back exactly what they should.
-      The damage arrives through a call made via a stored address &mdash; and the
-      stored addresses it calls are the ones its own caller handed it moments
-      earlier. <strong>The three routines form a loop</strong>, and a map built
-      from ordinary calls alone cannot order a loop whose damaging link is not an
-      ordinary call.</p>
-      <p>The next tool is therefore a small one: the existing check already knows
-      which stored address was called, and needs only to record who called it.
-      That completes the map.</p>
+      <h3>Where it stops now, and why the counters fell</h3>
+      <p>The program runs a long way further and stops somewhere new. It is
+      trying to <strong>insert an item into a list that was never set up</strong>:
+      the list says it holds minus one items, and its storage pointer is empty.
+      The insert works out how much to shift by from those two numbers, so it
+      asks to copy a negative length from an empty address, and the copy routine
+      fails on the spot.</p>
+      <p>Those two values were read from a probe placed on the copy routine
+      itself, firing only on an implausible call so the millions of healthy ones
+      stayed silent. That matters: an earlier attempt to name the caller used the
+      list of addresses printed with the crash, and <strong>that list is not
+      trustworthy</strong> - it is a raw scan of the stack that includes stale
+      leftovers, and one of the project's own tools refuses to read it for
+      exactly that reason. The conclusion drawn from it was withdrawn and
+      re-established properly.</p>
+      <p><strong>The headline counters fell</strong> - functions reached 196 to
+      173, call sites 551 to 499. That is not a regression being hidden. The
+      repair changes which path the program takes, so the counters are now
+      measuring a different program, and the old and new numbers are not
+      comparable. The decision to keep the fix rather than revert it was taken
+      deliberately, because unlike three earlier cases this one is not a
+      placeholder being removed - it is a translation error proved wrong against
+      the original, and putting it back would restore known-broken behaviour.</p>
     </div>
-
-    <div class="note">
-      <h3>The one that was not a defect at all</h3>
-      <p>The fourth item is not missing code. It is the compiler&rsquo;s own
-      stack-corruption detector, and the placeholder standing in for it has been
-      quietly swallowing the alarm on every run. Filling it in would make the
-      program abort deliberately &mdash; correct, and worse. It is a symptom
-      pointing at something else, and it is now recorded as one rather than
-      queued as a repair.</p>
-    </div>
-
-    <p>Two tools were improved along the way. The one that recompiles a missing
-    fragment was sizing it by scanning forward to the next return instruction,
-    with no upper bound &mdash; so a fragment in the middle of a function ran
-    straight past the end of it and into the next. It now stops at the next known
-    function. That also corrects an earlier conclusion in the project&rsquo;s
-    record, which had rejected a repair partly because a function looked 41 bytes
-    long when it is really 882; the 41 was the translator&rsquo;s own truncated
-    guess, not the truth.</p>
 
     <div class="note">
       <h3>The honest caveat</h3>
-      <p><strong>Nothing on this page is a repair.</strong> The headline numbers
-      have not moved and were not expected to: every change described here is a
-      measuring instrument, and each was checked to be behaviour-neutral by
-      confirming the ordinary build produces a log identical to the previous one
-      byte for byte. Understanding moved a long way; the program still stops in
-      the same place.</p>
+      <p><strong>This one is a real repair, and it is the first that was kept.</strong> Three earlier faithful repairs each made the headline numbers worse and each was reverted, because each removed a placeholder that had been returning early and the code behind it then hit its own defect. This one removes no placeholder: it corrects a translation error proved wrong against the original machine code, so reverting it would put known-broken behaviour back. The drop in the counters was accepted deliberately, after checking, and not quietly absorbed.</p>
+      <p><strong>What is still unknown.</strong> The list being inserted into has minus one items and no storage, but <em>what left it in that state has not been found</em>. Naming the routine that owns it is the next job, and nothing on this page should be read as having identified it.</p>
       <p>Three separate faithful repairs have each made the headline number
       worse, and each was reverted. That is not three failures. Each removed a
       placeholder that had been returning early, and the code it stood in front

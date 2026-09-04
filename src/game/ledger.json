@@ -3116,6 +3116,20 @@
     "sub_00342AA0"
    ],
    "when": "2026-09-03 22:52"
+  },
+  {
+   "id": 188,
+   "claim": "The new wall is an array insert in sub_00204800 running on an empty container: element count at obj+4 is -1 and the buffer pointer at obj+0x10 is NULL, so it calls the game's memcpy with dest=4, src=NULL, count=-4. Also corrects ledger #187, which read a call chain off the raw stack scan that this project already distrusts.",
+   "verdict": "confirmed",
+   "evidence": "CORRECTION FIRST. Ledger #187 presented an ordered call chain for this wall, taken from resolve_rva.py run over the crash log's frames. Those frames come from the section the log labels \"Raw stack scan (may include stale return addresses)\", and triage_crash.py deliberately refuses that section - its code comment at tools_data/triage_crash.py:70-71 says it \"contains stale return addresses and has already misled one investigation\", preferring \"Call stack, innermost first\" when present. This crash has no such section, because the fault RIP is inside VCRUNTIME140 rather than our image, which is exactly why the MCP triage tool printed an empty caller list. It was right to. #187's identification of sub_00342AA0 as the faulting routine survives on independent grounds, but its chain ordering was built on data the project had already learned not to trust, and is withdrawn.\n\nREAL EVIDENCE, from a probe rather than a stack scan. A probe on sub_00342AA0's entry, firing only when src is below 0x10000 or count exceeds 0x1000000 so the healthy traffic stays silent, prints the three arguments and calls recomp_where, which does a genuine frame walk. It fired once: dest = 0x00000004, src = 0x00000000, count = 0xFFFFFFFC. So the arguments are dest 4, src NULL, count -4 - not the esi = -8 and ecx = 0x3FFFFFFF seen in the crash registers, which are those values after the routine's own arithmetic transformed them. The earlier reading of the registers as the arguments was wrong.\n\nThe frame walk names the immediate caller as sub_00204800+0x218, and this time the identification is checkable: sub_00204800 spans recomp_0015.c:17994-18072 and calls sub_00342AA0 at line 18031. An earlier claim in #187 that sub_00204800 contains no such call was simply a bad grep.\n\nReading the call site at recomp_0015.c:18019-18031 gives the arguments in terms of the object. Arguments are pushed right to left, so count = edx, src = eax, dest = eax + 4, built from ecx = MEM32(esp + 0x10), the index; edx = MEM32(esi + 4), the element count; eax = MEM32(esi + 0x10), the buffer base. The code computes edx = (count - index) << 2 and eax = base + index*4, then pushes base+4 as the destination. That is an array insert: shift the tail up by one element to open a slot.\n\nSolving against the observed values pins the container's state exactly. src = base + index*4 = 0 and dest = src + 4 = 4 give index = 0 and base = 0. count = (elements - 0) << 2 = -4 gives elements = -1. So the object at esi carries element count 0xFFFFFFFF at offset 4 and a NULL buffer at offset 0x10 - an uninitialised or emptied container, being inserted into.\n\nThis is the same family the project has circled before: ledger #171 and #173 both end at a null container, and the status page's long-standing \"empty pointer where an object belongs\" is this shape. The remaining question is narrow and is NOT answered here: which code owns the container at esi and left count at -1 with a NULL buffer.",
+   "tags": [
+    "wall",
+    "memcpy",
+    "null-container",
+    "sub_00204800",
+    "correction"
+   ],
+   "when": "2026-09-03 23:02"
   }
  ]
 }
