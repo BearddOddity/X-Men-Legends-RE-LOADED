@@ -2964,6 +2964,86 @@
     "ledger-175"
    ],
    "when": "2026-09-03 08:56"
+  },
+  {
+   "id": 177,
+   "claim": "Of the 167 esp imbalances the ABI build reports, only 10 are over-pops; the other 157 are uncleaned cdecl arguments and are not defects.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #176 recorded \"167 distinct esp imbalances tree-wide, a major new surface left for a dedicated triage pass\". Bucketing every [ESP-DELTA] line in src/game/abi_stderr.txt by sign shows the surface is far smaller than that number suggests. The histogram over all 167: 109 at -4, 27 at -12, 17 at -8, 1 at -16, 1 at -52, 1 at -68, 1 at -288, then 7 at +4, 1 at +12, 2 at +16. RECOMP_ICALL_ESP_DELTA captures _icall_esp before the argument pushes and compares it against g_esp after the call returns, so a cdecl callee, which never pops the caller's arguments, legitimately returns with esp below the captured value by exactly the argument bytes. That accounts for the whole negative tail, and the dominant -4 bucket is simply one-argument calls. A positive delta has no such benign reading: no calling convention leaves esp above where the caller stood before it pushed anything, so esp came back too high and the stack was over-popped. The triage surface is therefore the 10 positive lines, not 167. They are, in file order: sub_FE0000B8 +4, sub_001EC480 +4, sub_001FE770 +4, sub_001FE850 +4, sub_001E90F0 +12, sub_0035ADA0 +4, sub_FE000000 +4, sub_00213160 +4, sub_00221070 +16, sub_00221900 +16.",
+   "tags": [
+    "esp",
+    "abi",
+    "instrument",
+    "triage"
+   ],
+   "when": "2026-09-03 18:01"
+  },
+  {
+   "id": 178,
+   "claim": "sub_002235D0 is statically stack-balanced on every path, so the 16-byte over-pop enters it from a callee rather than from a missing push or pop of its own.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #175 narrowed the wall to sub_002235D0 over-popping 16 bytes on one of its paths. Reading the whole function in recomp_0016.c:21362-21723 rules out the simplest explanation, that some path reaches the epilogue without having taken the prologue's pushes. The frame is set up at line 21370 with esp = esp - 0x108, before any branch. The four callee-saved pushes of ebx, ebp, esi and edi sit at lines 21397-21400 under loc_002235FD, and every early branch out of the entry block (loc_002235DF, loc_002235E4, loc_002235ED, loc_002235EF, loc_002235F1, loc_002235FB) converges on loc_002235FD, so no path can skip them. There is exactly one epilogue and one ret, at lines 21717-21723: four pops in reverse order, then esp = esp + 0x108, then esp += 4 for the return address. Pushes and pops match, and the two 0x108 adjustments match. faithful on the function reports no findings from its three checks. A static check of its direct RECOMP_ABI_CALL callees for the convention-mismatch shape, a stdcall callee whose esp += N epilogue pops more than the call site pushed, also returns zero for this function; that checker under-counts arguments written through MEM32(esp + N) after a frame adjust rather than through PUSH32, so it is biased toward false positives and its tree-wide count of 1253 is not trustworthy, but the bias means a zero result here is a genuine negative. The over-pop therefore originates below sub_002235D0, either in a deeper callee or in an ICALL_SAFE failure path that unwinds to the wrong depth.",
+   "tags": [
+    "esp",
+    "wall",
+    "sub_002235D0"
+   ],
+   "when": "2026-09-03 18:02"
+  },
+  {
+   "id": 179,
+   "claim": "A second 16-byte over-pop exists at sub_00221070, and both +16 sites coincide with ebx, esi and edi holding stack garbage.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #176 named sub_00221900 as the sole +16 site the new RECOMP_ICALL_ESP_DELTA instrument reported. There are two. src/game/abi_stderr.txt:10819 reads \"[ESP-DELTA] icall to sub_00221070 returned with esp at the wrong depth: expected 00F7F880, got 00F7F890 (delta +16)\", thirty lines before the recorded sub_00221900 line at 10849, and the two are the only positive-16 entries in the file. The line immediately preceding the sub_00221900 delta is \"[ABI-ICALL] sub_00221900 did not restore: ebx 010986B8->624F6174 esi 010986A0->00000000 edi 010988C0->01097858\". Three of the four callee-saved registers come back holding values that are not their originals, and 624F6174 is the ASCII bytes taOb, which is stack or heap text rather than any pointer. Sixteen bytes is exactly four dwords, and ebx, esi and edi are three of the four registers a matching prologue and epilogue would push and pop, so the register damage and the esp displacement are one event and not two. ebp is reported intact only because the lifter gives sub_002235D0 a local uint32_t ebp seeded from g_seh_ebp at recomp_0016.c:21364-21366, so its push and pop move that local and never touch the global the ABI checker compares. Any account of the over-pop has to explain the register clobber at the same time.",
+   "tags": [
+    "esp",
+    "wall",
+    "sub_00221070",
+    "sub_00221900"
+   ],
+   "when": "2026-09-03 18:02"
+  },
+  {
+   "id": 180,
+   "claim": "RECOMP_ICALL_SAFE's failure path double-unwinds arguments at the ~900 call sites that also carry caller-side cleanup, and 126 of those sites clean up exactly 16 bytes. This is the mechanism of the current wall's 16-byte over-pop.",
+   "verdict": "confirmed",
+   "evidence": "recomp_types.h:664-667 justifies the RECOMP_ICALL_ESP_DELTA invariant with the claim \"Checked across all 19,239 RECOMP_ICALL_SAFE call sites in this tree: not one is followed by a caller-side esp += N cleanup, so every site already assumes full callee cleanup and this invariant is exact, not approximate.\" That claim is false, and the reason it was believed is a search-string mismatch: the lifter emits cleanup as \"esp = esp + N;\", never as \"esp += N;\", so a search for the latter finds nothing. Counting the former within six lines of each of the 17,189 RECOMP_ICALL_SAFE sites in gen/recomp_00*.c returns roughly 900 sites with cleanup, the largest buckets being 272 at 8 bytes, 185 at 4, 184 at 0xC and 126 at 0x10, which is 16.\n\nThe failure paths at recomp_types.h:750, 754 and 760 all restore with g_esp = (saved_esp), and saved_esp is captured before the site's argument pushes, so the macro unwinds the arguments itself. Where the site also has caller cleanup, that cleanup then runs a second time over the same bytes and esp finishes N bytes high. The success path is unaffected, because a cdecl callee pops only the return address and leaves esp exactly N below saved_esp for the caller's cleanup to correct; that is also why the delta check reports a negative N on those sites, which is ledger #177's benign negative tail rather than a defect.\n\nA concrete instance at recomp_0016.c:52493-52502: _icall_esp is captured at 52493, four arguments are pushed at 52494-52497 for 16 bytes, the dummy return address and the call follow at 52498, and loc_00231EB3 at 52501-52502 does esp = esp + 0x10. Success leaves _icall_esp; failure leaves _icall_esp + 16. The plain RECOMP_ICALL macro does not have this defect, because its failure paths at recomp_types.h:717 and 723 pop only the dummy return address with g_esp += 4, which is the cdecl behaviour these sites expect; the two macros simply disagree.\n\nThis accounts for every observed property of the wall. It is path-dependent on whether the indirect target resolves, which is why ledger #175 bracketed the same function balanced on one invocation and 16 high on the next. It is exactly 16 at the 0x10 sites. It leaves esp above the callee-saved slots, so the epilogue's pops read the wrong dwords, which is the ebx/esi/edi garbage recorded in ledger #179. And it is invisible to faithful, because the defect is in the macro and call-site convention rather than in the lifted instruction stream.\n\nThe repair follows the shape of an existing tool. At the sites that carry caller cleanup, the capture of _icall_esp belongs below the argument pushes rather than above them, so that a failed call leaves the arguments in place for the caller's own cleanup to remove exactly once. tools_data/find_icall_esp_saves.py --fix already performs precisely this move for callee-saved register pushes, per the manual-fix comments it leaves at recomp_0016.c:21401-21430. Not yet applied or built, so this entry is diagnosis only.",
+   "tags": [
+    "esp",
+    "wall",
+    "icall",
+    "root-cause",
+    "recomp_types"
+   ],
+   "when": "2026-09-03 18:24"
+  },
+  {
+   "id": 181,
+   "claim": "The double-unwind defect in ledger #180 has not been shown to fire in the run that produced the current wall; its attribution to this wall is unproven and the entry should be read as a defect class, not as the wall's cause.",
+   "verdict": "refuted",
+   "evidence": "Ledger #180 established, and this entry does not disturb, that RECOMP_ICALL_SAFE's failure paths double-unwind arguments at roughly 900 call sites carrying caller-side cleanup, 126 of them at exactly 16 bytes, with a worked instance at recomp_0016.c:52493-52502. What #180 additionally asserted, that this is the mechanism of the current wall, does not survive checking and is refuted here.\n\nThree checks, all negative. First, the failure path that records its own source location is recomp_types.h:754, through recomp_icall_reject_log(_va, __FILE__, __LINE__). The run's abi_stderr.txt carries 513 [ICALL-REJECT] lines naming 14 distinct sites, 496 of them from recomp_0015.c:28087 alone. Reading the seven lines following each of those 14 sites in gen/ shows caller-side cleanup at none of them, so no logged rejection in this run landed on a cleanup site.\n\nSecond, the wall's own functions do not contain a 16-byte cleanup site. sub_00221900, which ledger #176 and #179 record returning +16, contains no RECOMP_ICALL_SAFE at all and one esp = esp + 0x2C. sub_00221070, the second +16 site from #179, has many RECOMP_ICALL_SAFE sites but its only argument cleanup is esp = esp + 4. sub_002235D0 likewise has two esp = esp + 4 sites and nothing at 0x10. A single firing of the #180 mechanism in any of these three would produce +4, not +16.\n\nThird, the two failure paths at recomp_types.h:750 and 760 call recomp_icall_fail_log, which records no file or line, so they cannot be cross-referenced at all. Their firing count is also unrecoverable from this run: every failure path calls sub_00ICALL_SAFE_STUB, whose logging is rate-limited at recomp_manual.c:4695-4696 to the first 8 hits and then every 65536th, and the log shows exactly hits #1 through #8 with no later line. So the run proves only that total icall failures fall somewhere between 8 and 65536, which does not separate the paths.\n\nThe remaining possibility, that the wall's 16 is four separate +4 double-unwinds rather than one +16, is arithmetic without evidence and is not claimed. The cheap decisive instrument is to give the two silent failure paths the same __FILE__ and __LINE__ logging that path 754 already has; if any failure then lands on one of the ~900 cleanup sites, #180 is promoted from a defect class to this wall's cause, and if none does, the wall needs a different explanation and #180 remains a real defect worth fixing on its own account.",
+   "tags": [
+    "esp",
+    "wall",
+    "icall",
+    "attribution",
+    "correction"
+   ],
+   "when": "2026-09-03 18:26"
+  },
+  {
+   "id": 182,
+   "claim": "Measured: the ledger #180 double-unwind is dormant in this run. Of 27 call sites that suffer failed indirect calls, exactly one carries caller-side cleanup, at 4 bytes and firing once. No failing site cleans up 16 bytes, so #180 cannot be the source of the wall's 16-byte over-pop.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #181 left one question open and named the instrument that would settle it. That instrument now exists and has been run. Every previous icall log keys on the target VA - recomp_icall_fail_log dedups by va, and recomp_icall_reject_log keeps only the first site per va - so a site failing on an already-seen va left no trace and the question was unanswerable from the old logs. recomp_icall_failsite_log in recomp_manual.c keys on the file and line instead, reached through the RECOMP_ICALL_FAILSITE() macro added to all three RECOMP_ICALL_SAFE failure paths at recomp_types.h:779, 783 and 790, and compiling to (void)0 outside RECOMP_CHECK_ABI.\n\nThe census reports 20,337 failed indirect calls from 27 distinct sites, against only 513 VA-deduped rejects previously visible, so the old logs were hiding roughly forty times the traffic. Reading the eight lines after each of the 27 sites in gen/ for an \"esp = esp + N\" cleanup returns exactly one hit: recomp_0015.c:27720, cleanup of 4 bytes, count 1. The other 26 sites have no cleanup at all, so the double-unwind cannot fire there, and no failing site anywhere in the run cleans up 0x10. The single 4-byte instance is the whole live exposure of a defect class that spans roughly 900 sites, 126 of them at 16 bytes. #180 stays confirmed as a latent defect and is still worth repairing, but it is eliminated as this wall's cause, which settles #181 by measurement rather than by inference.\n\nTwo process notes. First, the instrument was wrong on its first run and printed nothing, because it registered its dump only through atexit, and neither a crash nor a watchdog kill reaches exit handlers; the crash path calls each dump explicitly from main.c, and the comment sitting directly above those calls at main.c:249-254 warns of exactly this, saying a diagnostic that only prints on the one path that does not happen is not a diagnostic. Fixed by adding recomp_icall_failsite_dump() beside recomp_icall_reject_dump() at both main.c call sites. Second, the run is deterministic: two consecutive ABI runs before the fix produced byte-identical 402,782-byte logs, which is what proved the empty output was a real zero rather than a lost run.\n\nBehaviour-neutral, and verified so: after the change the normal build relinked and its stderr.txt is byte-identical to the previous baseline at 311,619 bytes, with reached at 196, call sites at 551 and the same fault at 0xFFFE00CC. The wall has not moved and was not expected to.",
+   "tags": [
+    "esp",
+    "wall",
+    "icall",
+    "instrument",
+    "measurement"
+   ],
+   "when": "2026-09-03 18:38"
   }
  ]
 }
