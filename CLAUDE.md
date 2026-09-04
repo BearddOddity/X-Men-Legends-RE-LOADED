@@ -111,6 +111,7 @@ solved bugs come back (#15).
 | `whatis.py` | identify any Xbox VA — section, owning function, disassembly |
 | `find_missing_functions.py` | functions reachable only via data pointers |
 | `seed_missing_functions.py` | recompile those additively into `gen/recomp_seed.c` |
+| `resolve_rva.py` | host RVAs in a crash stack -> function names, via `build/*.map`; `--stack FILE` does a whole trace, `--ours-only` drops system frames |
 | `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures, `--fix --only F` applies |
 | `find_stale_flag_tests.py` | deferred-flag miscompiles |
 | `manual_edits.py` | extract/re-apply hand edits across a regeneration; `--partial --force` to write what places, `check-braces` to verify |

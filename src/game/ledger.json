@@ -3102,6 +3102,20 @@
     "icall-save-point"
    ],
    "when": "2026-09-03 22:44"
+  },
+  {
+   "id": 187,
+   "claim": "The new wall is a call to the game's own memcpy with src = -8 and count = 0x3FFFFFFF. resolve_rva.py, a new tool, names the recompiled frames behind a fault that lands inside a system DLL.",
+   "verdict": "confirmed",
+   "evidence": "The crash handler prints the native stack as bare host RVAs and says to resolve them against build/*.map, and nothing did that. whereis.py answers a different question - generated C location to GUEST address - so naming the recompiled caller of a fault inside a system DLL was a manual backwards grep through an 11 MB map, once per frame. tools_data/resolve_rva.py parses the map's Publics by Value table, subtracts the preferred load address parsed from the map rather than assumed, and does a bisect to the nearest preceding symbol. It carries a selftest that checks the lookup exactly on a symbol, inside one, just before the next, past the last, and below the first. Validated against two known symbols before use: 0xED0100 resolves to sub_00209650+0x0 and 0xEF3380 to sub_0020E547+0x0, both in recomp_0015.c.obj, matching the map rows directly.\n\nRun on the new crash stack it prints the whole chain of ledger #185 and then a long way past it: sub_002219A0, sub_00209470, sub_00209650, sub_00221900, sub_002235D0, sub_00221070, then sub_002208D8, sub_0021ABD0, sub_0020DA95, sub_0020A360, sub_00204800 and finally sub_00342AA0+0x232, which is where the fault sits. Everything past sub_00221070 is ground the ledger #186 repair unlocked. The log labels this a raw stack scan that may include stale return addresses, so the ORDER of the middle frames is not evidence; the identity of the faulting frame is.\n\nsub_00342AA0 is the game's own memcpy. whatis.py disassembles its prologue as push ebp / mov ebp,esp / push edi / push esi / mov esi,[ebp+0xc] / mov ecx,[ebp+0x10] - three arguments in the dest, src, count shape, with src loaded into esi and count into ecx. The fault is reported inside VCRUNTIME140.dll rather than in our code because MSVC recognised the lifted copy loop and emitted a real memcpy call.\n\nThe guest registers at the fault give the arguments directly: esi = 0xFFFFFFF8, which is -8, and ecx = 0x3FFFFFFF. That is a copy of just over a gigabyte from address -8, and reading address -8 is exactly the reported fault, Xbox VA 0xFFFFFFF8. edx is 0 and eax and edi are both -4, so several values in that frame are pointers computed as NULL minus a small offset.\n\nBoth operands look like sentinels rather than corruption: 0x3FFFFFFF is the \"unbounded length\" constant this codebase uses elsewhere, including at recomp_0011.c:13802 in sub_001994F0, and -8 is a base pointer offset backwards from a null. So the defect is upstream, in whatever produced a null container, and not in the memcpy itself. Which caller passed them is NOT yet established: sub_00204800 sits directly above it in the raw scan but contains no call to sub_00342AA0, so that adjacency is one of the stale frames the log warns about.",
+   "tags": [
+    "wall",
+    "memcpy",
+    "resolve_rva",
+    "tool",
+    "sub_00342AA0"
+   ],
+   "when": "2026-09-03 22:52"
   }
  ]
 }
