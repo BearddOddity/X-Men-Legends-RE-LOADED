@@ -3088,6 +3088,20 @@
     "sub_00209470"
    ],
    "when": "2026-09-03 22:25"
+  },
+  {
+   "id": 186,
+   "claim": "Task 1 repaired: sub_0020E547's icall save point was captured above two prologue register saves, so a failed indirect call unwound them and left esp 8 bytes high. Moving the capture below them removed the entire +16 over-pop chain and moved the wall.",
+   "verdict": "confirmed",
+   "evidence": "Root cause, proved against the original rather than inferred. whatis.py disassembles 0x0020E520 as push esi / mov esi,ecx / mov eax,[esi+0x3C], with one exit at 0x0020E541 as xor eax,eax / pop esi / ret 4, and the other at 0x0020E53F as jne 0x0020E547 - the function's own end address, so 0x0020E547 is a continuation fragment, confirmed by its first instruction mov eax,[esp+8] reading the first argument while esi is still pushed. In that continuation the original pushes ebx at 0x0020E572 and edi at 0x0020E578 as PROLOGUE SAVES, matched at 0x0020E592 by pop edi / pop ebx / pop esi. The original is balanced.\n\nThe lifted code was not. At recomp_0015.c:39280 the generated block opened with uint32_t _icall_esp = g_esp; ABOVE PUSH32(esp, ebx) and PUSH32(esp, edi), so RECOMP_ICALL_SAFE's failure path, which restores g_esp = saved_esp, rolled esp back past both saves. The epilogue's three pops then ran from 8 bytes too high. Two registers, 8 bytes, exactly the measured over-pop. The lifter cannot tell a save from an argument, which is the known ambiguity find_icall_esp_saves.py exists for; that detector independently flags the identical line as \"recomp_0015.c:39280 sub_0020E547 saves=ebx,edi\", one of 761 such sites tree-wide and 132 with this same 2-register shape.\n\nNote the coincidence that ties this to the wall: the icall in question is MEM32(edx + 0xCC), and triage reports the fault as edx + 0xCC with edx = 0xFFFE0000, i.e. 0xFFFE00CC. The over-pop and the crash were the same line.\n\nFixed with find_icall_esp_saves.py --fix --only sub_0020E547, one site, per Rule #6. Measured deterministically, two runs byte-identical. The whole chain of ledger #185 collapsed from this single 8-byte correction: over-popping direct call sites fell from 5 to 3, sub_002235D0's +16 is GONE, sub_0020E520's +8 is GONE, and sub_00209470 fell from over-popping 16 to over-popping 4. Both +16 indirect deltas, to sub_00221900 and sub_00221070, are gone. That confirms #185's ordering was right and that these frames were inheriting, not generating.\n\nThe tracked signals fell: reached 196 to 173, call sites 551 to 499, heap 136 to 101. Under Rule #1 this is not a like-for-like comparison, because the change alters which path runs and the counts now measure a different program. The wall moved off sub_0020E547+0x1C3 / 0xFFFE00CC entirely and is now an access violation inside VCRUNTIME140.dll at fault address 0x10000FFF8, guest VA 0xFFFFFFF8, with the recompiled caller below it on the stack. A guest VA of -8 reaching a CRT routine reads as a length or pointer computed from an empty value.\n\nKept rather than reverted, on the user's decision after checking in as Rule #1 requires. This is the fourth faithful repair to lower the headline numbers and the first to be kept; unlike the previous three it does not remove a placeholder, it corrects a stack imbalance proved wrong against the original disassembly, so reverting would restore known-incorrect behaviour.",
+   "tags": [
+    "esp",
+    "wall",
+    "repair",
+    "sub_0020E547",
+    "icall-save-point"
+   ],
+   "when": "2026-09-03 22:44"
   }
  ]
 }
