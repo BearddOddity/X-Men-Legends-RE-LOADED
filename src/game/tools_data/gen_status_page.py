@@ -35,14 +35,17 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Four open defects turned out to be one")
-SUBHEAD = ("Four of the nine faults from the audit looked independent: four "
-           "places where the translator skipped a fragment of code. Repairing "
-           "them together and measuring each in isolation showed they share a "
-           "single cause, and one of them was not a missing fragment at all but "
-           "a safety check firing. The project now has one target instead of "
-           "four: a specific function handing back an empty pointer where an "
-           "object belongs.")
+HEADLINE = ("The empty pointer has a cause, and it is the stack")
+SUBHEAD = ("The run stops because one routine hands back an empty pointer where "
+           "an object belongs. That empty pointer is now explained. Certain "
+           "routines finish by discarding sixteen more bytes of working space "
+           "than they were given, so the caller afterwards reads the wrong slot "
+           "and picks up a stray number instead of its object. Nothing was "
+           "watching for that. Three measuring tools were built to see it, each "
+           "catching what the one before it structurally could not, and the last "
+           "named the offending routine on its first run. The origin is not a "
+           "single routine but a loop of three that call each other, which is "
+           "why every earlier attempt to pin it on one of them failed.")
 
 
 def lifted_function_count():
@@ -440,6 +443,59 @@ def build(hist, sig):
     </div>
 
     <div class="note">
+      <h3>Where the empty pointer comes from</h3>
+      <p>It is the stack. Every routine is handed a block of working space and is
+      expected to give back exactly what it took. Some of these give back
+      <strong>sixteen bytes more than they were given</strong>. The caller then
+      looks for its own value one slot too far along, finds whatever was lying
+      there, and carries on with a stray number where a pointer belonged. That
+      stray number is the empty pointer described above.</p>
+      <p>This was invisible for months because the existing check only asked
+      whether the working space had run away entirely &mdash; off the end of an
+      eight-megabyte region. Being sixteen bytes wrong sits comfortably inside
+      that, so it never triggered. The check was asking the wrong question, not
+      failing to ask it.</p>
+    </div>
+
+    <div class="note">
+      <h3>Three tools, each seeing what the last could not</h3>
+      <p>The first watches calls made through a stored address and compares the
+      working space before and after. It named a routine immediately, and also
+      revealed that most of what it flagged was harmless: of 167 complaints only
+      ten were real, the other 157 being a normal bookkeeping step that had been
+      miscounted as damage. That correction matters, because the surface to
+      investigate shrank from 167 to 10.</p>
+      <p>The second covers ordinary direct calls, which nothing had ever checked
+      for this. It is self-calibrating: rather than needing a table of what each
+      routine should give back, it records what a call site returns the first
+      time and complains when the same site later disagrees with itself. On its
+      first run it named the routine behind the current stopping point, matching
+      a result that had previously taken a day of hand measurement.</p>
+      <p>The third exists because the second has a blind spot: a routine that is
+      <em>consistently</em> wrong never disagrees with itself. So every call site
+      now records what it gave back, and the judging is done afterwards against
+      what each routine is actually entitled to. That immediately found a
+      further routine discarding twenty-four bytes on every single call, which
+      neither of the first two could ever have seen.</p>
+    </div>
+
+    <div class="note">
+      <h3>Why no single routine is to blame</h3>
+      <p>The obvious next question is which routine is deepest, so the others can
+      be dismissed as inheriting its damage. The question has no answer as posed.
+      The routine at the stopping point was proved sound on every path through
+      it, and all the ordinary calls it makes give back exactly what they should.
+      The damage arrives through a call made via a stored address &mdash; and the
+      stored addresses it calls are the ones its own caller handed it moments
+      earlier. <strong>The three routines form a loop</strong>, and a map built
+      from ordinary calls alone cannot order a loop whose damaging link is not an
+      ordinary call.</p>
+      <p>The next tool is therefore a small one: the existing check already knows
+      which stored address was called, and needs only to record who called it.
+      That completes the map.</p>
+    </div>
+
+    <div class="note">
       <h3>The one that was not a defect at all</h3>
       <p>The fourth item is not missing code. It is the compiler&rsquo;s own
       stack-corruption detector, and the placeholder standing in for it has been
@@ -460,15 +516,33 @@ def build(hist, sig):
 
     <div class="note">
       <h3>The honest caveat</h3>
-      <p>Three separate faithful repairs have now each made the headline number
-      worse, and each was reverted. That is not three failures. Each one removed a
-      placeholder that had been returning early, and the code it was standing in
-      front of then ran and hit its own defect. The placeholders were load-bearing.
+      <p><strong>Nothing on this page is a repair.</strong> The headline numbers
+      have not moved and were not expected to: every change described here is a
+      measuring instrument, and each was checked to be behaviour-neutral by
+      confirming the ordinary build produces a log identical to the previous one
+      byte for byte. Understanding moved a long way; the program still stops in
+      the same place.</p>
+      <p>Three separate faithful repairs have each made the headline number
+      worse, and each was reverted. That is not three failures. Each removed a
+      placeholder that had been returning early, and the code it stood in front
+      of then ran and hit its own defect. The placeholders were load-bearing.
       Expect the next one to behave the same way, and treat a drop after a
       correct repair as information rather than a setback.</p>
-      <p>Every repair discussed here is preserved word for word in the
-      project&rsquo;s record, so none of this has to be re-derived when the blocking
-      defect is fixed.</p>
+      <p>Two specific limits on the findings above. A promising explanation for
+      the sixteen bytes &mdash; a cleanup step being applied twice on the failure
+      path &mdash; was measured and <strong>ruled out</strong>: it is real, it
+      affects around 900 places in the code, and in this run it fires exactly
+      once and costs four bytes. It is worth fixing on its own account and is not
+      the cause here. Separately, one of the routines flagged as discarding too
+      much is doing something legitimate that the newest tool does not yet
+      understand, and is recorded as an open question rather than a defect.</p>
+      <p>A claim in the project&rsquo;s own source comments was found to be false
+      and has been corrected: it asserted a check had been run across 19,239
+      places and found nothing, when the search it describes could not have
+      matched anything at all. The lesson is recorded with it.</p>
+      <p>Every repair and every refutation discussed here is preserved word for
+      word in the project&rsquo;s record, so none of it has to be re-derived when
+      the blocking defect is fixed.</p>
     </div>
   </section>
 
