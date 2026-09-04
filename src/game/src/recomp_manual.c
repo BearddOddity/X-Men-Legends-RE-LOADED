@@ -4574,6 +4574,80 @@ void recomp_icall_reject_dump(void)
     fflush(stderr);
 }
 
+/*
+ * Site-keyed failure census, distinct from the reject table above.
+ *
+ * Every existing icall log keys on the TARGET VA: recomp_icall_fail_log dedups
+ * by va, and recomp_icall_reject_log keeps only the first site per va. That is
+ * the right shape for "which pointer is bad", and the wrong shape for the
+ * question ledger #181 left open, which is "does any icall failure happen at a
+ * CALL SITE that also carries caller-side argument cleanup". A site can fail on
+ * a va some earlier site already logged and leave no trace at all under
+ * va-keyed dedup, so the existing logs cannot answer it even in principle.
+ *
+ * Ledger #180: RECOMP_ICALL_SAFE's three failure paths restore
+ * g_esp = saved_esp, captured BEFORE the argument pushes, so they unwind the
+ * arguments themselves. Roughly 900 sites then run their own `esp = esp + N`
+ * cleanup over the same bytes, 126 of them at exactly 16. If any of those sites
+ * appears in this census, that double-unwind is live and is a candidate for the
+ * current wall's 16-byte over-pop; if none does, the defect is real but dormant
+ * and the wall needs another explanation.
+ *
+ * Keyed on the file/line pair, which are compile-time constants, so the
+ * comparison is a pointer compare plus an int compare and the table stays tiny.
+ */
+#define FAILSITE_SLOTS 256
+static struct { const char *file; int line; uint64_t count; }
+    g_failsite[FAILSITE_SLOTS];
+static unsigned g_failsite_used;
+static uint64_t g_failsite_total, g_failsite_dropped;
+
+void recomp_icall_failsite_dump(void)
+{
+    if (!g_failsite_total)
+        return;
+    fprintf(stderr, "\n[ICALL-FAILSITE] %llu failed indirect call(s) from %u "
+                    "distinct call site(s):\n",
+            (unsigned long long)g_failsite_total, g_failsite_used);
+    for (unsigned i = 0; i < g_failsite_used; i++)
+        fprintf(stderr, "    x%-12llu at %s:%d\n",
+                (unsigned long long)g_failsite[i].count,
+                g_failsite[i].file ? g_failsite[i].file : "?",
+                g_failsite[i].line);
+    if (g_failsite_dropped)
+        fprintf(stderr, "    (%llu more from >%d distinct sites - table full)\n",
+                (unsigned long long)g_failsite_dropped, FAILSITE_SLOTS);
+    fflush(stderr);
+}
+
+void recomp_icall_failsite_log(const char *file, int line)
+{
+    static int registered;
+    if (!registered) {
+        registered = 1;
+        atexit(recomp_icall_failsite_dump);
+    }
+    g_failsite_total++;
+    for (unsigned i = 0; i < g_failsite_used; i++) {
+        if (g_failsite[i].line == line && g_failsite[i].file == file) {
+            g_failsite[i].count++;
+            return;
+        }
+    }
+    if (g_failsite_used < FAILSITE_SLOTS) {
+        g_failsite[g_failsite_used].file = file;
+        g_failsite[g_failsite_used].line = line;
+        g_failsite[g_failsite_used].count = 1;
+        g_failsite_used++;
+        return;
+    }
+    /* No eviction: unlike the reject table this one is a yes/no question about
+     * which sites fail at all, and a site that only ever fails a handful of
+     * times still answers it. Dropping late arrivals biases toward the sites
+     * that appeared first, which is recorded here rather than hidden. */
+    g_failsite_dropped++;
+}
+
 void recomp_icall_reject_log(uint32_t va, const char *file, int line)
 {
     static int registered;

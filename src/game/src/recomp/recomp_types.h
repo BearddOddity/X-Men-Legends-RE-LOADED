@@ -208,6 +208,17 @@ void sub_00ICALL_SAFE_STUB(void);
 void recomp_icall_reject_log(uint32_t va, const char *file, int line);
 void recomp_icall_reject_dump(void);
 
+/**
+ * Record the CALL SITE of a failed indirect call, keyed on file and line.
+ *
+ * The two logs above key on the target VA, so a site that fails on a VA some
+ * earlier site already reported leaves no trace. Used through the
+ * RECOMP_ICALL_FAILSITE() macro, which is a no-op outside RECOMP_CHECK_ABI.
+ * Implemented in recomp_manual.c; dumped by recomp_icall_failsite_dump().
+ */
+void recomp_icall_failsite_log(const char *file, int line);
+void recomp_icall_failsite_dump(void);
+
 /* ================================================================
  * Coverage: how much of the game actually ran
  * ================================================================ */
@@ -661,10 +672,23 @@ void recomp_abi_violation_va(uint32_t target_va,
  * performed its stdcall-style cleanup. A SUCCESSFUL call is held to the
  * identical invariant: whatever this callee legitimately pops for itself
  * (its own arguments plus the return-address slot), esp should land back on
- * `saved_esp` either way. Checked across all 19,239 RECOMP_ICALL_SAFE call
- * sites in this tree: not one is followed by a caller-side `esp += N`
- * cleanup, so every site already assumes full callee cleanup and this
- * invariant is exact, not approximate.
+ * `saved_esp` either way.
+ *
+ * CORRECTION (ledger #180). This comment used to claim that a check across all
+ * 19,239 call sites found not one followed by a caller-side `esp += N` cleanup,
+ * and therefore that the invariant was exact. That is false. The search string
+ * was wrong: the lifter emits cleanup as `esp = esp + N;` and never as
+ * `esp += N;`, so the check could not have matched anything. Counting the form
+ * actually emitted finds roughly 900 sites with cleanup - 272 at 8 bytes, 185
+ * at 4, 184 at 0xC and 126 at 0x10.
+ *
+ * So the invariant is APPROXIMATE, and a nonzero delta here is not by itself a
+ * defect. At a site with cleanup of N the callee is cdecl, it pops only the
+ * return address, and a correct call reports exactly -N because this check runs
+ * before the caller's own cleanup. Ledger #177: of 167 reported imbalances only
+ * the 10 POSITIVE ones are over-pops worth triaging; the negative tail is this
+ * artefact. Read a negative delta as "argument bytes not yet cleaned", not as
+ * damage.
  *
  * Found by hand for one wall (ledger #175: sub_002235D0 over-pops 16 bytes
  * on one of its paths, invisible to every existing ABI check) before this
@@ -675,6 +699,23 @@ void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_af
     if (g_esp != (saved_esp_val)) \
         recomp_esp_delta_va((va), (saved_esp_val), g_esp); \
 } while (0)
+
+/*
+ * RECOMP_ICALL_FAILSITE - records WHICH CALL SITE a failed indirect call came
+ * from, which no existing log can say. recomp_icall_fail_log dedups by target
+ * VA and recomp_icall_reject_log keeps only the first site per VA, so a site
+ * failing on an already-seen VA leaves no trace.
+ *
+ * Ledger #181 needs exactly that: whether any icall failure lands on one of the
+ * ~900 sites that carry a caller-side `esp = esp + N` cleanup. All three
+ * failure paths below restore g_esp = saved_esp, captured before the argument
+ * pushes, so they unwind the arguments; a site that then cleans up again ends N
+ * bytes high, and 126 such sites clean up exactly 16 (ledger #180).
+ *
+ * __FILE__ and __LINE__ expand at the USE site, so this names the generated
+ * file and line, which is what the cross-reference needs.
+ */
+#define RECOMP_ICALL_FAILSITE() recomp_icall_failsite_log(__FILE__, __LINE__)
 #define RECOMP_ICALL_WATCH(va, call) do { \
     uint32_t _esp_b = g_esp; \
     uint32_t _abi_b = g_ebx, _abi_s = g_esi, _abi_d = g_edi; \
@@ -688,6 +729,7 @@ void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_af
 #else
 #define RECOMP_ICALL_ESP_DELTA(va, saved_esp_val) ((void)0)
 #define RECOMP_ICALL_WATCH(va, call) do { call; } while (0)
+#define RECOMP_ICALL_FAILSITE() ((void)0)
 #endif
 
 /**
@@ -747,17 +789,19 @@ void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_af
         _va == 0xFFFFFFFFu || _va == 0xCCCCCCCCu || \
         _va == 0xCDCDCDCDu || _va == 0xFDFDFDFDu || \
         _va == 0xFEFEFEFEu) { \
-        recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
+        recomp_icall_fail_log(_va); RECOMP_ICALL_FAILSITE(); \
+        g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     if (_va >= 0x00400000 && _va < 0xFE000000) { \
-        recomp_icall_reject_log(_va, __FILE__, __LINE__); \
+        recomp_icall_reject_log(_va, __FILE__, __LINE__); RECOMP_ICALL_FAILSITE(); \
         g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); break; \
     } \
     recomp_func_t _fn = recomp_lookup_manual(_va); \
     if (!_fn) _fn = recomp_lookup(_va); \
     if (!_fn) _fn = recomp_lookup_kernel(_va); \
     if (_fn) { recomp_mark_reached(_va); RECOMP_WATCH_POLL("before icall"); RECOMP_ICALL_WATCH(_va, _fn()); RECOMP_WATCH_POLL_VA(_va); RECOMP_ICALL_ESP_DELTA(_va, (saved_esp)); } \
-    else { recomp_icall_fail_log(_va); g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
+    else { recomp_icall_fail_log(_va); RECOMP_ICALL_FAILSITE(); \
+           g_esp = (saved_esp); sub_00ICALL_SAFE_STUB(); } \
 } while(0)
 
 /**
