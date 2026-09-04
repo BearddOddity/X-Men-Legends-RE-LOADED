@@ -18,6 +18,36 @@ too; it doesn't — it's gitignored — so the reason no longer holds.)
 
 ---
 
+## Where work happens: the lab is the workspace, Windows only compiles
+
+**Do analysis in the RE Lab** (WSL + WSLg, `kali-linux`), in
+`/home/oddity/projects/xbox-recomp`. Reading `gen/`, greps and cross-references,
+the `tools_data/` scripts, Ghidra, and every `OddityRecomp` MCP call belong
+there. The MCP server runs in the lab and derives its paths from its own
+location, so the lab tree is what `progress`, `ledger`, `function`, `faithful`,
+`probe` and `triage` report on. `ledger.json` and `progress.json` are written
+lab-side and committed from there.
+
+**Use Windows only to build and run**, via the `build_*.bat` / `run_*.bat`
+scripts. That split is not a portability gap waiting to be closed. The target is
+a native Windows executable by design: `windows.h` in 11 runtime files, D3D8
+graphics, XAudio2 and DirectSound audio, XInput, and a Vectored Exception
+Handler for the crash path. Wine would load it, but this project's whole method
+rests on byte-identical deterministic runs — that is how an empty diagnostic is
+told apart from a lost one — and Wine puts a variable under exactly that signal.
+
+**After every Windows build, copy the artifacts back to the lab.**
+`src/recomp/gen/` and `stderr.txt` are gitignored build output, so a `git pull`
+never brings them and the lab's MCP tools fail with "No such file or directory"
+until they are copied over `\\wsl$\kali-linux\...`. `src/game/game/default.xbe`
+can be a symlink to the repo's own `game_files/default.xbe` instead of a second
+copy — same file, verified by MD5.
+
+Do NOT "fix" this by repointing the MCP server at the Windows tree. That
+inverts the arrangement above, and it has been proposed and rejected.
+
+---
+
 ## The 15 rules
 
 Lower number wins, with two exceptions: **#10 outranks #2**, and **#11/#12 are
