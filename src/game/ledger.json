@@ -3187,6 +3187,34 @@
     "refutation"
    ],
    "when": "2026-09-03 23:33"
+  },
+  {
+   "id": 193,
+   "claim": "The store is named: sub_00202B87 zeroes 54 MB from guest address 0 because the indirect call it grows a buffer with returned NULL. That wipes both 0x5BC528 and 0x5BC544, and it is a rep stosd emitted as a LOOP, which the first guard could not see.",
+   "verdict": "confirmed",
+   "evidence": "The first sweep was a clean negative from a blind instrument, which is worth recording as its own lesson. Guarding all 910 emitted memcpy/memset sites against writes covering 0x5BC528..0x5BC547 produced ZERO hits, with the guard string verified present in the binary and the run byte-identical. The reason is that the lifter emits rep stosd two ways: as memset((void*)XBOX_PTR(...)) and as an explicit loop, \"{ uint32_t _i; for (_i = 0; _i < ecx; _i++) MEM32(edi + _i*4) = eax; }\". There are 463 of the second kind and the guard matched none of them.\n\nGuarding that form too gives one hit immediately: destination 0x00000000, length 0x033E7800, which is 54,296,576 bytes. A rep stosd zeroing 54 MB from guest address 0 takes both globals with it, along with everything else in low memory.\n\nresolve_rva.py puts it at sub_00202B87+0x5F0, which is where the page watchpoint's rip pointed all along (+0x656) and inside the chain the software poll named. The two mechanisms were both right and neither could be acted on until the write itself was caught.\n\nReading the code at recomp_0015.c:14096-14119 gives the mechanism in full. It is a vector grow-and-zero: an indirect call through MEM32(edx + 0xDC) returns a new buffer in eax; then edx = eax, edi = edx + edi*4 makes the destination buffer + old_count*4, MEM32(ebx + 8) = edx stores the buffer back into the object, and the rep stosd clears the newly added elements. With the call returning 0 the destination collapses to 0 + 0*4 = 0 and the element count is enormous, so the clear runs from address zero.\n\nSo the singleton was never released or mishandled. It was erased, together with the allocator depth counter 28 bytes away and the rest of low guest memory, by a zero-fill whose base pointer was NULL.\n\nNOT yet distinguished, and it is one probe: whether that indirect call returned 0 because the dispatch FAILED - RECOMP_ICALL_SAFE returns eax = 0 through sub_00ICALL_SAFE_STUB on a rejected or unresolved target, and ledger #182 measured 20,337 such failures in a run - or because a real allocator ran and refused. Those are different defects with different fixes and the distinction should not be guessed.\n\nTwo instrument lessons stand on their own. A guard that cannot see the case in question reports a confident zero, which is worse than no guard; the bulk sweep did exactly that for a full build-and-run cycle. And the emitted-form inventory matters: 910 sites in the call form, 463 in the loop form, and any future sweep over \"bulk writes\" must cover both.",
+   "tags": [
+    "wall",
+    "rep-stosd",
+    "null-buffer",
+    "sub_00202B87",
+    "instrument-blindspot"
+   ],
+   "when": "2026-09-03 23:51"
+  },
+  {
+   "id": 194,
+   "claim": "The grow call returns NULL because its target VA is NULL: the vtable slot is read off guest page zero, so the dispatch never happens and the safe stub returns 0. Page zero being readable is what turns one null object into a 54 MB wipe of low memory.",
+   "verdict": "confirmed",
+   "evidence": "A probe after the grow call in sub_00202B87 printing the return, the target VA and whether that VA resolves shows the first 8 calls healthy - target 0x001EC720, resolvable, returns real heap pointers 0x01090258, 0x01096DC8 and so on. Since recomp_where caps printing, the failing call sat past the limit and the probe was narrowed to fire only when the return is zero. That call reports return 0, TARGET 0x00000000, resolvable 0.\n\nSo the indirect call did not fail to allocate and did not dispatch to a bad allocator. It never dispatched at all: MEM32(edx + 0xDC) read zero, RECOMP_ICALL_SAFE rejected the null target under its own \"below 0x00010000\" filter, and sub_00ICALL_SAFE_STUB returned eax = 0 by design. That settles the question ledger #193 left open, and settles it against the more interesting-sounding option - nothing refused an allocation.\n\nedx is the object's vtable pointer, taken from MEM32 of the object. A null object makes edx zero, and MEM32(0 + 0xDC) is a read of guest page zero, which this runtime maps and leaves readable. The full chain is therefore: a null object, a vtable read off page zero, a null function pointer, a safe stub returning zero, that zero used as a freshly grown buffer, and the rep stosd at sub_00202B87+0x5F0 clearing 54,296,576 bytes from address 0 - which erases the singleton at 0x5BC528 and the allocator depth at 0x5BC544 along with the rest of low memory. Those erasures then produce the null singleton that ledger #189 traced, and that null becomes the wall.\n\nThe chain is self-reinforcing, and that is the point worth carrying forward: every step is survivable only because page zero reads as ordinary data instead of faulting. A null object does not crash, it yields a vtable of zeroes; a null function pointer does not crash, it yields a zero return; a zero buffer does not crash, it yields a destination of zero. The project already has the instrument for this in build_page0.bat and RECOMP_TRAP_PAGE_ZERO, and this is the strongest case yet for running the boot under it: with page zero trapping, the first null dereference faults at its own origin instead of eight steps downstream.\n\nNOT established: which object is null, and why. That is upstream of everything here and is the next question.",
+   "tags": [
+    "wall",
+    "page-zero",
+    "null-vtable",
+    "safe-stub",
+    "sub_00202B87"
+   ],
+   "when": "2026-09-03 23:54"
   }
  ]
 }

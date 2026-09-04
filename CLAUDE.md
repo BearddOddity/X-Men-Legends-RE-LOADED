@@ -119,6 +119,8 @@ solved bugs come back (#15).
 | `whatis.py` | identify any Xbox VA — section, owning function, disassembly |
 | `find_missing_functions.py` | functions reachable only via data pointers |
 | `seed_missing_functions.py` | recompile those additively into `gen/recomp_seed.c` |
+| `guard_bulk_writes.py` | guards every emitted bulk copy/fill against clobbering an address range; covers BOTH the memcpy and the loop form |
+| `census_categories.py` | what the 28k lifted functions are, by category, size and whether this boot reaches them |
 | `who_writes.py` | which functions write a guest address, and whether one can reach them; follows direct AND tail calls |
 | `resolve_rva.py` | host RVAs in a crash stack -> function names, via `build/*.map`; `--stack FILE` does a whole trace, `--ours-only` drops system frames |
 | `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures, `--fix --only F` applies |
