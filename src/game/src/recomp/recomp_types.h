@@ -394,6 +394,46 @@ void xbox_WatchPollVA(uint32_t va);
  * away entirely, not to police a few bytes either side of the guard page. */
 #define RECOMP_ESP_LO 0x00700000u
 #define RECOMP_ESP_HI 0x00F80000u
+/*
+ * Sentinel for "this call site has not returned yet", chosen outside any
+ * reachable delta: a real one is bounded by the stack size.
+ */
+#define RECOMP_ABI_NO_DELTA  INT64_MIN
+void recomp_abi_esp_drift(const char *fn, const char *file, int line,
+                          int64_t first, int64_t now);
+
+/*
+ * RECOMP_ABI_CALL - direct call, checked for callee-saved registers, for esp
+ * escaping the simulated stack, and for esp DEPTH.
+ *
+ * The depth check closes the last gap in the esp instrumentation. Indirect
+ * calls got one in ledger #176 (RECOMP_ICALL_ESP_DELTA); direct calls had only
+ * the range test below, which a 16-byte imbalance sails through because it
+ * stays far inside 0x00700000-0x00F80000. That matters for the current wall:
+ * sub_00221900 pushes 11 arguments, calls sub_002235D0 DIRECTLY, and cleans up
+ * 0x2C itself, so the whole chain beneath that direct call was unmeasured.
+ *
+ * It is self-calibrating, which is what makes it usable without a table of
+ * calling conventions. `_abi_p` is captured after the dummy return-address
+ * push, so a correct call returns esp at _abi_p + 4 + K, where K is whatever
+ * the callee pops for itself - 0 for cdecl, the argument bytes for stdcall.
+ * K is a constant per callee, so the ABSOLUTE delta is not knowable here but
+ * its CONSTANCY is: the first return records the delta, and every later return
+ * through the same site is held to it. No static analysis, no convention
+ * tables, and no false positives from a callee that legitimately pops its own
+ * arguments.
+ *
+ * A `static` inside the macro gives one slot per CALL SITE rather than per
+ * callee, which is the right granularity - RECOMP_MARK_SITE above already uses
+ * the same pattern. Per-site also means a function reached from two sites with
+ * different argument counts does not cross-contaminate.
+ *
+ * This is aimed squarely at the shape ledger #175 recorded by hand: "Same
+ * function, one balanced and one not." A path-dependent over-pop is invisible
+ * to any check of a single call, and is exactly what a constancy check sees.
+ * Reports once per site, immediately rather than at exit, because neither a
+ * crash nor a watchdog kill reaches exit handlers (ledger #182).
+ */
 #define RECOMP_ABI_CALL(fn)                                          \
     do {                                                             \
         RECOMP_MARK_SITE();                                          \
@@ -405,6 +445,18 @@ void xbox_WatchPollVA(uint32_t va);
         if ((g_esp < RECOMP_ESP_LO || g_esp > RECOMP_ESP_HI) &&      \
             (_abi_p >= RECOMP_ESP_LO && _abi_p <= RECOMP_ESP_HI))    \
             recomp_esp_escape(#fn, _abi_p);                          \
+        {                                                            \
+            static int64_t _abi_first = RECOMP_ABI_NO_DELTA;         \
+            static uint8_t _abi_told;                                \
+            int64_t _abi_now = (int64_t)g_esp - (int64_t)_abi_p;     \
+            if (_abi_first == RECOMP_ABI_NO_DELTA)                   \
+                _abi_first = _abi_now;                               \
+            else if (_abi_first != _abi_now && !_abi_told) {         \
+                _abi_told = 1;                                       \
+                recomp_abi_esp_drift(#fn, __FILE__, __LINE__,        \
+                                     _abi_first, _abi_now);          \
+            }                                                        \
+        }                                                            \
     } while (0)
 #else
 #define RECOMP_ABI_CALL(fn) do { RECOMP_MARK_SITE(); RECOMP_WATCH_POLL("before " #fn); fn(); RECOMP_WATCH_POLL(#fn); } while (0)

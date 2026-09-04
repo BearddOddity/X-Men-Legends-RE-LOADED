@@ -503,6 +503,44 @@ void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_af
 }
 
 /*
+ * A DIRECT call site returned esp at a different depth than it did the first
+ * time, so the callee's stack effect is path-dependent.
+ *
+ * The absolute delta is not checkable here: a correct call leaves esp at
+ * saved + 4 + K, where K is whatever the callee pops for itself, and K is not
+ * known at the call site. Its CONSTANCY is checkable, and that is enough,
+ * because the defect being hunted is precisely a callee that balances on one
+ * path and over-pops on another - ledger #175 recorded it by hand as "Same
+ * function, one balanced and one not".
+ *
+ * `first` is the delta this site recorded on its first return and `now` is the
+ * one that disagreed; which of the two is correct is not decidable here, only
+ * that the callee is inconsistent. Printed immediately rather than collected
+ * for exit, because neither a crash nor a watchdog kill reaches exit handlers
+ * (ledger #182). The macro reports each site once, so this needs no dedup of
+ * its own.
+ */
+void recomp_abi_esp_drift(const char *fn, const char *file, int line,
+                          int64_t first, int64_t now)
+{
+    fprintf(stderr, "[ESP-DRIFT] %s returned a different esp depth than before:"
+                    " first %+lld, now %+lld  (moved %+lld)  at %s:%d\n",
+            fn, (long long)first, (long long)now, (long long)(now - first),
+            file, line);
+
+    module_range();
+    void *frames[16];
+    USHORT got = CaptureStackBackTrace(1, 16, frames, NULL);
+    for (USHORT k = 0; k < got; k++) {
+        uintptr_t a = (uintptr_t)frames[k];
+        if (in_module(a))
+            fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
+                    (unsigned long long)(a - g_mod_base));
+    }
+    fflush(stderr);
+}
+
+/*
  * A callee reached through an INDIRECT call returned with ebx, esi or edi
  * changed. The direct-call equivalent is recomp_abi_violation() above.
  *
