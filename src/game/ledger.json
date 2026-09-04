@@ -3144,6 +3144,34 @@
     "sub_00123590"
    ],
    "when": "2026-09-03 23:12"
+  },
+  {
+   "id": 190,
+   "claim": "The 16-byte allocation does not fail on size: there is no allocator installed. The engine keeps a stack of allocators and its depth counter at 0x5BC544 is 0 by the time the singleton is retried, and the retry only happens because something under sub_00202B60 zeroed the singleton slot after it was correctly built.",
+   "verdict": "confirmed",
+   "evidence": "sub_001F4E60 is not a heap routine. Its first instructions read a counter at 0x5BC544, bail out when it is less than or equal to zero, and otherwise index a table of allocators at 0x5BB700. A probe on its return inside sub_00123590 shows the pattern directly: the first call returns 0x01091B18 with the counter at 1, and every later call returns 0 with the counter at 0. So the allocation is not refused for size, and the heap is not exhausted - the engine simply has no allocator selected. The engine allocator's own trace agrees, reporting 23 pointers and 0 failures in the same run.\n\nThe counter has exactly three writers, all in recomp_0015.c, and they are a matched pair. sub_00216210 at line 56763 pushes - it stores into the table at 0x5BB704 + eax*4, increments, and writes the counter back. sub_0020DE70 pops at lines 38127 and 38212 - it reads the table at 0x5BB700 + eax*4, decrements, and writes back. A 1-based stack of allocator scopes.\n\nThe singleton getter itself is correct, which took two probes to establish and corrected a wrong hypothesis on the way. The slot at 0x5BC528 is written with the CONSTRUCTOR's return rather than the allocation's, so the obvious suspicion was that the lifted constructor fails to return this. It does not: a probe at the store shows the constructor returning 0x01091B18, identical to the allocation it was handed. A second probe on the getter's entry shows call 1 reading 0 and allocating, and calls 2 through 8 reading 0x01091B18 and taking the early return exactly as intended.\n\nThose two probes appeared to contradict a third, which showed five allocation attempts. The resolution is the print limit: recomp_where caps printing per tag, so the getter-entry probe's later calls were counted and not shown, and it is those later calls that read zero and reach the allocation. Worth recording because a capped probe and a probe that stopped firing look identical, which is the trap main.c's own comments already warn about.\n\nThat leaves the zeroing. The guest watchpoint on 0x5BC528 reports the value going 0 to 0x01091B18 and then 0x01091B18 to 0. Its two mechanisms disagree on the culprit: the page-protection watch names an instruction inside sub_00123590's own failure path, while the software poll reports the change happening across a call to sub_00202B60. The poll is the mechanism to trust here, and the header says why - the page-protection watchpoint cannot see writes that land while the page is unprotected, which is the reason the poll exists at all. So sub_00202B60 or something beneath it clears the singleton.\n\nNOT established, and the next measurement: what under sub_00202B60 writes the zero, and whether the allocator stack being empty at that point is correct engine behaviour or a pop without a matching push. Both matter, because the wall needs the singleton to be missing AND the re-creation to fail.",
+   "tags": [
+    "wall",
+    "allocator-stack",
+    "singleton",
+    "sub_00202B60",
+    "watchpoint"
+   ],
+   "when": "2026-09-03 23:22"
+  },
+  {
+   "id": 191,
+   "claim": "Applied the save-point fix to the two remaining sites that actually take a failure path on this boot. Both are correct by construction and neither changes anything measurable, and the expectation that one of them would explain sub_001A06E8's +24 over-pop was wrong.",
+   "verdict": "refuted",
+   "evidence": "find_icall_esp_saves.py reports 760 sites capturing _icall_esp across register saves, which is far wider than any evidence supports fixing. Its --live mode narrows that to the sites appearing in the current run's ICALL failure backtraces, on the reasoning that a site whose indirect call always resolves never takes the failure path and so can never skew esp. That leaves 2: recomp_0011.c:33381 in sub_001A23F3 saving ebp, ebx, esi, edi, and recomp_0015.c:39503 in sub_0020E680 saving esi, edi.\n\nThe tool prints \"this reports a shape, not a proven bug\", so both were checked before editing. sub_001A23F3's epilogue pops edi, esi, ebx and ebp, and sub_0020E680's pops edi and esi - in each case exactly the registers flagged, so they are genuine prologue saves that the capture point wrongly spans, the same proven shape as the sub_0020E547 repair in ledger #186.\n\nApplied to both. The result is nothing. The normal build is byte-identical to the pre-fix baseline at 296,019 bytes, with reached 173, call sites 499, heap 101 and the same fault at 0xFFFFFFF8, and the ABI build's depth census is unchanged at 3 over-popping sites.\n\nThe specific expectation is REFUTED. sub_001A23F3 is the caller of sub_001A06E8, whose unexplained +24 over-pop has stood since ledger #184, and 16 bytes of the flagged skew looked like most of it. After the fix sub_001A06E8 still returns +28 where it owns 4, so the +24 is not this defect and remains unexplained; the only thing that moved is the line number, from recomp_0011.c:33416 to 33423, because the fix inserts a comment above it.\n\nBoth fixes are kept rather than reverted. They repair a demonstrable mismatch between the lifted code and the original's save/restore pairing, they cost nothing measurable, and reverting would restore a known-wrong capture point. But they bought no progress, and recording that plainly matters more than the tidy story: 2 of 760 sites were reachable at all, and fixing both moved no signal.",
+   "tags": [
+    "esp",
+    "icall-save-point",
+    "live-narrowing",
+    "sub_001A06E8",
+    "negative-result"
+   ],
+   "when": "2026-09-03 23:23"
   }
  ]
 }
