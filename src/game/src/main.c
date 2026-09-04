@@ -481,21 +481,43 @@ void recomp_esp_escape_va(uint32_t target_va, uint32_t esp_before)
  *
  * Reported once per distinct target VA, like its range-check sibling.
  */
-void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after)
+void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after,
+                         const char *file, int line)
 {
-    enum { SEEN_MAX = 32 };
-    static uint32_t seen[SEEN_MAX];
+    /* Keyed on the CALL SITE, not the target VA.
+     *
+     * Dedup by target was the right shape for the question "which pointer is
+     * bad" and the wrong shape for "who called it": the first caller of a
+     * target claimed the only slot, and every other site calling that same
+     * target went unreported. Ledger #184 needs the callers, because
+     * sub_002235D0's over-pop arrives through an INDIRECT edge and the
+     * direct-call graph cannot order the sub_00221900 / sub_00221070 cycle
+     * without them.
+     *
+     * file and line are compile-time constants, so this is a pointer compare
+     * plus an int compare, and the table stays small.
+     */
+    enum { SEEN_MAX = 512 };
+    static struct { const char *file; int line; int delta; } seen[SEEN_MAX];
     static unsigned seen_n;
 
+    const int delta = (int)(esp_after - saved_esp);
     for (unsigned i = 0; i < seen_n; i++)
-        if (seen[i] == target_va)
+        if (seen[i].line == line && seen[i].file == file
+            && seen[i].delta == delta)
             return;
-    if (seen_n < SEEN_MAX)
-        seen[seen_n++] = target_va;
+    if (seen_n < SEEN_MAX) {
+        seen[seen_n].file = file;
+        seen[seen_n].line = line;
+        seen[seen_n].delta = delta;
+        seen_n++;
+    }
 
     fprintf(stderr, "[ESP-DELTA] icall to sub_%08X returned with esp at the "
-                    "wrong depth: expected %08X, got %08X  (delta %+d)\n",
-            target_va, saved_esp, esp_after, (int)(esp_after - saved_esp));
+                    "wrong depth: expected %08X, got %08X  (delta %+d)"
+                    "  from %s:%d\n",
+            target_va, saved_esp, esp_after, delta,
+            file, line);
 
     module_range();
     void *frames[16];

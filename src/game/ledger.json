@@ -3073,6 +3073,21 @@
     "sub_00221070"
    ],
    "when": "2026-09-03 21:12"
+  },
+  {
+   "id": 185,
+   "claim": "Recording the caller of each icall imbalance closes the graph and orders the chain: it is eight links deep, ends at sub_0020E520, and the +16 higher up is two independent 8-byte losses rather than one 16 propagating.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #184 named the missing edge and the one-line fix for it. recomp_esp_delta_va now takes __FILE__ and __LINE__ from RECOMP_ICALL_ESP_DELTA, so every indirect imbalance names its CALL SITE and not just its target.\n\nIts dedup had to change too, and the first attempt got it wrong in an instructive way. The original keyed on target VA with a 32-slot table, and because it only stopped STORING when full rather than stopping reporting, every target after the 32nd printed on every call - which is where the \"167 imbalances\" figure came from. Re-keying on the call site cut that to 34 true distinct sites, but ALSO made the two +16 lines vanish, because a site reports the first time it is non-zero and the first anomaly at a site then suppressed every later, different one. recomp_0015.c:27720 is the proof: it reports -4 to sub_0021DB50 and +8 to sub_00220040 from the same site. Keying on site AND delta together restores both, at 39 lines. An instrument that hides the thing it was built to find is worse than none, and this one did until the third try.\n\nWith the callers recorded, every over-popping edge resolves to an owner. Direct edges from the census: sub_002219A0 to sub_00209650 +16 at recomp_seed.c:105189, sub_00221900 to sub_002235D0 +16 at recomp_0016.c:17182, sub_00221070 to sub_00209470 +16 at recomp_0016.c:15994, sub_00220040 to sub_0020E520 +8 at recomp_0016.c:13621, sub_00220040 to sub_00209650 +4 at recomp_0016.c:13614. Indirect edges, new here: sub_00209650 to sub_00221900 +16 at recomp_0015.c:28070, and sub_002235D0 to sub_00221070 +16 at recomp_0016.c:21571.\n\nOrdered, that is a CHAIN and not the cycle #184 suspected: sub_002219A0 to sub_00209650 to (indirect) sub_00221900 to sub_002235D0 to (indirect) sub_00221070 to sub_00209470 to (indirect) sub_00220040 to sub_0020E520. The cycle reading was an artefact of having only direct edges, where sub_00221900 and sub_002235D0 appear to call each other; the indirect edges show the traffic passing through sub_00221070 and onward rather than looping back.\n\nsub_0020E520 is the bottom. It owns 8 by its epilogue and returns +16, over-popping 8; it spans recomp_0015.c:39140-39231, contains exactly ONE call, a single RECOMP_ICALL_SAFE, and no reported imbalance of any kind falls inside it. Every frame above inherits from here.\n\nThe magnitudes say this is not one defect propagating. The bottom of the chain loses 8 and the top shows 16, so there are at least TWO independent 8-byte over-pops, and dividing 16 by a single cause was wrong. sub_00209470 is where the second appears: it inherits +8 from sub_00220040 and is seen returning +16 to sub_00221070.\n\nCorroborates ledger #173 from a different direction, which bracketed sub_00209650 and separately found the virtual call at [obj+0x58] in sub_00209470 returning 01088A90 on all 92 healthy passes. Both functions sit on this chain. Worth noting for the repair: ledger #171 records sub_0020E520 as correctly refusing to instantiate an abstract type via cmp byte [esi+0x1A],1 / xor eax,eax, so it has an early-exit path, and an exit that does not agree with the main path about stack cleanup is the classic shape for exactly this defect.\n\nInstrument only, no behaviour change intended; the normal build's byte-identical baseline is re-verified in the next entry alongside the commit.",
+   "tags": [
+    "esp",
+    "wall",
+    "icall",
+    "chain",
+    "sub_0020E520",
+    "sub_00209470"
+   ],
+   "when": "2026-09-03 22:25"
   }
  ]
 }

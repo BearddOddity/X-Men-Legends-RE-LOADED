@@ -781,10 +781,11 @@ void recomp_abi_violation_va(uint32_t target_va,
  * on one of its paths, invisible to every existing ABI check) before this
  * existed. This makes that whole class self-reporting from now on.
  */
-void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after);
+void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_after,
+                         const char *file, int line);
 #define RECOMP_ICALL_ESP_DELTA(va, saved_esp_val) do { \
     if (g_esp != (saved_esp_val)) \
-        recomp_esp_delta_va((va), (saved_esp_val), g_esp); \
+        recomp_esp_delta_va((va), (saved_esp_val), g_esp, __FILE__, __LINE__); \
 } while (0)
 
 /*
