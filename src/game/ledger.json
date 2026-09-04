@@ -3229,6 +3229,20 @@
     "sub_001A06E8"
    ],
    "when": "2026-09-04 00:13"
+  },
+  {
+   "id": 196,
+   "claim": "Correction: site #1 of the page-zero census is not a null global. sub_001A3639 reads fs:[0x20] with g_fs_base = 0, which is the documented segment-modelling gap. Only 1 of the 27 functions in the census is fs-relative though, so the other 26 are real null dereferences.",
+   "verdict": "refuted",
+   "evidence": "Ledger #195 named sub_001A3639 as the first page-zero reader and described it as dereferencing a null global, on the strength of its opening instructions mov eax,[0x3C6CCC] / mov eax,[eax]. That reading is wrong twice over and is withdrawn.\n\nFirst, 0x3C6CCC is in .rdata and holds 0x80000142, 0x8000002F and similar - the high bit set, resource identifiers rather than pointers - so those opening instructions are not the null dereference. Second, the actual read of guest 0x250 is at the other end of the function: the lifted body does eax = MEM32(g_fs_base + 0x20) and then tests MEM32(eax + 0x250). g_fs_base is zero, which recomp_types.h documents plainly - \"Zero until per-thread TIBs are allocated, so MEM32(g_fs_base + X) is exactly the MEM32(X)\" - so fs:[0x20] collapses to a read of guest 0x20, yields 0, and eax + 0x250 is guest 0x250. It is a TIB read with no TIB, the same class as the kernel_thunk_dispatch sites at #2 to #7 that #195 already excused, and not a game defect.\n\nThat does NOT excuse the rest, and the measurement matters more than the correction. Of the 27 distinct functions the census names, exactly ONE contains an fs-relative read, and that one is sub_001A3639. The other 26 read page zero for other reasons and are genuine null pointers. Two of them are already known to matter: sub_001F4E60, the allocator selector whose empty stack ledger #190 measured, and sub_00202B87, the function whose rep stosd wipes 54 MB in ledger #193.\n\nSeparately, find_missing_functions.py quantifies the discovery gap that produces those nulls: 10,800 data-section pointers into .text, 7,100 already known as functions, and 2,900 new candidates. Its own header explains the mechanism - a function whose address is only ever taken as data is never a call target, so discovery never finds it, and RECOMP_ICALL_SAFE then returns eax = 0 for every call through such a pointer. Its candidate list needs filtering before use: the tail is misaligned data disassembling as code, with entries a single byte apart at 0x00020020 through 0x000200A5 and first instructions like \"and al, 0x38\". The credible head is the cluster referenced from 0x003C6DBC, 0x003C6DDC, 0x003C7140 and neighbours, which is a table of pointers in the same region.\n\nNo behaviour change; diagnostic builds only. Normal baseline untouched at 173 reached, 499 call sites, 296,019 bytes.",
+   "tags": [
+    "page-zero",
+    "fs-base",
+    "correction",
+    "find-missing-functions",
+    "discovery-gap"
+   ],
+   "when": "2026-09-04 00:20"
   }
  ]
 }
