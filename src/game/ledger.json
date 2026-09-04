@@ -3172,6 +3172,21 @@
     "negative-result"
    ],
    "when": "2026-09-03 23:23"
+  },
+  {
+   "id": 192,
+   "claim": "Neither the allocator-stack pop nor the singleton getter nor the virtual call zeroes those globals. The pop never runs at all, and both 0x5BC528 and 0x5BC544 are cleared by a write the page-protection watchpoint cannot see, during sub_00202B60. Two hypotheses refuted on the way.",
+   "verdict": "confirmed",
+   "evidence": "Three measurements, two of which killed my own hypotheses.\n\nFirst refutation: the virtual call. sub_00202B60's whole body is tail calls into sub_00202B70 and sub_00202B87, both of which dispatch through MEM32(edx + 0x144), so that vtable slot looked like the route to the writer. Probes either side of all 12 such sites in the chain show the target constant at 0x001EC770 with this = 0x01088A90, the singleton slot unchanged across every one of the 8 printed calls, and the allocator depth steady at 1 throughout. The virtual call does not do it.\n\nSecond refutation, and the more useful one: the allocator stack is never popped. The counter at 0x5BC544 has exactly one push site, sub_00216210, and two pop sites in sub_0020DE70. Probes on all three show the push firing ONCE, taking the depth to 1, and the pops firing ZERO times. So the depth reaching 0 is not a pop without a matching push, which is what ledger #190 left open as the likely explanation. Nothing pops it; the value is destroyed.\n\nThe guest watchpoint on 0x5BC544 then makes the mechanism explicit. It reports two accesses, sees the write that sets the depth to 1, and closes with \"last seen 00000001, actually 00000000  <-- MISSED WRITES\". The write that zeroes it is invisible to the page-protection mechanism, and the software poll attributes the change to the same place it attributed the singleton's: across sub_00202B60.\n\nBoth globals therefore go to zero together, by the same unseen write, in the same call. They sit 28 bytes apart, 0x5BC528 and 0x5BC544, which is consistent with one bulk store covering a region that contains both - a rep movsd or rep stosb, which this lifter emits as a native memcpy call, and a native write into guest memory is exactly the kind the page-protection watch documents itself as unable to catch. sub_0020DA95, in this chain, contains such an emitted memcpy.\n\nThat reframes the wall. The singleton is not being released, retired, or handled badly by any of the code that owns it - it is being overwritten, along with its neighbour, by something writing outside its intended destination. The earlier reading in ledger #190, that the allocator stack was legitimately empty, is wrong: it was clobbered.\n\nNOT established: which store does it. The page watch cannot see it by construction, so naming it needs a different instrument - either bracketing the emitted memcpy calls in the sub_00202B60 chain and printing their destination and length, or a poll narrowed to that chain. That is the next measurement.\n\nProbes stripped and the baseline re-verified identical at 173 reached, 499 call sites, 296,019 bytes.",
+   "tags": [
+    "wall",
+    "singleton",
+    "allocator-stack",
+    "bulk-write",
+    "watchpoint",
+    "refutation"
+   ],
+   "when": "2026-09-03 23:33"
   }
  ]
 }

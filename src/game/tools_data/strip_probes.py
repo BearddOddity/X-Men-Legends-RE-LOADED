@@ -78,13 +78,41 @@ def main(argv):
         if apply:
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write("\n".join(kept))
+    orphans = find_unmarked()
     if not total:
         print("no probes found - tree is clean")
     elif apply:
         print(f"\nremoved {total} line(s)")
     else:
         print(f"\n{total} line(s) would be removed; re-run with --apply")
+
+    if orphans:
+        print()
+        print('WARNING: ' + str(len(orphans)) + ' probe-like line(s) carry'
+              ' no ' + MARK + ' marker, so they were NOT removed:')
+        for path, n, line in orphans:
+            print('    ' + path + ':' + str(n) + '  ' + line.strip()[:80])
+        print('  A probe without the marker is invisible to this tool and'
+              ' ships silently. Add the marker, or delete it by hand.')
+        return 1
     return 0
+
+
+# Probe helpers only ever appear in hand-written probes; the lifter never
+# emits them. A call to one WITHOUT the marker is an unstrippable probe,
+# which has already happened once - it survived a 'tree is clean' report
+# and had to be removed by hand afterwards.
+PROBE_CALLS = ('recomp_where(', 'recomp_probe(')
+
+
+def find_unmarked():
+    out = []
+    for path in sorted(glob.glob(os.path.join(GEN, 'recomp_*.c'))):
+        with open(path, encoding='utf-8', errors='ignore') as fh:
+            for n, line in enumerate(fh, 1):
+                if any(c in line for c in PROBE_CALLS) and MARK not in line:
+                    out.append((os.path.basename(path), n, line))
+    return out
 
 
 if __name__ == "__main__":
