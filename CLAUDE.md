@@ -230,7 +230,7 @@ touch src/recomp/gen/*.c src/recomp/gen/*.h src/recomp_manual.c
 py -3 tools_data/seed_missing_functions.py --from-list seed_list.json --apply
 py -3 tools_data/manual_edits.py apply     # short first pass is normal, see below
 py -3 tools_data/repair_wraps.py --apply --drop-unclosed
-py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500
+py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500,sub_0020E547
 py -3 tools_data/stub_overridden.py --apply
 py -3 tools_data/dedupe_seed.py --apply            # better discovery -> seed duplicates
 py -3 tools_data/manual_edits.py check-braces      # must say "all functions balanced"
