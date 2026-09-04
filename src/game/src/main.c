@@ -254,6 +254,7 @@ static void dump_native_stack(const uintptr_t *sp)
      * prints on the one path that does not happen is not a diagnostic. */
     recomp_icall_reject_dump();
     recomp_icall_failsite_dump();
+    recomp_abi_depth_dump();
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);
@@ -499,6 +500,55 @@ void recomp_esp_delta_va(uint32_t target_va, uint32_t saved_esp, uint32_t esp_af
             fprintf(stderr, "    [%2u] RVA 0x%llX\n", k,
                     (unsigned long long)(a - g_mod_base));
     }
+    fflush(stderr);
+}
+
+/*
+ * Census of the depth each executed direct call site returns at.
+ *
+ * Recorded once per site, on its first return, so the cost is one call per
+ * site for the whole run rather than one per call. Sites are already unique by
+ * construction - the macro's own static gates this - so no dedup is needed
+ * here and the table is append-only.
+ *
+ * Deliberately does NOT judge. The correct delta is the callee's epilogue
+ * constant N from "esp += N; return;", which the call site cannot see, so this
+ * records what happened and the comparison is done offline against gen/. That
+ * split is the point: the drift check catches inconsistency, this catches
+ * consistent wrongness, and only the second can find the ORIGIN of an over-pop
+ * that every frame above it inherits.
+ */
+#define ABI_DEPTH_MAX 2048
+static struct { const char *fn; const char *file; int line; int64_t delta; }
+    g_abi_depth[ABI_DEPTH_MAX];
+static unsigned g_abi_depth_n;
+static unsigned g_abi_depth_dropped;
+
+void recomp_abi_depth_note(const char *fn, const char *file, int line,
+                           int64_t delta)
+{
+    if (g_abi_depth_n >= ABI_DEPTH_MAX) { g_abi_depth_dropped++; return; }
+    g_abi_depth[g_abi_depth_n].fn = fn;
+    g_abi_depth[g_abi_depth_n].file = file;
+    g_abi_depth[g_abi_depth_n].line = line;
+    g_abi_depth[g_abi_depth_n].delta = delta;
+    g_abi_depth_n++;
+}
+
+void recomp_abi_depth_dump(void)
+{
+    if (!g_abi_depth_n)
+        return;
+    fprintf(stderr, "\n[ABI-DEPTH] %u executed direct call site(s), depth each "
+                    "returned at (compare against the callee's `esp += N; "
+                    "return;`):\n", g_abi_depth_n);
+    for (unsigned i = 0; i < g_abi_depth_n; i++)
+        fprintf(stderr, "    %+6lld  %s  at %s:%d\n",
+                (long long)g_abi_depth[i].delta, g_abi_depth[i].fn,
+                g_abi_depth[i].file, g_abi_depth[i].line);
+    if (g_abi_depth_dropped)
+        fprintf(stderr, "    (%u more - table full at %d)\n",
+                g_abi_depth_dropped, ABI_DEPTH_MAX);
     fflush(stderr);
 }
 
@@ -1072,6 +1122,7 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
      * counts say which target dominates across the whole run. */
     recomp_icall_reject_dump();
     recomp_icall_failsite_dump();
+    recomp_abi_depth_dump();
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);

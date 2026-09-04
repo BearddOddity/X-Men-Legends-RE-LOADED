@@ -403,6 +403,27 @@ void recomp_abi_esp_drift(const char *fn, const char *file, int line,
                           int64_t first, int64_t now);
 
 /*
+ * Census of the depth every executed direct call site returns at, recorded
+ * once per site on its first return and dumped on the way out.
+ *
+ * The drift check below only fires when a site returns DIFFERENT depths, so a
+ * callee that over-pops CONSISTENTLY is invisible to it - its delta is simply
+ * wrong and constant. That is the blind spot this closes, and it matters for
+ * finding which callee in a chain is the origin rather than merely the first
+ * one seen to be inconsistent.
+ *
+ * Absolute correctness is not decidable in the macro, because the right answer
+ * is the callee's own epilogue constant N in "esp += N; return;" and the call
+ * site cannot see it. It is entirely decidable OFFLINE: record what each site
+ * actually returned, then compare against N read out of gen/. Only the sites
+ * that execute are recorded - 551 of them at present, against 55,801 in the
+ * tree - so the census stays small enough to read.
+ */
+void recomp_abi_depth_note(const char *fn, const char *file, int line,
+                           int64_t delta);
+void recomp_abi_depth_dump(void);
+
+/*
  * RECOMP_ABI_CALL - direct call, checked for callee-saved registers, for esp
  * escaping the simulated stack, and for esp DEPTH.
  *
@@ -449,8 +470,11 @@ void recomp_abi_esp_drift(const char *fn, const char *file, int line,
             static int64_t _abi_first = RECOMP_ABI_NO_DELTA;         \
             static uint8_t _abi_told;                                \
             int64_t _abi_now = (int64_t)g_esp - (int64_t)_abi_p;     \
-            if (_abi_first == RECOMP_ABI_NO_DELTA)                   \
+            if (_abi_first == RECOMP_ABI_NO_DELTA) {                 \
                 _abi_first = _abi_now;                               \
+                recomp_abi_depth_note(#fn, __FILE__, __LINE__,       \
+                                      _abi_now);                     \
+            }                                                        \
             else if (_abi_first != _abi_now && !_abi_told) {         \
                 _abi_told = 1;                                       \
                 recomp_abi_esp_drift(#fn, __FILE__, __LINE__,        \
