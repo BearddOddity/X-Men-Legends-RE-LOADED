@@ -3044,6 +3044,20 @@
     "measurement"
    ],
    "when": "2026-09-03 18:38"
+  },
+  {
+   "id": 183,
+   "claim": "A per-call-site esp depth check on DIRECT calls names the wall's over-popper on its first run: sub_002235D0 called from sub_00221900 returns +20 on its first invocation where +4 is correct, and four other functions over-pop at the same time.",
+   "verdict": "confirmed",
+   "evidence": "Ledger #176 gave indirect calls a depth check; direct calls still had only the range test against 0x00700000-0x00F80000, which a 16-byte imbalance passes untouched. That gap covered this wall exactly: recomp_0016.c:17167-17186 shows sub_00221900 pushing 11 arguments, calling sub_002235D0 through RECOMP_ABI_CALL at line 17182, then cleaning up 0x2C itself, and sub_002235D0's own indirect calls are already checked and report nothing, so the entire chain under that direct call was unmeasured.\n\nThe new check is self-calibrating, which is what makes it work without a table of calling conventions. _abi_p is captured after the dummy return-address push, so a correct call returns esp at exactly _abi_p + N where N is the callee's own epilogue constant, \"esp += N; return;\" - 4 for cdecl, 4 plus the argument bytes for stdcall. N is unknown at the call site but constant per callee, so the absolute delta is not checkable and its constancy is. A static inside the macro holds one slot per CALL SITE, the same pattern RECOMP_MARK_SITE already uses, so a callee reached from sites with different argument counts cannot cross-contaminate. It reports once per site and prints immediately rather than at exit, because neither a crash nor a watchdog kill reaches exit handlers.\n\nSix drifts fired. Reading each callee's epilogue turns every one into a verdict, because the epilogue constant IS the correct delta:\n\nsub_002235D0, epilogue esp += 4, correct +4, seen +20 then +4 at recomp_0016.c:17182 - the first invocation OVER-POPS 16. This is the wall, and it reproduces ledger #175's hand-bracketing exactly, which recorded invocation one returning 16 bytes high and invocation two returning right.\nsub_00209470, epilogue esp += 12, correct +12, seen +28 then +12 at recomp_0016.c:15994 - over-pops 16.\nsub_00209650, epilogue esp += 4, correct +4, seen +4 then +20 at recomp_seed.c:105189 - over-pops 16.\nsub_0020E520, epilogue esp += 8, correct +8, seen +16 then +8 at recomp_0016.c:13621 - over-pops 8.\nsub_00209650 again, at the different site recomp_0016.c:13614, seen +8 then +4 - over-pops 4 there.\nsub_001994F0, seen +8 then -16, and this one is NOT yet a verdict. Its correct delta is +8 by the ret 4 at recomp_0011.c:13820, but its other exit at 13805 is a tail call, \"sub_00199519(); return;\", with no return address pushed and its four pushed registers left for the callee. sub_001994F0, sub_00199519 and sub_001995AD are continuation fragments of one original function sharing a single epilogue, so the tail-call path legitimately returns through a different frame and the checker's model of \"a return\" does not fit it. Treat as a possible false positive of the tail-call idiom until separately established.\n\nThree of the five real over-pops are exactly 16, and sub_00209650 and sub_00209470 were both already named around this wall by ledger #173. Whether one deepest callee explains all of them or they are independent is not established here.\n\nBehaviour-neutral and verified so: both configurations build clean, and the normal build's stderr.txt is byte-identical to baseline at 311,619 bytes with reached 196, call sites 551 and the same fault at 0xFFFE00CC.",
+   "tags": [
+    "esp",
+    "wall",
+    "instrument",
+    "direct-call",
+    "sub_002235D0"
+   ],
+   "when": "2026-09-03 19:28"
   }
  ]
 }
