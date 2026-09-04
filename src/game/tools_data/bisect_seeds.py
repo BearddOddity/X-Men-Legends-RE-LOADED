@@ -66,7 +66,14 @@ STDERR = os.path.join(GAME, "stderr.txt")
 PY = sys.executable or "py"
 
 # (name, "up" = higher is better, "down" = lower is better)
-GATED = [("kernel_calls", "up"), ("failed_icalls", "down"), ("heap_allocs", "up")]
+# Gated signals, in the order rule #1 says to weigh them. reached and
+# callsites are the trustworthy pair; kernel_calls is deliberately NOT
+# gated - ledger #174 showed it can nearly double while the dispatch count
+# does not move, so it measures something other than depth. It is still
+# measured and printed, just never decisive on its own.
+GATED = [("reached", "up"), ("callsites", "up"),
+         ("failed_icalls", "down"), ("heap_allocs", "up")]
+INFORMATIONAL = ["kernel_calls"]
 
 
 def read_list():
@@ -101,6 +108,7 @@ def apply_set(extra, dry):
         if r.returncode and "manual_edits" not in cmd[1]:
             print(f"    step failed: {' '.join(cmd)}")
             return False
+    trace_seeds(extra)
     r = subprocess.run(["cmd", "/c", os.path.join(GAME, "build_compile.bat")],
                        cwd=GAME, capture_output=True, text=True)
     if "error" in (r.stdout + r.stderr).lower() and r.returncode:
@@ -112,17 +120,25 @@ def apply_set(extra, dry):
 def measure(dry):
     """Run once and return the tracked signals."""
     if dry:
-        return {n: 0 for n, _ in GATED}
+        return dict({n: 0 for n, _ in GATED},
+                    **{n: 0 for n in INFORMATIONAL}, hits=[])
     subprocess.run(["cmd", "/c", os.path.join(GAME, "run.bat")],
                    cwd=GAME, capture_output=True)
     try:
         t = open(STDERR, encoding="utf-8", errors="replace").read()
     except OSError:
         return None
+    m = re.search(r"\[COVERAGE\] distinct=(\d+)", t)
+    c = re.search(r"\[COVERAGE\] callsites=(\d+)", t)
     return {
+        "reached": int(m.group(1)) if m else 0,
+        "callsites": int(c.group(1)) if c else 0,
         "kernel_calls": len(re.findall(r"\[KERNEL\] #", t)),
         "failed_icalls": len(re.findall(r"Failed to resolve VA", t)),
         "heap_allocs": len(re.findall(r"\[HEAP\] #", t)),
+        # Which candidates actually ran. A seed that never fires is inert, and
+        # saying so is more useful than a silent "no change".
+        "hits": sorted(set(re.findall(r"\[WHERE:seedhit-([0-9A-Fa-f]+)\]", t))),
     }
 
 
@@ -250,3 +266,32 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def trace_seeds(extra):
+    """Put a one-line probe at the entry of each candidate we just seeded.
+
+    Without this a seed that is never called looks identical to one that was
+    called and changed nothing, so a null result teaches nothing. The probe
+    prints once per function and carries the /* PROBE */ marker so
+    strip_probes.py removes it.
+    """
+    seed = os.path.join(GAME, "src", "recomp", "gen", "recomp_seed.c")
+    try:
+        text = open(seed, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return
+    n = 0
+    for va in extra:
+        name = "sub_%08X" % va
+        sig = "void %s(void)\n{\n" % name
+        if sig not in text or ("seedhit-%08X" % va) in text:
+            continue
+        probe = ('    { /* PROBE */ recomp_where("seedhit-%08X", 1, 0, 0, 0, 0); '
+                 '} /* PROBE */\n' % va)
+        text = text.replace(sig, sig + probe, 1)
+        n += 1
+    if n:
+        with open(seed, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        print("    traced %d seeded function(s)" % n)
