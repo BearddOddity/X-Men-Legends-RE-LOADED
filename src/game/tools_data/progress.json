@@ -2846,5 +2846,37 @@
     "message": "861 reached / 1,669 call sites - regeneration carrying the disasm extent fix (#255), the neg-carry lifter fix (#256) and the pop-clobber extension to the stale-flag detector. Original seed set, no RTTI seeds. Two-run stable.",
     "note": "Previous best 853/1,674. The regeneration also retired 116 hand-written guards that existed only to compensate for the truncation defect, and cut unresolved stubs from 2,819 to 407 (same seed set: 392).",
     "commit": "f21c5ae"
+  },
+  {
+    "kernel_calls": 561,
+    "reached": 52,
+    "callsites": 205,
+    "failed_icalls": 4,
+    "total_icalls": 894,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 86,
+    "crash_in": "sub_001E8DF0+0x110",
+    "fault_va": "0xFF182444",
+    "date": "2026-09-04",
+    "message": "949 reached / 1,835 call sites - seeded the seven function starts the icall failure log names, in two rounds of four and three. Two-run stable.",
+    "note": "861 -> 941 -> 949, each a strict superset of the one before. The seven are all 12-42 byte functions the detector missed because 16-byte alignment padding separates them from the function above. Every remaining unresolved indirect target is now outside .text - four in DSOUND, three in XGRPH, one in XPP - which needs disasm --extra-sections, not seeding.",
+    "commit": "7a8fb8a"
+  },
+  {
+    "kernel_calls": 561,
+    "reached": 52,
+    "callsites": 205,
+    "failed_icalls": 4,
+    "total_icalls": 894,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 86,
+    "crash_in": "sub_001E8DF0+0x110",
+    "fault_va": "0xFF182444",
+    "date": "2026-09-05",
+    "message": "957 reached / 1,838 call sites - translating DSOUND, XGRPH and XPP as code (disasm --extra-sections) plus the ten function starts their indirect calls need. Two-run stable.",
+    "note": "941 -> 949 -> 957, each a strict superset. Every unresolved indirect-call target is now gone except 0x0 and 0x1, which are the symptom of a bad pointer rather than a missing function. D3D, D3DX and WMADEC were deliberately left out: d3d8_shim.c hand-writes 68 functions and recompiling the real D3D8 code would collide with it (verified zero symbol overlap with the three sections that were added).",
+    "commit": "7a8fb8a"
   }
 ]

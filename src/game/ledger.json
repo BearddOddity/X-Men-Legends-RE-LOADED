@@ -4101,6 +4101,20 @@
     " wall-moved"
    ],
    "when": "2026-09-04 23:29"
+  },
+  {
+   "id": 258,
+   "claim": "The crash dump prints RVAs, and reading the linker map's FIRST column as an RVA names the wrong function - it is section-relative, 0x1000 below the true RVA. Several attributions made that way earlier today are wrong, including the wall named in #257.",
+   "verdict": "confirmed",
+   "evidence": "The map row is `0001:0106ce50  sub_0020ADF0  000000014106de50`, and the header says the preferred load address is 0x140000000. So the true RVA is 0x106DE50, not the 0x106CE50 in the first column - .text starts 0x1000 into the image. Resolving the crash RVA 0x106CED2 against the first column named sub_0020ADF0 +0x82; against the third column minus the load address it is sub_0020AA90 +0x6E2.\n\nProved by instrument, not by reading: probes inserted at the entry of the first-column answer (sub_0020ADF0) and at the entry of the function it calls (sub_002059F0) never fired once, across two builds, while the crash reproduced identically. A probe at sub_0020AA90's entry fired immediately. A function that never executes cannot be where the fault is.\n\ntools/symbolize.py has always been correct - it reads the third column and takes a full RIP. The error was in ad-hoc resolution of the RVAs the crash handler prints, which is a different input shape. tools_data/symbolize_map.py now does that conversion properly and carries the explanation.\n\nCorrections that follow:\n- #257 said the wall moved to sub_001E8BE0+0xF3, a thunk dispatching through a garbage this pointer. That name is wrong. The correct site is sub_0020AA90+0x6E2, reached through sub_00211530, sub_001EC750, sub_00209650, sub_00227F90, sub_00220870, sub_00209650, sub_0023666F and sub_00239E50 - and note sub_00209650 appears twice in that chain, the same function ledger #173 measured over-popping.\n- The re/tool-notes/xml2-pc-oracle.md worked example about a call through vtable slot 0xCC was built on the same bad name and has been corrected in the vault.\n\nWhat the probes did establish about the real site: sub_0020AA90 is entered with a VALID this every time - a probe conditioned on `this` outside the heap range 0x00880000-0x04000000 never fired - yet at the fault ecx, esi and edi all hold code addresses (0x0020F2C8, 0x0020F2C4, 0x001F9C74) while ebx still holds the correct object 0x01106A90. The damage happens inside the function, not at its call, and registers full of code addresses read as saved return addresses surfacing through an over-pop.",
+   "tags": [
+    "symbolization",
+    " crash-dump",
+    " correction",
+    " wall",
+    " instrument"
+   ],
+   "when": "2026-09-05 01:00"
   }
  ]
 }
