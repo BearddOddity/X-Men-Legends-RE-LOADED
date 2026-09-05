@@ -38,33 +38,36 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 HEADLINE = ("The generator was the bug, and fixing it moved everything")
 SUBHEAD = ("Nine hundred and fifty-seven routines now run, up from eight "
            "hundred and fifty-three, and every routine that ran before still "
-           "runs - each step this session added functions without losing one. "
-           "None of that came from new guards. It came from three defects in "
-           "the translator itself. It was cutting functions short wherever a "
-           "conditional jump pointed past a return instruction, so the tail of "
-           "the function became an unresolved stub the caller jumped into and "
-           "the guest stack drifted; that one defect had been costing 244 "
-           "kilobytes of real code and had 116 hand-written guards propping it "
-           "up, all of which are now deleted. It was also dropping the carry "
-           "flag on negate, so the common 'are these equal' idiom answered yes "
-           "to everything, and it could not see a register being clobbered by "
-           "a pop before a comparison was tested. "
-           "The other half of the gain was simply asking the program what it "
-           "wanted. The failure log names every address the boot tried to call "
-           "and could not; seeding those, and translating the sound and "
-           "graphics-support sections as code rather than data, closed the "
-           "list entirely - every unresolved call target is now gone except "
-           "the null pointers, which are a symptom rather than a gap. "
-           "The static initialisers all complete now. The stopping point has "
-           "moved into the game's own startup, where a routine is entered with "
-           "a valid object and, part way through, finds three of its registers "
-           "holding code addresses - the shape of a stack that gave back more "
-           "than it was given. "
-           "One correction worth recording: several function names published "
-           "earlier today were wrong, because the crash report prints offsets "
-           "that were being read against the wrong column of the linker map. "
-           "Probes settled it - a routine that never executes cannot be where "
-           "the fault is.")
+           "runs - each step added functions without losing one. None of it "
+           "came from new guards. It came from three defects in the translator "
+           "itself. It was cutting functions short wherever a conditional jump "
+           "pointed past a return instruction, so the tail of the function "
+           "became an empty placeholder the caller jumped into and the guest "
+           "stack drifted; that defect had been costing 244 kilobytes of real "
+           "code and had 116 hand-written guards propping it up, all now "
+           "deleted. It was also dropping the carry flag on negate, so the "
+           "common 'are these equal' idiom answered yes to everything, and it "
+           "could not see a register clobbered by a pop before a comparison was "
+           "tested. "
+           "The other half of the gain was asking the program what it wanted. "
+           "The failure log names every address the boot tried to call and "
+           "could not; seeding those, and translating the sound and "
+           "graphics-support sections as code rather than data, closed the list "
+           "entirely - every unresolved call target is now gone except the null "
+           "pointers, which are a symptom rather than a gap. "
+           "The static initialisers all complete now, and the stopping point "
+           "has moved into the game's own startup. There, a routine treats a "
+           "pointer into read-only data as though it were a heap block: it "
+           "reads the four bytes in front of it as an allocation header and "
+           "steps back by that amount, which lands in the middle of the "
+           "program's own code. "
+           "Two corrections are worth recording, because both were published "
+           "before they were checked. Several routine names given earlier were "
+           "wrong - the crash report prints offsets that were being read "
+           "against the wrong column of the linker map. And the register state "
+           "at the fault was first read as a stack imbalance; it is not, it is "
+           "that pointer arithmetic landing in code space. Probes settled both: "
+           "a routine that never executes cannot be where the fault is.")
 
 
 def lifted_function_count():
@@ -218,8 +221,9 @@ def build(hist, sig):
     </div>
     <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
     <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
-    game is already C, and almost none of it has ever run &mdash; the boot dies
-    inside the C runtime's static initialisers, before the game proper starts.</p>
+    game is already C, and only a sliver of it has ever run &mdash; but the C
+    runtime's static initialisers now complete, so what runs is the game's own
+    startup rather than the runtime's.</p>
     <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
     counts distinct <em>direct</em> call sites. A separate counter tracks
     {reached} functions entered through <em>indirect</em> calls. Neither is a
@@ -364,12 +368,17 @@ def build(hist, sig):
       <div class="wall-row"><span class="tn-label">The current stopping point</span></div>
       <p>The routine is entered with a <strong>valid object every time</strong>
       &mdash; a probe that fires only when the object pointer falls outside the
-      heap never fired once. Part way through, three of its registers hold
-      <em>code</em> addresses while a fourth still holds the correct object.
-      Registers full of code addresses are saved return addresses surfacing
-      through a stack that gave back more than it was given, and the routine
-      appearing twice in the calling chain is the same one measured over-popping
-      earlier in this project&rsquo;s record.</p>
+      heap never fired once. The fault is a <strong>second</strong> pointer: the
+      code reads the four bytes in front of it as an allocation header and steps
+      back by that amount, which is what you do to a heap block. On the fatal
+      pass that pointer is a <em>static</em> address in read-only data, which has
+      no such header, so the subtraction lands in the middle of the program&rsquo;s
+      own code and the next read returns instruction bytes.</p>
+      <p>That also explains registers that appear to hold code addresses. They
+      are not saved return addresses surfacing through a stack imbalance, which
+      was the first reading &mdash; they are this arithmetic landing in code
+      space. The open question is which producer hands back a static pointer
+      where a heap block belongs.</p>
     </div>
   </section>
 
