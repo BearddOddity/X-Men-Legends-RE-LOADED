@@ -81,6 +81,13 @@ def phase_reseed(a):
     # now provides, so a stale seed file makes it strip the wrong set.
     run(tool("stub_overridden.py", "--apply"), a.dry_run)
     run(tool("dedupe_seed.py", "--apply"), a.dry_run)
+    # MUST follow every step that rewrites bodies, and precede the hand edits.
+    # The lifter emits an x86 `cmp` as a comment and re-evaluates the test
+    # inside the following jcc, so an instruction between them that writes an
+    # operand makes the branch read the wrong value. Regeneration reintroduces
+    # the whole class every time; leaving this out of the pipeline is how
+    # ledger #44's repair was silently lost and 466 sites came back (#210).
+    run(tool("fix_stale_flags.py", "--apply"), a.dry_run)
     # Hand edits last - the steps above rewrite bodies they anchor into.
     run(tool("manual_edits.py", "apply"), a.dry_run, allow_fail=True)
     run(tool("manual_edits.py", "apply"), a.dry_run, allow_fail=True)

@@ -20,6 +20,7 @@ line, which is what makes this tool possible:
 
     /* Manual guard (not in original x86): ...
     /* Manual fix (not in original x86): ...
+    /* Manual fix (restores original x86): ...
     /* sub_XXXXXXXX: moved to src/d3d8_shim.c ...
 
 Anything else in gen/ is assumed to be generator output.
@@ -57,6 +58,12 @@ FUNC_RE = re.compile(r"^void (sub_[0-9A-F]+)\(void\)$")
 MARKERS = (
     "/* Manual guard (not in original x86)",
     "/* Manual fix (not in original x86)",
+    # Restores behaviour the original DOES have but the lifter failed to emit -
+    # an undiscovered continuation fragment, a dropped branch. Distinct from the
+    # two above, which add something the original never had, because this kind
+    # is a transcription and must be checked against the original, not judged on
+    # whether it helps.
+    "/* Manual fix (restores original x86)",
     "/* Manual addition (not in original x86)",
 )
 # Single-line marker used where a stub was replaced by a native implementation.

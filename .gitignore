@@ -63,3 +63,6 @@ src/game/watch_stderr.txt
 # Graphics harness scratch output (one-off, per session)
 harness_run.err
 harness_run.out
+
+# Tool output (regenerated per-game) - derived from the user's own XBE
+tools/abi_analysis/output/

@@ -45,7 +45,15 @@ GEN = os.path.join(os.path.dirname(HERE), "src", "recomp", "gen")
 
 DEFER = re.compile(
     r"^\s*\(void\)0;\s*/\* (?:test|cmp) (.+?) - flags set for next jcc \*/")
-ASSIGN = re.compile(r"^\s*(e[a-z][a-z])\s*=(?!=)|^\s*SET_LO(?:8|16)\((e[a-z][a-z])\s*,")
+# A register is clobbered by a plain assignment, by a partial-width write, or
+# by a pop - `cmp eax, ebx; pop ebx; jne` is an ordinary epilogue idiom, and
+# POP32 is a call, not an `=`, so the first two patterns miss it entirely.
+# Observed at sub_002366BC, which the hand-written ledger #56 sweep had to
+# patch by hand for exactly this reason.
+ASSIGN = re.compile(
+    r"^\s*(e[a-z][a-z])\s*=(?!=)"
+    r"|^\s*SET_LO(?:8|16)\((e[a-z][a-z])\s*,"
+    r"|^\s*POP32\(esp,\s*(e[a-z][a-z])\s*\)")
 JCC = re.compile(r"^\s*if \((?:TEST_|CMP_)\w+\((.*)\)\)")
 REG = re.compile(r"\be[a-z][a-z]\b")
 
@@ -89,7 +97,7 @@ def scan():
                     break
                 a = ASSIGN.match(nxt)
                 if a:
-                    clobbered.add(a.group(1) or a.group(2))
+                    clobbered.add(a.group(1) or a.group(2) or a.group(3))
     return scanned, hits
 
 

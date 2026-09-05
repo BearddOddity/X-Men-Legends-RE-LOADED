@@ -342,9 +342,23 @@ class FunctionDetector:
             # Track internal forward jumps to extend function bounds
             if insn.is_cond_jump and insn.jump_target is not None:
                 target = insn.jump_target
-                if start <= target < upper and target > max_addr:
-                    # This jump goes forward within bounds, extend
-                    max_addr = target
+                if start <= target < upper and target >= max_addr:
+                    # This jump goes forward within bounds, extend.
+                    #
+                    # target + 1, not target: the target is where more code
+                    # STARTS, not where the function ends. With max_addr set to
+                    # target exactly, a `ret` sitting immediately before the
+                    # target satisfies the "covered all internal jump targets"
+                    # test below, the walk stops, and the whole jumped-to block
+                    # is lost - it becomes an unresolved stub, the caller
+                    # tail-calls it, and the stub's g_esp adjustment drifts the
+                    # guest stack. Observed on the static initialiser
+                    # sub_00340D86: 24 bytes instead of 36, which took coverage
+                    # from 853 reached to 7 (ledger #254).
+                    #
+                    # The +1 is transient: the walk then continues into the
+                    # target block, which raises max_addr to its real end.
+                    max_addr = target + 1
 
             if insn.is_ret or (insn.is_jump and not insn.is_cond_jump):
                 # Check if we've covered all internal jump targets

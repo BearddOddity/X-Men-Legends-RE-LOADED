@@ -1851,41 +1851,20 @@ static void kernel_thunk_dispatch(void)
 
     g_kernel_call_count++;
 
-    /* Memory sanitizer: EVERY kernel call, fix known corrupted addresses */
-    {
-        /* Sanitize g_esi if it's an invalid Xbox VA (outside 64MB range) */
-        if (g_esi >= 0x04000000u) {
-            g_esi = 0;  /* Reset invalid esi to 0 */
-        }
-        /* Sanitize loop counter at esi+0x104 for current thread's object (esi register) */
-        if (g_esi != 0) {
-            uint32_t addr = XBOX_TO_NATIVE(g_esi + 0x104);
-            if (addr >= g_xbox_mem_offset && addr < g_xbox_mem_offset + 0x800000) {
-                uint32_t* ptr = (uint32_t*)addr;
-                if (*ptr > 0x3Fu || *ptr == 0xFFFFFFFFu) { *ptr = 0; }
-            }
-            /* Also sanitize function pointer at offset 0x58 which was observed corrupted */
-            uint32_t addr2 = XBOX_TO_NATIVE(g_esi + 0x58);
-            if (addr2 >= g_xbox_mem_offset && addr2 < g_xbox_mem_offset + 0x800000) {
-                uint32_t* ptr2 = (uint32_t*)addr2;
-                if (*ptr2 == 0x3F800000u || *ptr2 == 0xFFFFFFFFu) { *ptr2 = 0; }
-            }
-            /* Sanitize g_eax if it's a bad function pointer */
-            if (g_eax == 0xFFFFFFFFu || g_eax == 0x3F800000u || g_eax == 0xCCCCCCCCu || g_eax == 0xCDCDCDCDu) {
-                g_eax = 0;
-            }
-            /* Sanitize the entire object's critical fields (0x100 bytes around esi) */
-            uint32_t obj_base = XBOX_TO_NATIVE(g_esi);
-            if (obj_base >= g_xbox_mem_offset && obj_base < g_xbox_mem_offset + 0x800000) {
-                for (uint32_t i = 0; i < 0x100; i += 4) {
-                    uint32_t* ptr = (uint32_t*)(obj_base + i);
-                    if (*ptr == 0xFFFFFFFFu || *ptr == 0x3F800000u) {
-                        *ptr = 0;
-                    }
-                }
-            }
-        }
-    }
+    /* The "memory sanitizer" that used to sit here has been REMOVED.
+     *
+     * It ran on every kernel call and rewrote guest memory on a guess: it
+     * reset g_esi when it looked out of range, overwrote esi+0x104 and
+     * esi+0x58, and swept 0x100 bytes from esi zeroing every word equal to
+     * 0xFFFFFFFF or 0x3F800000. The original does none of this. 0x3F800000 is
+     * the float 1.0f, so the sweep silently zeroed legitimate data, and the
+     * guest page-zero census attributed 1,965 of its 1,983 reads to this
+     * block - it was dereferencing near-null pointers 960 times a run.
+     *
+     * This is the invented-guard pattern the project rule forbids: restore
+     * checks the original wrote, never invent one to survive bad data. A
+     * sanitizer cannot fix corruption, it can only hide where it came from.
+     */
 
     /* Raised from 200 on 2026-08-05: the boot passed 200 kernel calls that day,
      * and smoke_spread/progress derive kernel_calls by COUNTING these lines - so
@@ -1918,37 +1897,13 @@ static void kernel_thunk_dispatch(void)
     if (bridge) {
         bridge();
 
-        /* Post-call memory sanitizer: fix corruption caused by the kernel function */
-        {
-            /* Sanitize loop counter at esi+0x104 for current thread's object (esi register) */
-            if (g_esi != 0) {
-                uint32_t addr = XBOX_TO_NATIVE(g_esi + 0x104);
-                if (addr >= g_xbox_mem_offset && addr < g_xbox_mem_offset + 0x800000) {
-                    uint32_t* ptr = (uint32_t*)addr;
-                    if (*ptr > 0x3Fu || *ptr == 0xFFFFFFFFu) { *ptr = 0; }
-                }
-                /* Also sanitize function pointer at offset 0x58 which was observed corrupted */
-                uint32_t addr2 = XBOX_TO_NATIVE(g_esi + 0x58);
-                if (addr2 >= g_xbox_mem_offset && addr2 < g_xbox_mem_offset + 0x800000) {
-                    uint32_t* ptr2 = (uint32_t*)addr2;
-                    if (*ptr2 == 0x3F800000u || *ptr2 == 0xFFFFFFFFu) { *ptr2 = 0; }
-                }
-                /* Sanitize g_eax if it's a bad function pointer */
-                if (g_eax == 0xFFFFFFFFu || g_eax == 0x3F800000u || g_eax == 0xCCCCCCCCu || g_eax == 0xCDCDCDCDu) {
-                    g_eax = 0;
-                }
-                /* Sanitize the entire object's critical fields (0x100 bytes around esi) */
-                uint32_t obj_base = XBOX_TO_NATIVE(g_esi);
-                if (obj_base >= g_xbox_mem_offset && obj_base < g_xbox_mem_offset + 0x800000) {
-                    for (uint32_t i = 0; i < 0x100; i += 4) {
-                        uint32_t* ptr = (uint32_t*)(obj_base + i);
-                        if (*ptr == 0xFFFFFFFFu || *ptr == 0x3F800000u) {
-                            *ptr = 0;
-                        }
-                    }
-                }
-            }
-        }
+        /* The post-call "memory sanitizer" that used to sit here has been
+         * REMOVED, for the same reason as its pre-call twin above: it rewrote
+         * guest memory on a guess, on every kernel call, and the original does
+         * none of it. Removing both changed no tracked signal - 785 reached /
+         * 1586 call sites before and after - so it was never load-bearing; it
+         * only ever hid where corruption came from.
+         */
     } else {
         /* No specific bridge - return 0. Warn once per ordinal rather than
          * gating on g_kernel_call_count: a missing bridge is rare and is

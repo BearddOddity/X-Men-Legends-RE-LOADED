@@ -190,6 +190,15 @@ def symbolise(syms, rva):
     off = IMAGE_BASE + rva - addr
     # An offset past the next symbol means the real owner is not in the map.
     # Say so rather than printing a confident, wrong name+offset.
+    #
+    # THE OFFSET NAMES A FUNCTION, NEVER AN INSTRUCTION. The native body is far
+    # larger than the original x86 and the two do not correspond, so "+0x24D"
+    # cannot be mapped to a particular line or a particular store. Deriving an
+    # object base from an assumed field offset that way produced three wrong
+    # conclusions on 2026-09-04 alone (ledger #212, #227, and twice more the
+    # same evening). To identify a specific instruction, put a probe on the
+    # candidate and condition it on the actual address - and let it fail to
+    # fire, which is itself the answer.
     return {"name": name, "offset": off, "start": addr, "size": size,
             "uncertain": size is not None and off >= size}
 
@@ -504,7 +513,7 @@ def main(argv):
         path, lo, hi, lines = find_source(sym["name"])
         if path and sym["size"]:
             approx = lo + int((hi - lo) * sym["offset"] / sym["size"])
-            print(f"source       : {os.path.basename(path)} lines {lo}..{hi}, "
+            print(f"source (ESTIMATE - the offset names the function, not the line): {os.path.basename(path)} lines {lo}..{hi}, "
                   f"crash near line ~{approx}")
     print()
 

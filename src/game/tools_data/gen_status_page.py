@@ -35,16 +35,36 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The stack bug is fixed, and the boot now reaches new ground")
-SUBHEAD = ("The routine that discarded eight bytes too many has been repaired, "
-           "and the whole cascade above it went with it: five over-popping "
-           "call sites became three, and the two worst vanished. The program "
-           "no longer stops where it did. It now runs a long way further and "
-           "stops somewhere new, trying to insert into a list that does not "
-           "exist - the list reports it holds minus one items and its storage "
-           "pointer is empty, so the copy is asked for a negative length from "
-           "an empty address. The headline counters went DOWN, which is "
-           "expected and is explained below.")
+HEADLINE = ("The generator was the bug, and fixing it moved everything")
+SUBHEAD = ("Nine hundred and fifty-seven routines now run, up from eight "
+           "hundred and fifty-three, and every routine that ran before still "
+           "runs - each step this session added functions without losing one. "
+           "None of that came from new guards. It came from three defects in "
+           "the translator itself. It was cutting functions short wherever a "
+           "conditional jump pointed past a return instruction, so the tail of "
+           "the function became an unresolved stub the caller jumped into and "
+           "the guest stack drifted; that one defect had been costing 244 "
+           "kilobytes of real code and had 116 hand-written guards propping it "
+           "up, all of which are now deleted. It was also dropping the carry "
+           "flag on negate, so the common 'are these equal' idiom answered yes "
+           "to everything, and it could not see a register being clobbered by "
+           "a pop before a comparison was tested. "
+           "The other half of the gain was simply asking the program what it "
+           "wanted. The failure log names every address the boot tried to call "
+           "and could not; seeding those, and translating the sound and "
+           "graphics-support sections as code rather than data, closed the "
+           "list entirely - every unresolved call target is now gone except "
+           "the null pointers, which are a symptom rather than a gap. "
+           "The static initialisers all complete now. The stopping point has "
+           "moved into the game's own startup, where a routine is entered with "
+           "a valid object and, part way through, finds three of its registers "
+           "holding code addresses - the shape of a stack that gave back more "
+           "than it was given. "
+           "One correction worth recording: several function names published "
+           "earlier today were wrong, because the crash report prints offsets "
+           "that were being read against the wrong column of the linker map. "
+           "Probes settled it - a routine that never executes cannot be where "
+           "the fault is.")
 
 
 def lifted_function_count():

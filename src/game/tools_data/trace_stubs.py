@@ -26,12 +26,18 @@ GAME_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STUBS = os.path.join(GAME_DIR, "src", "recomp", "gen",
                      "recomp_stubs_unresolved.c")
 
-# void sub_00202D87(void) { /* 0x00202D87: not detected */ }
+# The generator emits the stub body as `g_esp += 4;` (simulating the `ret` it
+# assumes is there). It did NOT always do that, and these patterns were written
+# against the older `{ /* ... */ }` form; they then silently matched nothing and
+# --apply reported "already in the requested state", which reads as success.
+# `g_esp += 4;` is therefore optional here, and re-emitted on both paths.
+#
+# void sub_00202D87(void) { g_esp += 4; /* 0x00202D87: not detected */ }
 EMPTY = re.compile(
-    r"^void (sub_([0-9A-Fa-f]+))\(void\) \{ /\* (0x[0-9A-Fa-f]+): not detected \*/ \}$")
-# void sub_00202D87(void) { recomp_stub_hit(0x00202D87); /* not detected */ }
+    r"^void (sub_([0-9A-Fa-f]+))\(void\) \{ (?:g_esp \+= 4; )?/\* (0x[0-9A-Fa-f]+): not detected \*/ \}$")
+# void sub_00202D87(void) { recomp_stub_hit(0x00202D87); g_esp += 4; /* not detected */ }
 ARMED = re.compile(
-    r"^void (sub_([0-9A-Fa-f]+))\(void\) \{ recomp_stub_hit\((0x[0-9A-Fa-f]+)\); /\* not detected \*/ \}$")
+    r"^void (sub_([0-9A-Fa-f]+))\(void\) \{ recomp_stub_hit\((0x[0-9A-Fa-f]+)\); (?:g_esp \+= 4; )?/\* not detected \*/ \}$")
 
 
 def main() -> int:
@@ -52,15 +58,18 @@ def main() -> int:
         if args.off:
             m = ARMED.match(s)
             if m:
-                out.append(f"void {m.group(1)}(void) {{ /* {m.group(3)}: "
-                           f"not detected */ }}\n")
+                out.append(f"void {m.group(1)}(void) {{ g_esp += 4; "
+                           f"/* {m.group(3)}: not detected */ }}\n")
                 disarmed += 1
                 continue
         else:
             m = EMPTY.match(s)
             if m:
+                # g_esp += 4 must survive arming: it is the stub's simulated
+                # `ret`, not decoration. An earlier version of this tool dropped
+                # it, silently changing behaviour in every one of 2,122 stubs.
                 out.append(f"void {m.group(1)}(void) {{ "
-                           f"recomp_stub_hit({m.group(3)}); "
+                           f"recomp_stub_hit({m.group(3)}); g_esp += 4; "
                            f"/* not detected */ }}\n")
                 armed += 1
                 continue
