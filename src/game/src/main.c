@@ -83,6 +83,7 @@ extern recomp_func_t recomp_lookup(uint32_t xbox_va);
  * the call would otherwise be an implicit int declaration that collides with
  * the void definition (C2371). */
 void recomp_abi_depth_dump(void);
+void recomp_stub_dump(void);   /* atexit never fires on a crash */
 
 /* ── Crash-report helpers ──────────────────────────────────── */
 
@@ -261,6 +262,7 @@ static void dump_native_stack(const uintptr_t *sp)
     recomp_icall_reject_dump();
     recomp_icall_failsite_dump();
     recomp_abi_depth_dump();
+    recomp_stub_dump();
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);
@@ -1151,6 +1153,7 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
     recomp_icall_reject_dump();
     recomp_icall_failsite_dump();
     recomp_abi_depth_dump();
+    recomp_stub_dump();
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);

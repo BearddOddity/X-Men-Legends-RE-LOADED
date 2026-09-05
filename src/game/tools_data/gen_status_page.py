@@ -35,17 +35,30 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The empty pointer has a cause, and it is the stack")
-SUBHEAD = ("The run stops because one routine hands back an empty pointer where "
-           "an object belongs. That empty pointer is now explained. Certain "
-           "routines finish by discarding sixteen more bytes of working space "
-           "than they were given, so the caller afterwards reads the wrong slot "
-           "and picks up a stray number instead of its object. Nothing was "
-           "watching for that. Three measuring tools were built to see it, each "
-           "catching what the one before it structurally could not, and the last "
-           "named the offending routine on its first run. The origin is not a "
-           "single routine but a loop of three that call each other, which is "
-           "why every earlier attempt to pin it on one of them failed.")
+HEADLINE = ("The biggest repair of the week was deleting our own code")
+SUBHEAD = ("Somebody - us, weeks ago - had added a safety net to the layer "
+           "where the game calls the operating system. On every single one of "
+           "those calls it swept two hundred and fifty-six bytes of the game's "
+           "memory and blanked anything that looked suspicious. One of the two "
+           "patterns it blanked is the number one written as a decimal "
+           "fraction, which is one of the most ordinary values a game holds. "
+           "So on every kernel call it was quietly destroying real data. "
+           "It was found by making the first page of memory untouchable and "
+           "logging everything that reached for it. Of the 1,983 such reaches "
+           "in a run, 1,965 came from that safety net rather than from the "
+           "game. Deleting it did not merely stop the harm - the boot went "
+           "further immediately, from 785 routines reached to 850, and the "
+           "reaches into forbidden memory fell from 1,983 to 3. "
+           "The number is the smaller half of the point. Every failure chased "
+           "this week ended at a value that should not have been there: a "
+           "count of minus one, a fraction where an address belonged, a field "
+           "that read back wrong. The safety net was rewriting exactly those "
+           "values, on every call, underneath the investigation. Several "
+           "earlier conclusions were drawn about a program that was being "
+           "edited while it was being watched. "
+           "What remains is honest: three reaches into forbidden memory, two "
+           "of them in one routine, and a stopping point that is now a small "
+           "and specific question rather than a fog.")
 
 
 def lifted_function_count():
