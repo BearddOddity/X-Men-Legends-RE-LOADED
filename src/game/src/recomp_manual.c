@@ -1212,6 +1212,7 @@ extern void sub_001970DD(void);
 extern void sub_00198725(void);
 extern void sub_00198978(void);
 extern void sub_00198EAD(void);
+extern void sub_001995AD(void);
 extern void sub_0019961A(void);
 extern void sub_0019AD3C(void);
 extern void sub_0019C1D0(void);
@@ -1469,6 +1470,7 @@ extern void sub_00206560(void);
 extern void sub_00206E2E(void);
 extern void sub_00207B20(void);
 extern void sub_00207D20(void);
+extern void sub_00208645(void);
 extern void sub_00208700(void);
 extern void sub_00208830(void);
 extern void sub_00209280(void);
@@ -2165,14 +2167,11 @@ extern void sub_0039737E(void);
 extern void sub_0039737F(void);
 extern void sub_00397386(void);
 extern void sub_00397400(void);
-extern void sub_00397480(void);
 extern void sub_00397481(void);
 extern void sub_00397556(void);
 extern void sub_00397598(void);
 extern void sub_00397618(void);
 extern void sub_00397732(void);
-extern void sub_00208645(void);
-extern void sub_001995AD(void);
 
 /* Video playback shim overrides - Phase 1: stub to return success immediately */
 extern void sub_00340FEB(void);
@@ -2882,6 +2881,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00198725u) return sub_00198725;
     if (xbox_va == 0x00198978u) return sub_00198978;
     if (xbox_va == 0x00198EADu) return sub_00198EAD;
+    if (xbox_va == 0x001995ADu) return sub_001995AD;
     if (xbox_va == 0x0019961Au) return sub_0019961A;
     if (xbox_va == 0x0019AD3Cu) return sub_0019AD3C;
     if (xbox_va == 0x0019C1D0u) return sub_0019C1D0;
@@ -3139,6 +3139,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x00206E2Eu) return sub_00206E2E;
     if (xbox_va == 0x00207B20u) return sub_00207B20;
     if (xbox_va == 0x00207D20u) return sub_00207D20;
+    if (xbox_va == 0x00208645u) return sub_00208645;
     if (xbox_va == 0x00208700u) return sub_00208700;
     if (xbox_va == 0x00208830u) return sub_00208830;
     if (xbox_va == 0x00209280u) return sub_00209280;
@@ -3835,14 +3836,11 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
     if (xbox_va == 0x0039737Fu) return sub_0039737F;
     if (xbox_va == 0x00397386u) return sub_00397386;
     if (xbox_va == 0x00397400u) return sub_00397400;
-    if (xbox_va == 0x00397480u) return sub_00397480;
     if (xbox_va == 0x00397481u) return sub_00397481;
     if (xbox_va == 0x00397556u) return sub_00397556;
     if (xbox_va == 0x00397598u) return sub_00397598;
     if (xbox_va == 0x00397618u) return sub_00397618;
     if (xbox_va == 0x00397732u) return sub_00397732;
-    if (xbox_va == 0x00208645u) return sub_00208645;
-    if (xbox_va == 0x001995ADu) return sub_001995AD;
 
     /* Video playback shim overrides - Phase 1: stub to return success immediately */
     if (xbox_va == 0x00340FEB) return sub_00340FEB;

@@ -2830,5 +2830,21 @@
     "message": "Task 1 done: repaired the icall save point in sub_0020E547 and the whole +16 over-pop chain collapsed. The original pushes ebx at 0x0020E572 and edi at 0x0020E578 as PROLOGUE SAVES and pops edi/ebx/esi at 0x0020E592, so it is balanced; the lifted code captured _icall_esp ABOVE both saves, so RECOMP_ICALL_SAFE's failure path rolled esp back past them and the epilogue's three pops ran from 8 bytes too high. Two registers, 8 bytes, exactly the measured over-pop. Proved against the original with whatis.py, not inferred, and find_icall_esp_saves.py independently flags the same line (one of 761 such sites, 132 with this 2-register shape). Fixed one site with --fix --only per Rule #6. Over-popping direct call sites fell 5 to 3, sub_002235D0's +16 GONE, sub_0020E520's +8 GONE, sub_00209470 fell from over-popping 16 to 4, and both +16 indirect deltas are gone - confirming ledger #185's chain ordering and that those frames were inheriting, not generating. The icall involved is MEM32(edx + 0xCC), which is the fault address 0xFFFE00CC itself: the over-pop and the crash were the same line.",
     "note": "KEPT, not reverted, on the user's decision after checking in as Rule #1 requires. Tracked signals fell - reached 196 to 173, call sites 551 to 499, heap 136 to 101 - but the change alters which path runs, so the counts measure a different program. Deterministic 2 of 2, byte-identical. THE WALL MOVED off sub_0020E547+0x1C3 / 0xFFFE00CC entirely: it is now an access violation inside VCRUNTIME140.dll, fault 0x10000FFF8, guest VA 0xFFFFFFF8, recompiled caller below it on the stack. A guest VA of -8 reaching a CRT routine reads as a length or pointer computed from an empty value. This is the fourth faithful repair to lower the headline numbers and the first kept: unlike the previous three it removes no placeholder, it corrects a stack imbalance proved wrong against the original disassembly, so reverting would restore known-incorrect behaviour. Ledger #186.",
     "commit": "2d4528c"
+  },
+  {
+    "kernel_calls": 561,
+    "reached": 52,
+    "callsites": 205,
+    "failed_icalls": 4,
+    "total_icalls": 894,
+    "distinct_ordinals": 17,
+    "ended": "crash",
+    "heap_allocs": 86,
+    "crash_in": "sub_001E8DF0+0x110",
+    "fault_va": "0xFF182444",
+    "date": "2026-09-04",
+    "message": "861 reached / 1,669 call sites - regeneration carrying the disasm extent fix (#255), the neg-carry lifter fix (#256) and the pop-clobber extension to the stale-flag detector. Original seed set, no RTTI seeds. Two-run stable.",
+    "note": "Previous best 853/1,674. The regeneration also retired 116 hand-written guards that existed only to compensate for the truncation defect, and cut unresolved stubs from 2,819 to 407 (same seed set: 392).",
+    "commit": "f21c5ae"
   }
 ]
