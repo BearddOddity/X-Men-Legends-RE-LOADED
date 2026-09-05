@@ -511,6 +511,15 @@ class FunctionTranslator:
         # jmp (g_seh_ebp carries the frame pointer across, since fpo_leaf
         # fragments read it back on entry).
         if falls_through:
+            # Register the continuation the same way a real call target is
+            # registered, or nothing ever defines it: the promotion pass only
+            # covers addresses strictly INSIDE a function, and a fall-through
+            # target is exactly one past this function's end, so it misses
+            # both promotion and the unresolved-stub pass. The result is a
+            # call to a symbol that does not exist, which surfaces only at
+            # link time (LNK2019 on sub_003BD4A9 and sub_003BE764, reached
+            # once XGRPH was translated).
+            self.lifter._call_target_name(end)
             lines.append(f"    /* fall-through: the original function continues at "
                          f"0x{end:08X}.")
             lines.append(f"     * Without this the epilogue there never runs and the "
