@@ -367,7 +367,8 @@ class FunctionTranslator:
 
         # Add _cf for carry-dependent instructions (sbb, adc) and for neg,
         # which writes the carry those read (see lifter._lift_neg).
-        has_carry = any(insn.mnemonic in ("sbb", "adc", "neg")
+        has_carry = any(insn.mnemonic in ("sbb", "adc", "neg",
+                                          "add", "sub", "cmp")
                         for insn in instructions)
         if has_carry:
             lines.append(f"    int _cf = 0; /* carry flag */")

@@ -1116,7 +1116,21 @@ class Lifter:
         if m == "xor" and ops[0].type == "reg" and ops[1].type == "reg" and ops[0].reg == ops[1].reg:
             return [_fmt_operand_write(ops[0], "0") + " /* xor self */"]
         expr = f"{dst} {c_op} {src}"
-        return [_fmt_operand_write(ops[0], expr)]
+        out = []
+        # add and sub write the carry that a following adc/sbb reads - the
+        # 64-bit arithmetic pair. Without this the second half of every 64-bit
+        # add or subtract used whatever _cf happened to hold, which is the zero
+        # it is initialised to. Same defect as `neg` (ledger #256), same fix.
+        # and/or/xor clear CF, and nothing here depends on that, so they are
+        # left alone rather than emitting a line per site.
+        if m == "add":
+            out.append(f"_cf = ((uint32_t)({dst}) + (uint32_t)({src}) "
+                       f"< (uint32_t)({src})); /* add: CF */")
+        elif m == "sub":
+            out.append(f"_cf = ((uint32_t)({dst}) < (uint32_t)({src})); "
+                       f"/* sub: CF */")
+        out.append(_fmt_operand_write(ops[0], expr))
+        return out
 
     def _lift_inc_dec(self, insn, ops, m):
         if len(ops) < 1:
@@ -1264,6 +1278,13 @@ class Lifter:
             return ["/* cmp: bad operands */"]
         lhs = _fmt_operand_read(ops[0])
         rhs = _fmt_operand_read(ops[1])
+        # cmp sets CF too, and 40 sbb sites read it - but emitting a line for
+        # it here shifts every deferred-comparison site by one line, which
+        # breaks the recorded `wrap` manual edits whose enclosed lines no
+        # longer match (10 of them, measured). add and sub cover the 64-bit
+        # arithmetic pairs that actually matter and cost nothing, so the cmp
+        # carry waits until those edits are re-recorded against a tree that
+        # has it.
         return [f"(void)0; /* cmp {lhs}, {rhs} - flags set for next jcc */"]
 
     def _lift_test(self, insn, ops):

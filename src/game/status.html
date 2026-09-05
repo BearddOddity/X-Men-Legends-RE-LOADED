@@ -279,34 +279,34 @@
     translated code to <em>execute</em> is the entire remaining problem, and it
     is where all current work happens.</p>
     <div class="stamp">
-      <span>2026-09-03</span>
+      <span>2026-09-05</span>
       <span>default.xbe &middot; XDK 5849</span>
-      <span>201 recorded runs</span>
+      <span>206 recorded runs</span>
       <span>generated, not hand-written</span>
     </div>
   </header>
 
   <section class="wall" style="border-left-color:var(--blocked)">
     <div class="wall-row"><span class="tn-label">Where it stands right now</span></div>
-    <h3 style="margin-top:.2rem">Four open defects turned out to be one</h3>
-    <p class="track-cap">Four of the nine faults from the audit looked independent: four places where the translator skipped a fragment of code. Repairing them together and measuring each in isolation showed they share a single cause, and one of them was not a missing fragment at all but a safety check firing. The project now has one target instead of four: a specific function handing back an empty pointer where an object belongs.</p>
+    <h3 style="margin-top:.2rem">The generator was the bug, and fixing it moved everything</h3>
+    <p class="track-cap">Nine hundred and fifty-seven routines now run, up from eight hundred and fifty-three, and every routine that ran before still runs - each step this session added functions without losing one. None of that came from new guards. It came from three defects in the translator itself. It was cutting functions short wherever a conditional jump pointed past a return instruction, so the tail of the function became an unresolved stub the caller jumped into and the guest stack drifted; that one defect had been costing 244 kilobytes of real code and had 116 hand-written guards propping it up, all of which are now deleted. It was also dropping the carry flag on negate, so the common 'are these equal' idiom answered yes to everything, and it could not see a register being clobbered by a pop before a comparison was tested. The other half of the gain was simply asking the program what it wanted. The failure log names every address the boot tried to call and could not; seeding those, and translating the sound and graphics-support sections as code rather than data, closed the list entirely - every unresolved call target is now gone except the null pointers, which are a symptom rather than a gap. The static initialisers all complete now. The stopping point has moved into the game's own startup, where a routine is entered with a valid object and, part way through, finds three of its registers holding code addresses - the shape of a stack that gave back more than it was given. One correction worth recording: several function names published earlier today were wrong, because the crash report prints offsets that were being read against the wrong column of the linker map. Probes settled it - a routine that never executes cannot be where the fault is.</p>
     <div class="wall-row" style="margin-top:.4rem">
-      <span>wall <strong>sub_0020E547+0x1C3</strong></span>
-      <span>230 kernel calls</span>
-      <span>201 runs</span>
-      <span>48 walls passed</span>
-      <span>updated 2026-09-03</span>
+      <span>wall <strong>sub_0020AA90+0x6E2</strong></span>
+      <span>561 kernel calls</span>
+      <span>206 runs</span>
+      <span>50 walls passed</span>
+      <span>updated 2026-09-05</span>
     </div>
   </section>
 
   <section class="thesis">
     <div class="thesis-nums">
       <div><span class="tn-label">Functions translated to C</span>
-           <span class="tn-val num">28,322</span></div>
+           <span class="tn-val num">29,525</span></div>
       <div><span class="tn-label">Call sites executed</span>
-           <span class="tn-val num reached">551</span></div>
+           <span class="tn-val num reached">1,838</span></div>
       <div><span class="tn-label">Walls passed</span>
-           <span class="tn-val num">48</span></div>
+           <span class="tn-val num">50</span></div>
     </div>
     <div class="track"><div class="track-fill"></div><div class="track-tick"></div></div>
     <p class="track-cap">The sliver is drawn to true scale. Nearly the whole
@@ -314,7 +314,7 @@
     inside the C runtime's static initialisers, before the game proper starts.</p>
     <p class="track-cap"><strong>On the numbers.</strong> Call sites executed
     counts distinct <em>direct</em> call sites. A separate counter tracks
-    196 functions entered through <em>indirect</em> calls. Neither is a
+    957 functions entered through <em>indirect</em> calls. Neither is a
     clean count of functions executed, and an earlier version of this page
     presented the second as though it were.</p>
   </section>
@@ -358,8 +358,8 @@
         <span class="vrow-label">Identical runs from a clean rebuild</span>
         <span class="vrow-frac">2 / 2</span>
         <span class="vrow-bar"><span class="vrow-fill" style="width:100%"></span></span>
-        <span class="vrow-note">Rebuilt from source and run twice: 230 kernel calls,
-        136 heap allocations, 196 functions reached, 551 call sites, both
+        <span class="vrow-note">Rebuilt from source and run twice: 561 kernel calls,
+        140 heap allocations, 957 functions reached, 1838 call sites, both
         times. A figure that moves between runs cannot be compared with anything.</span>
       </div>
     </div>
@@ -377,7 +377,7 @@
     <div class="note">
       <h3>The high-water mark that was not one</h3>
       <p>On 9 August a run recorded <strong>4,000 kernel calls and 826 heap
-      allocations</strong> against today&rsquo;s 230 and 136, which reads as a
+      allocations</strong> against today&rsquo;s 561 and 140, which reads as a
       severe regression. It is not. That run was a runaway: 4,000 is where the watchdog
       cuts execution off, and the change that ended it is recorded as removing a dispatch
       loop running on junk read from an unmapped page. The allocations were that loop
@@ -389,38 +389,38 @@
 
   <section>
     <p class="eyebrow">Progression</p>
-    <h2>48 walls passed across 201 runs</h2>
+    <h2>50 walls passed across 206 runs</h2>
     <p>Kernel calls per recorded run. It is a narrow proxy &mdash; a loop can
     inflate it &mdash; which is why the count of distinct crash sites matters
     more: reaching a new one means the previous wall was passed, and that cannot
     be faked by spinning.</p>
-    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 201 recorded runs, ending at 230"><polyline points="0.0,112.9 3.4,112.7 6.8,112.6 10.2,112.4 13.6,111.9 17.0,111.9 20.4,112.3 23.8,111.8 27.2,111.8 30.6,111.8 34.0,111.8 37.4,110.6 40.8,110.6 44.2,110.6 47.6,110.6 51.0,109.7 54.4,109.7 57.8,109.7 61.2,108.9 64.6,108.9 68.0,108.9 71.4,108.9 74.8,108.9 78.2,108.9 81.6,108.9 85.0,110.5 88.4,110.5 91.8,110.5 95.2,111.8 98.6,111.8 102.0,111.8 105.4,111.8 108.8,111.8 112.2,111.8 115.6,111.5 119.0,112.9 122.4,111.5 125.8,112.9 129.2,112.2 132.6,100.6 136.0,100.6 139.4,100.6 142.8,100.6 146.2,100.6 149.6,100.6 153.0,100.6 156.4,100.6 159.8,100.6 163.2,100.6 166.6,100.6 170.0,100.6 173.4,112.6 176.8,100.6 180.2,100.6 183.6,100.6 187.0,100.6 190.4,100.6 193.8,100.6 197.2,109.7 200.6,109.7 204.0,109.7 207.4,109.7 210.8,112.0 214.2,111.7 217.6,111.7 221.0,111.7 224.4,111.7 227.8,111.7 231.2,111.8 234.6,111.8 238.0,111.8 241.4,111.8 244.8,111.8 248.2,111.8 251.6,111.8 255.0,111.8 258.4,113.5 261.8,111.8 265.2,111.8 268.6,111.8 272.0,108.3 275.4,108.3 278.8,108.3 282.2,108.3 285.6,6.3 289.0,6.3 292.4,6.3 295.8,6.3 299.2,6.3 302.6,6.3 306.0,4.0 309.4,4.0 312.8,4.0 316.2,4.3 319.6,4.3 323.0,4.3 326.4,4.3 329.8,4.0 333.2,4.0 336.6,111.0 340.0,111.4 343.4,111.0 346.8,111.0 350.2,109.7 353.6,112.6 357.0,112.6 360.4,112.6 363.8,112.6 367.2,112.6 370.6,112.6 374.0,112.6 377.4,112.6 380.8,112.6 384.2,112.6 387.6,94.9 391.0,94.9 394.4,94.9 397.8,94.9 401.2,94.9 404.6,94.9 408.0,94.9 411.4,94.9 414.8,94.9 418.2,94.9 421.6,90.0 425.0,90.0 428.4,90.0 431.8,90.0 435.2,90.0 438.6,90.0 442.0,90.0 445.4,90.0 448.8,90.0 452.2,90.0 455.6,90.0 459.0,90.0 462.4,90.0 465.8,90.0 469.2,4.0 472.6,4.0 476.0,4.0 479.4,4.0 482.8,98.6 486.2,98.6 489.6,98.6 493.0,98.6 496.4,98.6 499.8,82.6 503.2,82.6 506.6,82.6 510.0,82.6 513.4,82.6 516.8,82.6 520.2,82.6 523.6,82.6 527.0,82.6 530.4,82.6 533.8,82.6 537.2,82.6 540.6,82.6 544.0,82.6 547.4,76.5 550.8,76.5 554.2,76.5 557.6,76.5 561.0,76.5 564.4,76.5 567.8,76.5 571.2,76.5 574.6,76.5 578.0,76.5 581.4,76.5 584.8,76.5 588.2,76.5 591.6,76.5 595.0,76.5 598.4,76.5 601.8,76.5 605.2,76.5 608.6,76.5 612.0,76.5 615.4,76.5 618.8,75.2 622.2,75.2 625.6,75.2 629.0,71.5 632.4,71.5 635.8,71.5 639.2,71.5 642.6,71.5 646.0,71.2 649.4,98.3 652.8,98.3 656.2,98.3 659.6,98.3 663.0,98.3 666.4,98.3 669.8,98.3 673.2,98.3 676.6,98.3 680.0,98.3" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="98.3" r="3.5" fill="var(--accent)"/></svg>
+    <svg viewBox="0 0 680 120" width="100%" height="120" preserveAspectRatio="none" role="img" aria-label="Kernel calls across 206 recorded runs, ending at 561"><polyline points="0.0,112.9 3.3,112.7 6.6,112.6 10.0,112.4 13.3,111.9 16.6,111.9 19.9,112.3 23.2,111.8 26.5,111.8 29.9,111.8 33.2,111.8 36.5,110.6 39.8,110.6 43.1,110.6 46.4,110.6 49.8,109.7 53.1,109.7 56.4,109.7 59.7,108.9 63.0,108.9 66.3,108.9 69.7,108.9 73.0,108.9 76.3,108.9 79.6,108.9 82.9,110.5 86.2,110.5 89.6,110.5 92.9,111.8 96.2,111.8 99.5,111.8 102.8,111.8 106.1,111.8 109.5,111.8 112.8,111.5 116.1,112.9 119.4,111.5 122.7,112.9 126.0,112.2 129.4,100.6 132.7,100.6 136.0,100.6 139.3,100.6 142.6,100.6 146.0,100.6 149.3,100.6 152.6,100.6 155.9,100.6 159.2,100.6 162.5,100.6 165.9,100.6 169.2,112.6 172.5,100.6 175.8,100.6 179.1,100.6 182.4,100.6 185.8,100.6 189.1,100.6 192.4,109.7 195.7,109.7 199.0,109.7 202.3,109.7 205.7,112.0 209.0,111.7 212.3,111.7 215.6,111.7 218.9,111.7 222.2,111.7 225.6,111.8 228.9,111.8 232.2,111.8 235.5,111.8 238.8,111.8 242.1,111.8 245.5,111.8 248.8,111.8 252.1,113.5 255.4,111.8 258.7,111.8 262.0,111.8 265.4,108.3 268.7,108.3 272.0,108.3 275.3,108.3 278.6,6.3 282.0,6.3 285.3,6.3 288.6,6.3 291.9,6.3 295.2,6.3 298.5,4.0 301.9,4.0 305.2,4.0 308.5,4.3 311.8,4.3 315.1,4.3 318.4,4.3 321.8,4.0 325.1,4.0 328.4,111.0 331.7,111.4 335.0,111.0 338.3,111.0 341.7,109.7 345.0,112.6 348.3,112.6 351.6,112.6 354.9,112.6 358.2,112.6 361.6,112.6 364.9,112.6 368.2,112.6 371.5,112.6 374.8,112.6 378.1,94.9 381.5,94.9 384.8,94.9 388.1,94.9 391.4,94.9 394.7,94.9 398.0,94.9 401.4,94.9 404.7,94.9 408.0,94.9 411.3,90.0 414.6,90.0 418.0,90.0 421.3,90.0 424.6,90.0 427.9,90.0 431.2,90.0 434.5,90.0 437.9,90.0 441.2,90.0 444.5,90.0 447.8,90.0 451.1,90.0 454.4,90.0 457.8,4.0 461.1,4.0 464.4,4.0 467.7,4.0 471.0,98.6 474.3,98.6 477.7,98.6 481.0,98.6 484.3,98.6 487.6,82.6 490.9,82.6 494.2,82.6 497.6,82.6 500.9,82.6 504.2,82.6 507.5,82.6 510.8,82.6 514.1,82.6 517.5,82.6 520.8,82.6 524.1,82.6 527.4,82.6 530.7,82.6 534.0,76.5 537.4,76.5 540.7,76.5 544.0,76.5 547.3,76.5 550.6,76.5 554.0,76.5 557.3,76.5 560.6,76.5 563.9,76.5 567.2,76.5 570.5,76.5 573.9,76.5 577.2,76.5 580.5,76.5 583.8,76.5 587.1,76.5 590.4,76.5 593.8,76.5 597.1,76.5 600.4,76.5 603.7,75.2 607.0,75.2 610.3,75.2 613.7,71.5 617.0,71.5 620.3,71.5 623.6,71.5 626.9,71.5 630.2,71.2 633.6,98.3 636.9,98.3 640.2,98.3 643.5,98.3 646.8,98.3 650.1,98.3 653.5,98.3 656.8,98.3 660.1,98.3 663.4,98.3 666.7,98.3 670.0,98.3 673.4,72.8 676.7,72.8 680.0,72.8" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="680.0" cy="72.8" r="3.5" fill="var(--accent)"/></svg>
     <p class="track-cap">Clipped at 1,456 so one spin artefact does not flatten
-    the series. Latest run: <strong>230</strong> kernel calls,
-    136 heap allocations, ending in crash.</p>
+    the series. Latest run: <strong>561</strong> kernel calls,
+    140 heap allocations, ending in crash.</p>
 
     <div class="scroller">
       <table>
         <thead><tr><th>First reached</th><th>Wall</th><th>Kernel calls</th></tr></thead>
         <tbody>
+          <tr><td class="n">2026-09-04</td><td class="n">sub_0020AA90+0x6E2</td><td class="n">561</td></tr>
+          <tr><td class="n">2026-09-03</td><td class="n">C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-03</td><td class="n">sub_0020E547+0x1C3</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-03</td><td class="n">sub_00209414+0x3F6</td><td class="n">230</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001EBA9E+0x1A4</td><td class="n">578</td></tr>
           <tr><td class="n">2026-09-02</td><td class="n">sub_001E8800+0x182</td><td class="n">530</td></tr>
-          <tr><td class="n">2026-09-02</td><td class="n">sub_00221070+0x647</td><td class="n">530</td></tr>
-          <tr><td class="n">2026-09-02</td><td class="n">sub_00209414+0x3FA</td><td class="n">530</td></tr>
         </tbody>
       </table>
     </div>
     <p class="track-cap">Most recent walls, newest first.</p>
 
     <div class="metrics">
-      <div class="metric"><span class="metric-k">First 100 runs</span>
-        <span class="metric-val">31 walls</span>
+      <div class="metric"><span class="metric-k">First 103 runs</span>
+        <span class="metric-val">32 walls</span>
         <span class="track-cap">3.2 runs each</span></div>
-      <div class="metric"><span class="metric-k">Last 101 runs</span>
-        <span class="metric-val">17 walls</span>
-        <span class="track-cap">5.9 runs each</span></div>
+      <div class="metric"><span class="metric-k">Last 103 runs</span>
+        <span class="metric-val">18 walls</span>
+        <span class="track-cap">5.7 runs each</span></div>
       <div class="metric"><span class="metric-k">Median wall</span>
         <span class="metric-val">2 runs</span></div>
       <div class="metric"><span class="metric-k">Worst wall</span>
@@ -437,9 +437,10 @@
 
   <section>
     <p class="eyebrow">The boot chain, mapped</p>
-    <h2>Exactly where execution dies</h2>
-    <p>Decompiling the wall traced the path from the entry point to the crash,
-    and a per-call bisect of the static initialisers narrowed it to one call.</p>
+    <h2>Static startup now completes</h2>
+    <p>The C runtime&rsquo;s four startup steps all finish, including the walk
+    over the static initialiser table that used to spin on garbage. Execution
+    now stops inside the game&rsquo;s own startup rather than before it.</p>
     <div class="scroller">
       <table>
         <thead><tr><th>Step</th><th>What it is</th><th>Result</th></tr></thead>
@@ -447,147 +448,102 @@
           <tr><td class="n">0x001A1C97</td><td>XBE entry point</td><td>runs</td></tr>
           <tr><td class="n">CreateThread</td><td>starts the CRT on a second thread</td><td>runs inline</td></tr>
           <tr><td class="n">0x001A1C23</td><td>CRT startup &mdash; hand-written in the port</td><td>runs, 4 steps</td></tr>
-          <tr><td class="n">sub_00011E40</td><td>static initialisers</td><td>entered, never returns</td></tr>
-          <tr><td class="n">sub_0011DD40</td><td>initialiser 1</td><td>returns</td></tr>
-          <tr><td class="n">sub_001E8DE0</td><td>initialiser 2</td><td>returns</td></tr>
-          <tr><td class="n">sub_00239E50</td><td><strong>initialiser 3 &mdash; the registry singleton</strong></td><td><strong>never returns</strong></td></tr>
+          <tr><td class="n">sub_001A3639</td><td>step 1</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A23F3</td><td>step 2</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A35AC</td><td>step 3</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A3554</td><td>step 4 &mdash; the static initialiser walk</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_0020AA90</td><td>game startup, deep in object construction</td><td><strong>faults</strong></td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="note">
-      <h3>Root cause: one uninitialised object</h3>
-      <p>Inside that initialiser, a type descriptor reaches the create-an-instance
-      path with <em>both</em> its instance size and its allocation prefix set to
-      <code>-1</code>. The code allocates <code>size + prefix</code>, so it asks
-      the heap for <code>0xFFFFFFFE</code> bytes &mdash; roughly 4&nbsp;GB. The
-      allocator correctly refuses and returns null, and the pointer becomes
-      <code>0 + (-1) = -1</code>, which passes a non-null check and is written
-      through.</p>
-      <p>Probing all 235 allocator calls made this unambiguous: the healthy ones
-      request 12, 16, 52 bytes; the fatal one requests <code>0xFFFFFFFE</code>.
-      Nothing in the chain is misbehaving &mdash; not the allocator, not the null
-      check, not the create path. One object was never initialised.</p>
-    </div>
-
-    <p class="eyebrow" style="margin-top:.6rem">And where that object comes from</p>
-    <h3>The chain runs back to a wall documented weeks ago</h3>
-    <p>A software watchpoint &mdash; reading the value after every recompiled call,
-    because page-protection watchpoints cannot see writes that land while the page
-    is unprotected &mdash; named the function that installs the bad descriptor. It
-    is a type lookup whose fallback path is dead:</p>
-
-    <div class="scroller">
-      <table>
-        <thead><tr><th>Link</th><th>Consequence</th></tr></thead>
-        <tbody>
-          <tr><td>The subsystem registrar is never called &mdash; its only reference is a <strong>data</strong> pointer, not a call</td><td>registry count stays at <strong>1</strong></td></tr>
-          <tr><td>The type lookup falls back to the previously-registered subsystem, which needs <strong>2 or more</strong></td><td>that branch is dead code</td></tr>
-          <tr><td>A type this subsystem does not own cannot be inherited</td><td>lookup returns an uninitialised descriptor</td></tr>
-          <tr><td>Its size and prefix are both <code>-1</code></td><td>allocation asks for 4&nbsp;GB, returns null</td></tr>
-          <tr><td><code>0 + (-1) = -1</code> passes the null check</td><td>the boot writes through <code>-1</code> and dies</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p>The fix belongs at the top of that chain. Every function below it is
-    faithful to the original and none of them should be guarded. It is also the
-    <strong>third</strong> time the same defect class &mdash; code reachable only
-    through a data pointer, so never translated &mdash; has produced the active
-    wall.</p>
-  </section>
-
-  <section>
-    <p class="eyebrow">The dominant defect class</p>
-    <h2>Code that exists but is never reached</h2>
-    <p>A recompiler discovers functions by following calls from an entry point.
-    A function whose only reference is a pointer in a table &mdash; a vtable, an
-    initialiser list, a factory array &mdash; is never reached, never translated,
-    and whatever it was meant to set up stays null for the whole run.</p>
-    <p>The clearest case sits on the most important path in the binary: the CRT
-    startup at <code>0x001A1C23</code> is never the target of a call instruction
-    anywhere. Its only reference is <code>push 0x1a1c23</code>, as an argument to
-    <code>CreateThread</code>. It runs at all only because it was hand-written
-    into the port.</p>
-    <div class="note">
-      <h3>The strategic read</h3>
-      <p>Anything that converts data-referenced code into translated code has
-      outsized leverage over fixing individual functions. Two passes of that
-      shape &mdash; 609 orphan functions, then 512 data-referenced pointers
-      &mdash; have each produced more movement than any single-function fix in
-      this project's history.</p>
+    <div class="wall">
+      <div class="wall-row"><span class="tn-label">The current stopping point</span></div>
+      <p>The routine is entered with a <strong>valid object every time</strong>
+      &mdash; a probe that fires only when the object pointer falls outside the
+      heap never fired once. Part way through, three of its registers hold
+      <em>code</em> addresses while a fourth still holds the correct object.
+      Registers full of code addresses are saved return addresses surfacing
+      through a stack that gave back more than it was given, and the routine
+      appearing twice in the calling chain is the same one measured over-popping
+      earlier in this project&rsquo;s record.</p>
     </div>
   </section>
 
   <section>
-    <p class="eyebrow">Open defects</p>
-    <h2>One target, not four</h2>
-    <p>The audit listed four faults as wrong behaviour on every run. Repairing
-    them in one experiment and then measuring each on its own is what showed
-    they are the same problem seen from four places.</p>
+    <p class="eyebrow">What moved, and why</p>
+    <h2>The generator was the defect, not the game</h2>
+    <p>The gain from 853 to 957 came from three faults in the translator
+    itself, plus one loop of simply asking the program what it wanted. None of it
+    came from new hand-written guards &mdash; 116 existing ones were
+    <em>deleted</em> as no longer needed.</p>
 
     <div class="scroller">
       <table>
-        <thead><tr><th>Configuration</th><th>Kernel calls</th><th>Heap</th><th>Reached</th><th>Call sites</th></tr></thead>
+        <thead><tr><th>Step</th><th>Reached</th><th>Call sites</th><th>What changed</th></tr></thead>
         <tbody>
-          <tr><td>baseline</td><td class="n">230</td><td class="n">136</td><td class="n">196</td><td class="n">551</td></tr>
-          <tr><td>first repair alone</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
-          <tr><td>both repairs</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
-          <tr><td>second repair alone</td><td class="n">248</td><td class="n">87</td><td class="n">143</td><td class="n">433</td></tr>
+          <tr><td>start</td><td class="n">853</td><td class="n">1,674</td><td>&mdash;</td></tr>
+          <tr><td>generator fixes</td><td class="n">861</td><td class="n">1,669</td><td>extent, carry flag, clobber detection</td></tr>
+          <tr><td>seed round 1</td><td class="n">941</td><td class="n">1,810</td><td>4 addresses the failure log named</td></tr>
+          <tr><td>seed round 2</td><td class="n">949</td><td class="n">1,835</td><td>3 more the next run exposed</td></tr>
+          <tr><td>extra sections</td><td class="n">957</td><td class="n">1838</td><td>sound and graphics support as code</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="track-cap">Both repairs together are <em>identical</em> to the first
-    alone, so the second changes nothing on this boot. On its own the second
-    raises kernel calls while dropping the measure of how much distinct code
-    runs &mdash; which is the one the project trusts first. Both were reverted.</p>
+    <p class="track-cap">Every step is a <strong>strict superset</strong> of the
+    one before: no routine that ran previously stopped running at any point.</p>
 
     <div class="note">
-      <h3>What the failure actually is</h3>
-      <p>With the first repair in place, execution dies reading an address in the
-      region reserved for calls into the operating system &mdash; somewhere no
-      object should ever live. Two measurements on the loop that fails show the
-      moment it goes wrong. The healthy passes carry real objects with real
-      method tables. Then one pass arrives with <strong>an empty pointer where the
-      object should be</strong>.</p>
-      <p>From there nothing is corrupted, which is the counter-intuitive part. The
-      address zero is a readable page in this runtime, so reading &ldquo;the
-      object&rsquo;s field list&rdquo; through an empty pointer returns a leftover
-      value that looks like a plausible list. The loop then walks that leftover,
-      inventing entries until one of them is treated as a method table and
-      called. The crash is four steps downstream of the actual mistake.</p>
+      <h3>Functions cut short wherever a branch jumped past a return</h3>
+      <p>The translator decided where each function ended by walking forward and
+      stopping at a return instruction, extending that limit when it saw a branch
+      pointing further ahead &mdash; but it set the limit <em>to</em> the branch
+      target rather than past it. A return sitting immediately before that target
+      therefore ended the walk, and the whole jumped-to block was lost: it became
+      an empty placeholder the caller jumped into, and the guest stack drifted
+      every time.</p>
+      <p>Correcting that arithmetic recovered <strong>244 kilobytes</strong> of
+      real code and cut empty placeholders from 2,819 to 407. It also made 116
+      hand-written repairs obsolete &mdash; every one of them existed to patch
+      this same defect by hand, one function at a time.</p>
     </div>
 
     <div class="note">
-      <h3>The one that was not a defect at all</h3>
-      <p>The fourth item is not missing code. It is the compiler&rsquo;s own
-      stack-corruption detector, and the placeholder standing in for it has been
-      quietly swallowing the alarm on every run. Filling it in would make the
-      program abort deliberately &mdash; correct, and worse. It is a symptom
-      pointing at something else, and it is now recorded as one rather than
-      queued as a repair.</p>
+      <h3>Two flag defects, fixed at the source</h3>
+      <p>Negation was not recording its carry, so the common &ldquo;are these two
+      equal&rdquo; idiom &mdash; which reads that carry one instruction later
+      &mdash; answered <em>yes to everything</em>. One such predicate decides
+      which allocator owns a pointer. Separately, a register overwritten by a
+      stack pop between a comparison and the branch testing it was invisible to
+      the checker, because a pop is a macro call rather than an assignment.</p>
+      <p>Both are now emitted correctly by the translator instead of being
+      patched by hand afterwards. The repair tool for the first class went from
+      262 sites to zero.</p>
     </div>
 
-    <p>Two tools were improved along the way. The one that recompiles a missing
-    fragment was sizing it by scanning forward to the next return instruction,
-    with no upper bound &mdash; so a fragment in the middle of a function ran
-    straight past the end of it and into the next. It now stops at the next known
-    function. That also corrects an earlier conclusion in the project&rsquo;s
-    record, which had rejected a repair partly because a function looked 41 bytes
-    long when it is really 882; the 41 was the translator&rsquo;s own truncated
-    guess, not the truth.</p>
+    <div class="note">
+      <h3>Ask the program what it wanted</h3>
+      <p>When the boot calls an address the port has no code for, it says so and
+      names the address. Seeding exactly those, measuring, and re-reading the log
+      is a loop, and it ran until the list was empty. Seven were small routines
+      the detector had missed because alignment padding separated them from the
+      function above; the rest lived in sections marked as data that in fact hold
+      code &mdash; sound and two graphics support libraries, now translated too.</p>
+      <p>Every unresolved call target is now gone except the null pointers, which
+      are a symptom of the remaining defect rather than a gap in the port.</p>
+    </div>
 
     <div class="note">
-      <h3>The honest caveat</h3>
-      <p>Three separate faithful repairs have now each made the headline number
-      worse, and each was reverted. That is not three failures. Each one removed a
-      placeholder that had been returning early, and the code it was standing in
-      front of then ran and hit its own defect. The placeholders were load-bearing.
-      Expect the next one to behave the same way, and treat a drop after a
-      correct repair as information rather than a setback.</p>
-      <p>Every repair discussed here is preserved word for word in the
-      project&rsquo;s record, so none of this has to be re-derived when the blocking
-      defect is fixed.</p>
+      <h3>A correction worth publishing</h3>
+      <p>Several routine names given earlier in the same session were wrong. The
+      crash report prints offsets, and those were being resolved against the wrong
+      column of the linker&rsquo;s symbol map &mdash; a column relative to the code
+      section rather than to the file, which names the routine <em>below</em> the
+      true one.</p>
+      <p>Probes settled it, not argument: the wrongly named routine never executed
+      once across two builds while the crash reproduced identically. A routine that
+      never runs cannot be where the fault is. The conversion is now a tool rather
+      than arithmetic done by hand.</p>
     </div>
   </section>
 

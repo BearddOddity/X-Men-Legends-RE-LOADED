@@ -340,9 +340,10 @@ def build(hist, sig):
 
   <section>
     <p class="eyebrow">The boot chain, mapped</p>
-    <h2>Exactly where execution dies</h2>
-    <p>Decompiling the wall traced the path from the entry point to the crash,
-    and a per-call bisect of the static initialisers narrowed it to one call.</p>
+    <h2>Static startup now completes</h2>
+    <p>The C runtime&rsquo;s four startup steps all finish, including the walk
+    over the static initialiser table that used to spin on garbage. Execution
+    now stops inside the game&rsquo;s own startup rather than before it.</p>
     <div class="scroller">
       <table>
         <thead><tr><th>Step</th><th>What it is</th><th>Result</th></tr></thead>
@@ -350,205 +351,102 @@ def build(hist, sig):
           <tr><td class="n">0x001A1C97</td><td>XBE entry point</td><td>runs</td></tr>
           <tr><td class="n">CreateThread</td><td>starts the CRT on a second thread</td><td>runs inline</td></tr>
           <tr><td class="n">0x001A1C23</td><td>CRT startup &mdash; hand-written in the port</td><td>runs, 4 steps</td></tr>
-          <tr><td class="n">sub_00011E40</td><td>static initialisers</td><td>entered, never returns</td></tr>
-          <tr><td class="n">sub_0011DD40</td><td>initialiser 1</td><td>returns</td></tr>
-          <tr><td class="n">sub_001E8DE0</td><td>initialiser 2</td><td>returns</td></tr>
-          <tr><td class="n">sub_00239E50</td><td><strong>initialiser 3 &mdash; the registry singleton</strong></td><td><strong>never returns</strong></td></tr>
+          <tr><td class="n">sub_001A3639</td><td>step 1</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A23F3</td><td>step 2</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A35AC</td><td>step 3</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_001A3554</td><td>step 4 &mdash; the static initialiser walk</td><td><strong>completes</strong></td></tr>
+          <tr><td class="n">sub_0020AA90</td><td>game startup, deep in object construction</td><td><strong>faults</strong></td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="note">
-      <h3>Root cause: one uninitialised object</h3>
-      <p>Inside that initialiser, a type descriptor reaches the create-an-instance
-      path with <em>both</em> its instance size and its allocation prefix set to
-      <code>-1</code>. The code allocates <code>size + prefix</code>, so it asks
-      the heap for <code>0xFFFFFFFE</code> bytes &mdash; roughly 4&nbsp;GB. The
-      allocator correctly refuses and returns null, and the pointer becomes
-      <code>0 + (-1) = -1</code>, which passes a non-null check and is written
-      through.</p>
-      <p>Probing all 235 allocator calls made this unambiguous: the healthy ones
-      request 12, 16, 52 bytes; the fatal one requests <code>0xFFFFFFFE</code>.
-      Nothing in the chain is misbehaving &mdash; not the allocator, not the null
-      check, not the create path. One object was never initialised.</p>
-    </div>
-
-    <p class="eyebrow" style="margin-top:.6rem">And where that object comes from</p>
-    <h3>The chain runs back to a wall documented weeks ago</h3>
-    <p>A software watchpoint &mdash; reading the value after every recompiled call,
-    because page-protection watchpoints cannot see writes that land while the page
-    is unprotected &mdash; named the function that installs the bad descriptor. It
-    is a type lookup whose fallback path is dead:</p>
-
-    <div class="scroller">
-      <table>
-        <thead><tr><th>Link</th><th>Consequence</th></tr></thead>
-        <tbody>
-          <tr><td>The subsystem registrar is never called &mdash; its only reference is a <strong>data</strong> pointer, not a call</td><td>registry count stays at <strong>1</strong></td></tr>
-          <tr><td>The type lookup falls back to the previously-registered subsystem, which needs <strong>2 or more</strong></td><td>that branch is dead code</td></tr>
-          <tr><td>A type this subsystem does not own cannot be inherited</td><td>lookup returns an uninitialised descriptor</td></tr>
-          <tr><td>Its size and prefix are both <code>-1</code></td><td>allocation asks for 4&nbsp;GB, returns null</td></tr>
-          <tr><td><code>0 + (-1) = -1</code> passes the null check</td><td>the boot writes through <code>-1</code> and dies</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p>The fix belongs at the top of that chain. Every function below it is
-    faithful to the original and none of them should be guarded. It is also the
-    <strong>third</strong> time the same defect class &mdash; code reachable only
-    through a data pointer, so never translated &mdash; has produced the active
-    wall.</p>
-  </section>
-
-  <section>
-    <p class="eyebrow">The dominant defect class</p>
-    <h2>Code that exists but is never reached</h2>
-    <p>A recompiler discovers functions by following calls from an entry point.
-    A function whose only reference is a pointer in a table &mdash; a vtable, an
-    initialiser list, a factory array &mdash; is never reached, never translated,
-    and whatever it was meant to set up stays null for the whole run.</p>
-    <p>The clearest case sits on the most important path in the binary: the CRT
-    startup at <code>0x001A1C23</code> is never the target of a call instruction
-    anywhere. Its only reference is <code>push 0x1a1c23</code>, as an argument to
-    <code>CreateThread</code>. It runs at all only because it was hand-written
-    into the port.</p>
-    <div class="note">
-      <h3>The strategic read</h3>
-      <p>Anything that converts data-referenced code into translated code has
-      outsized leverage over fixing individual functions. Two passes of that
-      shape &mdash; 609 orphan functions, then 512 data-referenced pointers
-      &mdash; have each produced more movement than any single-function fix in
-      this project's history.</p>
+    <div class="wall">
+      <div class="wall-row"><span class="tn-label">The current stopping point</span></div>
+      <p>The routine is entered with a <strong>valid object every time</strong>
+      &mdash; a probe that fires only when the object pointer falls outside the
+      heap never fired once. Part way through, three of its registers hold
+      <em>code</em> addresses while a fourth still holds the correct object.
+      Registers full of code addresses are saved return addresses surfacing
+      through a stack that gave back more than it was given, and the routine
+      appearing twice in the calling chain is the same one measured over-popping
+      earlier in this project&rsquo;s record.</p>
     </div>
   </section>
 
   <section>
-    <p class="eyebrow">Open defects</p>
-    <h2>One target, not four</h2>
-    <p>The audit listed four faults as wrong behaviour on every run. Repairing
-    them in one experiment and then measuring each on its own is what showed
-    they are the same problem seen from four places.</p>
+    <p class="eyebrow">What moved, and why</p>
+    <h2>The generator was the defect, not the game</h2>
+    <p>The gain from 853 to {reached} came from three faults in the translator
+    itself, plus one loop of simply asking the program what it wanted. None of it
+    came from new hand-written guards &mdash; 116 existing ones were
+    <em>deleted</em> as no longer needed.</p>
 
     <div class="scroller">
       <table>
-        <thead><tr><th>Configuration</th><th>Kernel calls</th><th>Heap</th><th>Reached</th><th>Call sites</th></tr></thead>
+        <thead><tr><th>Step</th><th>Reached</th><th>Call sites</th><th>What changed</th></tr></thead>
         <tbody>
-          <tr><td>baseline</td><td class="n">230</td><td class="n">136</td><td class="n">196</td><td class="n">551</td></tr>
-          <tr><td>first repair alone</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
-          <tr><td>both repairs</td><td class="n">48</td><td class="n">96</td><td class="n">169</td><td class="n">437</td></tr>
-          <tr><td>second repair alone</td><td class="n">248</td><td class="n">87</td><td class="n">143</td><td class="n">433</td></tr>
+          <tr><td>start</td><td class="n">853</td><td class="n">1,674</td><td>&mdash;</td></tr>
+          <tr><td>generator fixes</td><td class="n">861</td><td class="n">1,669</td><td>extent, carry flag, clobber detection</td></tr>
+          <tr><td>seed round 1</td><td class="n">941</td><td class="n">1,810</td><td>4 addresses the failure log named</td></tr>
+          <tr><td>seed round 2</td><td class="n">949</td><td class="n">1,835</td><td>3 more the next run exposed</td></tr>
+          <tr><td>extra sections</td><td class="n">{reached}</td><td class="n">{callsites}</td><td>sound and graphics support as code</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="track-cap">Both repairs together are <em>identical</em> to the first
-    alone, so the second changes nothing on this boot. On its own the second
-    raises kernel calls while dropping the measure of how much distinct code
-    runs &mdash; which is the one the project trusts first. Both were reverted.</p>
+    <p class="track-cap">Every step is a <strong>strict superset</strong> of the
+    one before: no routine that ran previously stopped running at any point.</p>
 
     <div class="note">
-      <h3>What the failure actually is</h3>
-      <p>With the first repair in place, execution dies reading an address in the
-      region reserved for calls into the operating system &mdash; somewhere no
-      object should ever live. Two measurements on the loop that fails show the
-      moment it goes wrong. The healthy passes carry real objects with real
-      method tables. Then one pass arrives with <strong>an empty pointer where the
-      object should be</strong>.</p>
-      <p>From there nothing is corrupted, which is the counter-intuitive part. The
-      address zero is a readable page in this runtime, so reading &ldquo;the
-      object&rsquo;s field list&rdquo; through an empty pointer returns a leftover
-      value that looks like a plausible list. The loop then walks that leftover,
-      inventing entries until one of them is treated as a method table and
-      called. The crash is four steps downstream of the actual mistake.</p>
+      <h3>Functions cut short wherever a branch jumped past a return</h3>
+      <p>The translator decided where each function ended by walking forward and
+      stopping at a return instruction, extending that limit when it saw a branch
+      pointing further ahead &mdash; but it set the limit <em>to</em> the branch
+      target rather than past it. A return sitting immediately before that target
+      therefore ended the walk, and the whole jumped-to block was lost: it became
+      an empty placeholder the caller jumped into, and the guest stack drifted
+      every time.</p>
+      <p>Correcting that arithmetic recovered <strong>244 kilobytes</strong> of
+      real code and cut empty placeholders from 2,819 to 407. It also made 116
+      hand-written repairs obsolete &mdash; every one of them existed to patch
+      this same defect by hand, one function at a time.</p>
     </div>
 
     <div class="note">
-      <h3>What the stack bug was</h3>
-      <p>Every routine is handed a block of working space and must give back
-      exactly what it took. One routine gave back <strong>eight bytes more than
-      it was given</strong>, on one of its two exits. The caller then looked for
-      its own values one slot too far along and carried on with whatever was
-      lying there.</p>
-      <p>The cause was a bookkeeping mistake in the translation, and the
-      original program was innocent. Two registers are saved at the start of the
-      routine and restored at the end; the translator recorded its
-      &ldquo;restore the stack to here&rdquo; mark <em>above</em> those two
-      saves instead of below them. When a call through a stored address failed,
-      the stack was rewound past the saves, and the restore at the end then ran
-      from the wrong place. Two registers, eight bytes, exactly the amount
-      measured.</p>
-      <p>This was read out of the original machine code before anything was
-      changed, not guessed: the original saves those two registers and restores
-      them in the matching order, so it is balanced and the translation was not.
-      A tool the project already had flags the same line independently, and
-      lists <strong>761 more places</strong> with the same shape.</p>
+      <h3>Two flag defects, fixed at the source</h3>
+      <p>Negation was not recording its carry, so the common &ldquo;are these two
+      equal&rdquo; idiom &mdash; which reads that carry one instruction later
+      &mdash; answered <em>yes to everything</em>. One such predicate decides
+      which allocator owns a pointer. Separately, a register overwritten by a
+      stack pop between a comparison and the branch testing it was invisible to
+      the checker, because a pop is a macro call rather than an assignment.</p>
+      <p>Both are now emitted correctly by the translator instead of being
+      patched by hand afterwards. The repair tool for the first class went from
+      262 sites to zero.</p>
     </div>
 
     <div class="note">
-      <h3>One eight-byte correction, and the whole cascade went</h3>
-      <p>Fixing that single line removed far more than itself, which is what
-      confirms the routines above it were victims rather than causes:</p>
-      <ul>
-        <li>Call sites handing back too much: <strong>five down to three</strong></li>
-        <li>The two largest offenders, at sixteen bytes each: <strong>gone</strong></li>
-        <li>A third, at sixteen bytes: down to four</li>
-      </ul>
-      <p>It also explains the old stopping point exactly. The failing call was
-      reading an address built from a corrupted value, and that address
-      <em>is</em> the address the program used to die on. The damage and the
-      crash were the same line of code.</p>
+      <h3>Ask the program what it wanted</h3>
+      <p>When the boot calls an address the port has no code for, it says so and
+      names the address. Seeding exactly those, measuring, and re-reading the log
+      is a loop, and it ran until the list was empty. Seven were small routines
+      the detector had missed because alignment padding separated them from the
+      function above; the rest lived in sections marked as data that in fact hold
+      code &mdash; sound and two graphics support libraries, now translated too.</p>
+      <p>Every unresolved call target is now gone except the null pointers, which
+      are a symptom of the remaining defect rather than a gap in the port.</p>
     </div>
 
     <div class="note">
-      <h3>Where it stops now, and why the counters fell</h3>
-      <p>The program runs a long way further and stops somewhere new. It is
-      trying to <strong>insert an item into a list that was never set up</strong>:
-      the list says it holds minus one items, and its storage pointer is empty.
-      The insert works out how much to shift by from those two numbers, so it
-      asks to copy a negative length from an empty address, and the copy routine
-      fails on the spot.</p>
-      <p>Those two values were read from a probe placed on the copy routine
-      itself, firing only on an implausible call so the millions of healthy ones
-      stayed silent. That matters: an earlier attempt to name the caller used the
-      list of addresses printed with the crash, and <strong>that list is not
-      trustworthy</strong> - it is a raw scan of the stack that includes stale
-      leftovers, and one of the project's own tools refuses to read it for
-      exactly that reason. The conclusion drawn from it was withdrawn and
-      re-established properly.</p>
-      <p><strong>The headline counters fell</strong> - functions reached 196 to
-      173, call sites 551 to 499. That is not a regression being hidden. The
-      repair changes which path the program takes, so the counters are now
-      measuring a different program, and the old and new numbers are not
-      comparable. The decision to keep the fix rather than revert it was taken
-      deliberately, because unlike three earlier cases this one is not a
-      placeholder being removed - it is a translation error proved wrong against
-      the original, and putting it back would restore known-broken behaviour.</p>
-    </div>
-
-    <div class="note">
-      <h3>The honest caveat</h3>
-      <p><strong>This one is a real repair, and it is the first that was kept.</strong> Three earlier faithful repairs each made the headline numbers worse and each was reverted, because each removed a placeholder that had been returning early and the code behind it then hit its own defect. This one removes no placeholder: it corrects a translation error proved wrong against the original machine code, so reverting it would put known-broken behaviour back. The drop in the counters was accepted deliberately, after checking, and not quietly absorbed.</p>
-      <p><strong>What is still unknown.</strong> The list being inserted into has minus one items and no storage, but <em>what left it in that state has not been found</em>. Naming the routine that owns it is the next job, and nothing on this page should be read as having identified it.</p>
-      <p>Three separate faithful repairs have each made the headline number
-      worse, and each was reverted. That is not three failures. Each removed a
-      placeholder that had been returning early, and the code it stood in front
-      of then ran and hit its own defect. The placeholders were load-bearing.
-      Expect the next one to behave the same way, and treat a drop after a
-      correct repair as information rather than a setback.</p>
-      <p>Two specific limits on the findings above. A promising explanation for
-      the sixteen bytes &mdash; a cleanup step being applied twice on the failure
-      path &mdash; was measured and <strong>ruled out</strong>: it is real, it
-      affects around 900 places in the code, and in this run it fires exactly
-      once and costs four bytes. It is worth fixing on its own account and is not
-      the cause here. Separately, one of the routines flagged as discarding too
-      much is doing something legitimate that the newest tool does not yet
-      understand, and is recorded as an open question rather than a defect.</p>
-      <p>A claim in the project&rsquo;s own source comments was found to be false
-      and has been corrected: it asserted a check had been run across 19,239
-      places and found nothing, when the search it describes could not have
-      matched anything at all. The lesson is recorded with it.</p>
-      <p>Every repair and every refutation discussed here is preserved word for
-      word in the project&rsquo;s record, so none of it has to be re-derived when
-      the blocking defect is fixed.</p>
+      <h3>A correction worth publishing</h3>
+      <p>Several routine names given earlier in the same session were wrong. The
+      crash report prints offsets, and those were being resolved against the wrong
+      column of the linker&rsquo;s symbol map &mdash; a column relative to the code
+      section rather than to the file, which names the routine <em>below</em> the
+      true one.</p>
+      <p>Probes settled it, not argument: the wrongly named routine never executed
+      once across two builds while the crash reproduced identically. A routine that
+      never runs cannot be where the fault is. The conversion is now a tool rather
+      than arithmetic done by hand.</p>
     </div>
   </section>
 
