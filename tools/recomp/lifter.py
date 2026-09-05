@@ -1135,7 +1135,16 @@ class Lifter:
         if len(ops) < 1:
             return ["/* neg: no operand */"]
         val = _fmt_operand_read(ops[0])
-        return [_fmt_operand_write(ops[0], f"(uint32_t)(-(int32_t){val})")]
+        # neg sets CF = (operand != 0), computed from the value BEFORE the
+        # negation. The following `sbb reg, reg` idiom reads _cf, and without
+        # this assignment it read the zero _cf is initialised to, so
+        # "eax = (eax == esi)" always answered true - ledger #136, found in
+        # sub_001FBA90's ownership predicate. The declaration is emitted by
+        # translator.py, which counts neg as carry-writing for that reason.
+        return [
+            f"_cf = ({val} != 0); /* neg: CF */",
+            _fmt_operand_write(ops[0], f"(uint32_t)(-(int32_t){val})"),
+        ]
 
     def _lift_not(self, insn, ops):
         if len(ops) < 1:
