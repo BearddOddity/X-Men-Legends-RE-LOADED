@@ -35,31 +35,36 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("Eight hundred routines run, and not one of them draws anything")
-SUBHEAD = ("The count of routines the boot reaches went from 52 to 853 in a "
-           "day. That number has been the headline here, and on its own it is "
-           "misleading, so this page now carries the breakdown instead. Of "
-           "those 853: six hundred and ninety-one are object plumbing, one "
-           "hundred and seven are networking, exactly one draws, and there are "
-           "zero from the menu code, zero from video, zero from sound. The "
-           "graphics layer counts its own calls and reports none at all - the "
-           "game has never once asked for a screen to draw on. "
-           "The stopping point is now a single wrong pointer. One routine "
-           "reads a field forty bytes into an object it was handed; on the "
-           "real console every object arriving there is the same class, and "
-           "ours is a different one - it carries a heap address where the "
-           "class identity should be, which is what an object that was "
-           "allocated but never initialised looks like. The translation of "
-           "that read is correct; it was checked instruction by instruction "
-           "against the real game. The fault is entirely in what gets passed "
-           "in, and it is passed straight through from two routines above "
-           "without being altered. "
-           "What that took to establish is worth recording. Three separate "
-           "wrong explanations were published and withdrawn today, each built "
-           "by working out what memory addresses implied instead of measuring "
-           "what the program did. The corrections came from the same move "
-           "every time: measure at the exact point of failure rather than "
-           "upstream of where the fault seems to be.")
+HEADLINE = ("The generator was the bug, and fixing it moved everything")
+SUBHEAD = ("Nine hundred and fifty-seven routines now run, up from eight "
+           "hundred and fifty-three, and every routine that ran before still "
+           "runs - each step this session added functions without losing one. "
+           "None of that came from new guards. It came from three defects in "
+           "the translator itself. It was cutting functions short wherever a "
+           "conditional jump pointed past a return instruction, so the tail of "
+           "the function became an unresolved stub the caller jumped into and "
+           "the guest stack drifted; that one defect had been costing 244 "
+           "kilobytes of real code and had 116 hand-written guards propping it "
+           "up, all of which are now deleted. It was also dropping the carry "
+           "flag on negate, so the common 'are these equal' idiom answered yes "
+           "to everything, and it could not see a register being clobbered by "
+           "a pop before a comparison was tested. "
+           "The other half of the gain was simply asking the program what it "
+           "wanted. The failure log names every address the boot tried to call "
+           "and could not; seeding those, and translating the sound and "
+           "graphics-support sections as code rather than data, closed the "
+           "list entirely - every unresolved call target is now gone except "
+           "the null pointers, which are a symptom rather than a gap. "
+           "The static initialisers all complete now. The stopping point has "
+           "moved into the game's own startup, where a routine is entered with "
+           "a valid object and, part way through, finds three of its registers "
+           "holding code addresses - the shape of a stack that gave back more "
+           "than it was given. "
+           "One correction worth recording: several function names published "
+           "earlier today were wrong, because the crash report prints offsets "
+           "that were being read against the wrong column of the linker map. "
+           "Probes settled it - a routine that never executes cannot be where "
+           "the fault is.")
 
 
 def lifted_function_count():
@@ -457,85 +462,72 @@ def build(hist, sig):
     </div>
 
     <div class="note">
-      <h3>Where the empty pointer comes from</h3>
-      <p>It is the stack. Every routine is handed a block of working space and is
-      expected to give back exactly what it took. Some of these give back
-      <strong>sixteen bytes more than they were given</strong>. The caller then
-      looks for its own value one slot too far along, finds whatever was lying
-      there, and carries on with a stray number where a pointer belonged. That
-      stray number is the empty pointer described above.</p>
-      <p>This was invisible for months because the existing check only asked
-      whether the working space had run away entirely &mdash; off the end of an
-      eight-megabyte region. Being sixteen bytes wrong sits comfortably inside
-      that, so it never triggered. The check was asking the wrong question, not
-      failing to ask it.</p>
+      <h3>What the stack bug was</h3>
+      <p>Every routine is handed a block of working space and must give back
+      exactly what it took. One routine gave back <strong>eight bytes more than
+      it was given</strong>, on one of its two exits. The caller then looked for
+      its own values one slot too far along and carried on with whatever was
+      lying there.</p>
+      <p>The cause was a bookkeeping mistake in the translation, and the
+      original program was innocent. Two registers are saved at the start of the
+      routine and restored at the end; the translator recorded its
+      &ldquo;restore the stack to here&rdquo; mark <em>above</em> those two
+      saves instead of below them. When a call through a stored address failed,
+      the stack was rewound past the saves, and the restore at the end then ran
+      from the wrong place. Two registers, eight bytes, exactly the amount
+      measured.</p>
+      <p>This was read out of the original machine code before anything was
+      changed, not guessed: the original saves those two registers and restores
+      them in the matching order, so it is balanced and the translation was not.
+      A tool the project already had flags the same line independently, and
+      lists <strong>761 more places</strong> with the same shape.</p>
     </div>
 
     <div class="note">
-      <h3>Three tools, each seeing what the last could not</h3>
-      <p>The first watches calls made through a stored address and compares the
-      working space before and after. It named a routine immediately, and also
-      revealed that most of what it flagged was harmless: of 167 complaints only
-      ten were real, the other 157 being a normal bookkeeping step that had been
-      miscounted as damage. That correction matters, because the surface to
-      investigate shrank from 167 to 10.</p>
-      <p>The second covers ordinary direct calls, which nothing had ever checked
-      for this. It is self-calibrating: rather than needing a table of what each
-      routine should give back, it records what a call site returns the first
-      time and complains when the same site later disagrees with itself. On its
-      first run it named the routine behind the current stopping point, matching
-      a result that had previously taken a day of hand measurement.</p>
-      <p>The third exists because the second has a blind spot: a routine that is
-      <em>consistently</em> wrong never disagrees with itself. So every call site
-      now records what it gave back, and the judging is done afterwards against
-      what each routine is actually entitled to. That immediately found a
-      further routine discarding twenty-four bytes on every single call, which
-      neither of the first two could ever have seen.</p>
+      <h3>One eight-byte correction, and the whole cascade went</h3>
+      <p>Fixing that single line removed far more than itself, which is what
+      confirms the routines above it were victims rather than causes:</p>
+      <ul>
+        <li>Call sites handing back too much: <strong>five down to three</strong></li>
+        <li>The two largest offenders, at sixteen bytes each: <strong>gone</strong></li>
+        <li>A third, at sixteen bytes: down to four</li>
+      </ul>
+      <p>It also explains the old stopping point exactly. The failing call was
+      reading an address built from a corrupted value, and that address
+      <em>is</em> the address the program used to die on. The damage and the
+      crash were the same line of code.</p>
     </div>
 
     <div class="note">
-      <h3>Why no single routine is to blame</h3>
-      <p>The obvious next question is which routine is deepest, so the others can
-      be dismissed as inheriting its damage. The question has no answer as posed.
-      The routine at the stopping point was proved sound on every path through
-      it, and all the ordinary calls it makes give back exactly what they should.
-      The damage arrives through a call made via a stored address &mdash; and the
-      stored addresses it calls are the ones its own caller handed it moments
-      earlier. <strong>The three routines form a loop</strong>, and a map built
-      from ordinary calls alone cannot order a loop whose damaging link is not an
-      ordinary call.</p>
-      <p>The next tool is therefore a small one: the existing check already knows
-      which stored address was called, and needs only to record who called it.
-      That completes the map.</p>
+      <h3>Where it stops now, and why the counters fell</h3>
+      <p>The program runs a long way further and stops somewhere new. It is
+      trying to <strong>insert an item into a list that was never set up</strong>:
+      the list says it holds minus one items, and its storage pointer is empty.
+      The insert works out how much to shift by from those two numbers, so it
+      asks to copy a negative length from an empty address, and the copy routine
+      fails on the spot.</p>
+      <p>Those two values were read from a probe placed on the copy routine
+      itself, firing only on an implausible call so the millions of healthy ones
+      stayed silent. That matters: an earlier attempt to name the caller used the
+      list of addresses printed with the crash, and <strong>that list is not
+      trustworthy</strong> - it is a raw scan of the stack that includes stale
+      leftovers, and one of the project's own tools refuses to read it for
+      exactly that reason. The conclusion drawn from it was withdrawn and
+      re-established properly.</p>
+      <p><strong>The headline counters fell</strong> - functions reached 196 to
+      173, call sites 551 to 499. That is not a regression being hidden. The
+      repair changes which path the program takes, so the counters are now
+      measuring a different program, and the old and new numbers are not
+      comparable. The decision to keep the fix rather than revert it was taken
+      deliberately, because unlike three earlier cases this one is not a
+      placeholder being removed - it is a translation error proved wrong against
+      the original, and putting it back would restore known-broken behaviour.</p>
     </div>
-
-    <div class="note">
-      <h3>The one that was not a defect at all</h3>
-      <p>The fourth item is not missing code. It is the compiler&rsquo;s own
-      stack-corruption detector, and the placeholder standing in for it has been
-      quietly swallowing the alarm on every run. Filling it in would make the
-      program abort deliberately &mdash; correct, and worse. It is a symptom
-      pointing at something else, and it is now recorded as one rather than
-      queued as a repair.</p>
-    </div>
-
-    <p>Two tools were improved along the way. The one that recompiles a missing
-    fragment was sizing it by scanning forward to the next return instruction,
-    with no upper bound &mdash; so a fragment in the middle of a function ran
-    straight past the end of it and into the next. It now stops at the next known
-    function. That also corrects an earlier conclusion in the project&rsquo;s
-    record, which had rejected a repair partly because a function looked 41 bytes
-    long when it is really 882; the 41 was the translator&rsquo;s own truncated
-    guess, not the truth.</p>
 
     <div class="note">
       <h3>The honest caveat</h3>
-      <p><strong>Nothing on this page is a repair.</strong> The headline numbers
-      have not moved and were not expected to: every change described here is a
-      measuring instrument, and each was checked to be behaviour-neutral by
-      confirming the ordinary build produces a log identical to the previous one
-      byte for byte. Understanding moved a long way; the program still stops in
-      the same place.</p>
+      <p><strong>This one is a real repair, and it is the first that was kept.</strong> Three earlier faithful repairs each made the headline numbers worse and each was reverted, because each removed a placeholder that had been returning early and the code behind it then hit its own defect. This one removes no placeholder: it corrects a translation error proved wrong against the original machine code, so reverting it would put known-broken behaviour back. The drop in the counters was accepted deliberately, after checking, and not quietly absorbed.</p>
+      <p><strong>What is still unknown.</strong> The list being inserted into has minus one items and no storage, but <em>what left it in that state has not been found</em>. Naming the routine that owns it is the next job, and nothing on this page should be read as having identified it.</p>
       <p>Three separate faithful repairs have each made the headline number
       worse, and each was reverted. That is not three failures. Each removed a
       placeholder that had been returning early, and the code it stood in front

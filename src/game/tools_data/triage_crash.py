@@ -480,14 +480,29 @@ def main(argv):
                   f"  {classify(crash['fault_va'])}")
         return 0
 
-    if crash["stack"]:
+    # A fault inside a system DLL has no real frame walk to offer, because the
+    # crash handler only emits "Call stack, innermost first" when the faulting
+    # RIP is inside our image. Printing nothing in that case is what sent one
+    # investigation to the raw stack scan instead, which is full of stale
+    # return addresses and produced a call chain that had to be withdrawn.
+    # So: still refuse to present the scan as callers, but SAY that is what
+    # is happening, and name the honest alternative.
+    if crash["stack"] and crash.get("stack_is_real"):
         print("callers (nearest first):")
         seen = set()
         for rva in crash["stack"]:
             s = symbolise(syms, rva)
             if s and s["name"].startswith("sub_") and s["name"] not in seen:
                 seen.add(s["name"])
-                print(f"  {s['name']} + 0x{s['offset']:X}")
+                print("  " + s["name"] + " + 0x%X" % s["offset"])
+        print()
+    elif crash["stack"]:
+        print("callers: NOT SHOWN - this run has no real frame walk, only a")
+        print("         raw stack scan, which carries stale return addresses.")
+        print("         Reading a call chain off it has already produced a")
+        print("         wrong answer once. To name the caller, put a probe at")
+        print("         the suspect function and call recomp_where(), which")
+        print("         walks real frames; resolve them with resolve_rva.py.")
         print()
 
     sym = symbolise(syms, crash["rva"]) if crash["rva"] is not None else None

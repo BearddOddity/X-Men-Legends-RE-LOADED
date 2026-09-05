@@ -43,11 +43,19 @@ variable under exactly that signal. A real second target does not; it gives two
 independent deterministic runs to compare, which is worth more than either.
 
 **After every Windows build, copy the artifacts back to the lab.**
-`src/recomp/gen/` and `stderr.txt` are gitignored build output, so a `git pull`
-never brings them and the lab's MCP tools fail with "No such file or directory"
-until they are copied over `\\wsl$\kali-linux\...`. `src/game/game/default.xbe`
-can be a symlink to the repo's own `game_files/default.xbe` instead of a second
-copy — same file, verified by MD5.
+`src/recomp/gen/`, `stderr.txt` and `build/xmen_legends_recomp.map` are
+gitignored build output, so a `git pull` never brings them and the lab's MCP
+tools fail until they are copied over `\\wsl$\kali-linux\...`.
+`src/game/game/default.xbe` can be a symlink to the repo's own
+`game_files/default.xbe` instead of a second copy — same file, verified by
+MD5.
+
+**The linker map is the one that is easy to forget, and its absence is
+silent.** Without it `triage_crash.py` cannot symbolise, so it prints an
+EMPTY caller list rather than an error. That silence has already cost one
+wrong conclusion: it was read as "no reliable frames exist", and a call
+chain was rebuilt from the untrusted raw stack scan instead. With the map
+present the same tool prints the full chain from the entry point down.
 
 Do NOT "fix" this by repointing the MCP server at the Windows tree. That
 inverts the arrangement above, and it has been proposed and rejected.
@@ -115,6 +123,10 @@ solved bugs come back (#15).
 | `whatis.py` | identify any Xbox VA — section, owning function, disassembly |
 | `find_missing_functions.py` | functions reachable only via data pointers |
 | `seed_missing_functions.py` | recompile those additively into `gen/recomp_seed.c` |
+| `guard_bulk_writes.py` | guards every emitted bulk copy/fill against clobbering an address range; covers BOTH the memcpy and the loop form |
+| `census_categories.py` | what the 28k lifted functions are, by category, size and whether this boot reaches them |
+| `who_writes.py` | which functions write a guest address, and whether one can reach them; follows direct AND tail calls |
+| `resolve_rva.py` | host RVAs in a crash stack -> function names, via `build/*.map`; `--stack FILE` does a whole trace, `--ours-only` drops system frames |
 | `find_icall_esp_saves.py` | `_icall_esp` save points across register saves; `--live` narrows to real failures, `--fix --only F` applies |
 | `find_stale_flag_tests.py` | deferred-flag miscompiles |
 | `manual_edits.py` | extract/re-apply hand edits across a regeneration; `--partial --force` to write what places, `check-braces` to verify |
@@ -234,7 +246,7 @@ touch src/recomp/gen/*.c src/recomp/gen/*.h src/recomp_manual.c
 py -3 tools_data/seed_missing_functions.py --from-list seed_list.json --apply
 py -3 tools_data/manual_edits.py apply     # short first pass is normal, see below
 py -3 tools_data/repair_wraps.py --apply --drop-unclosed
-py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500
+py -3 tools_data/find_icall_esp_saves.py --fix --only sub_00209650,sub_002235D0,sub_00226250,sub_00236500,sub_0020E547,sub_001A23F3,sub_0020E680
 py -3 tools_data/stub_overridden.py --apply
 py -3 tools_data/dedupe_seed.py --apply            # better discovery -> seed duplicates
 py -3 tools_data/manual_edits.py check-braces      # must say "all functions balanced"
