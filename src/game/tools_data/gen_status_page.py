@@ -35,30 +35,31 @@ FUNC_RE = re.compile(r"^void sub_[0-9A-F]+\(void\)$")
 # below it often do not move for days at a time - diagnosis is not progress in
 # kernel calls - so if this is not updated the whole page looks stale even when
 # the work has moved a long way. Edit it whenever the understanding changes.
-HEADLINE = ("The biggest repair of the week was deleting our own code")
-SUBHEAD = ("Somebody - us, weeks ago - had added a safety net to the layer "
-           "where the game calls the operating system. On every single one of "
-           "those calls it swept two hundred and fifty-six bytes of the game's "
-           "memory and blanked anything that looked suspicious. One of the two "
-           "patterns it blanked is the number one written as a decimal "
-           "fraction, which is one of the most ordinary values a game holds. "
-           "So on every kernel call it was quietly destroying real data. "
-           "It was found by making the first page of memory untouchable and "
-           "logging everything that reached for it. Of the 1,983 such reaches "
-           "in a run, 1,965 came from that safety net rather than from the "
-           "game. Deleting it did not merely stop the harm - the boot went "
-           "further immediately, from 785 routines reached to 850, and the "
-           "reaches into forbidden memory fell from 1,983 to 3. "
-           "The number is the smaller half of the point. Every failure chased "
-           "this week ended at a value that should not have been there: a "
-           "count of minus one, a fraction where an address belonged, a field "
-           "that read back wrong. The safety net was rewriting exactly those "
-           "values, on every call, underneath the investigation. Several "
-           "earlier conclusions were drawn about a program that was being "
-           "edited while it was being watched. "
-           "What remains is honest: three reaches into forbidden memory, two "
-           "of them in one routine, and a stopping point that is now a small "
-           "and specific question rather than a fog.")
+HEADLINE = ("Eight hundred routines run, and not one of them draws anything")
+SUBHEAD = ("The count of routines the boot reaches went from 52 to 853 in a "
+           "day. That number has been the headline here, and on its own it is "
+           "misleading, so this page now carries the breakdown instead. Of "
+           "those 853: six hundred and ninety-one are object plumbing, one "
+           "hundred and seven are networking, exactly one draws, and there are "
+           "zero from the menu code, zero from video, zero from sound. The "
+           "graphics layer counts its own calls and reports none at all - the "
+           "game has never once asked for a screen to draw on. "
+           "The stopping point is now a single wrong pointer. One routine "
+           "reads a field forty bytes into an object it was handed; on the "
+           "real console every object arriving there is the same class, and "
+           "ours is a different one - it carries a heap address where the "
+           "class identity should be, which is what an object that was "
+           "allocated but never initialised looks like. The translation of "
+           "that read is correct; it was checked instruction by instruction "
+           "against the real game. The fault is entirely in what gets passed "
+           "in, and it is passed straight through from two routines above "
+           "without being altered. "
+           "What that took to establish is worth recording. Three separate "
+           "wrong explanations were published and withdrawn today, each built "
+           "by working out what memory addresses implied instead of measuring "
+           "what the program did. The corrections came from the same move "
+           "every time: measure at the exact point of failure rather than "
+           "upstream of where the fault seems to be.")
 
 
 def lifted_function_count():

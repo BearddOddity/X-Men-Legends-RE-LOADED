@@ -84,6 +84,7 @@ extern recomp_func_t recomp_lookup(uint32_t xbox_va);
  * the void definition (C2371). */
 void recomp_abi_depth_dump(void);
 void recomp_stub_dump(void);   /* atexit never fires on a crash */
+extern unsigned long g_d3d8_shim_calls;   /* did the game reach the GPU at all? */
 
 /* ── Crash-report helpers ──────────────────────────────────── */
 
@@ -263,6 +264,7 @@ static void dump_native_stack(const uintptr_t *sp)
     recomp_icall_failsite_dump();
     recomp_abi_depth_dump();
     recomp_stub_dump();
+    fprintf(stderr, "[D3D8] %lu shim call(s) this run\n", g_d3d8_shim_calls);
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);
@@ -305,6 +307,15 @@ static int g_where_atexit;
 
 void recomp_where_summary(void);   /* registered with atexit below */
 
+/* One monotonic clock shared by every instrument.
+ *
+ * Probes and watchpoints each numbered their own hits, so ordering two
+ * events meant correlating separate counters across separate runs - which
+ * is guesswork, and produced four superseded explanations on 2026-09-04.
+ * Every report now carries @<seq> from this one counter, so a probe hit and
+ * a memory write can be placed on a single timeline within one run. */
+unsigned long g_evt_seq = 0;
+
 unsigned recomp_where(const char *tag, unsigned limit,
                       uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 {
@@ -331,8 +342,8 @@ unsigned recomp_where(const char *tag, unsigned limit,
         return n;                         /* still counting, no longer printing */
 
     module_range();
-    fprintf(stderr, "[WHERE:%s] #%u  %08X %08X %08X %08X\n",
-            tag, n, a, b, c, d);
+    fprintf(stderr, "[WHERE:%s] @%lu #%u  %08X %08X %08X %08X\n",
+            tag, ++g_evt_seq, n, a, b, c, d);
 
     void *frames[24];
     /* Skip frame 0: it is recomp_where itself, never the answer. */
@@ -880,8 +891,8 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
             g_pend_is_trace = 0;
             uint32_t val = *(volatile uint32_t *)g_pend_host;
             fprintf(stderr,
-                    "[WATCH:%s] #%u  VA 0x%08X (+0x%X) = 0x%08X  from RVA=0x%llX\n",
-                    w->label, w->reports, g_pend_va, g_pend_va - w->va, val,
+                    "[WATCH:%s] @%lu #%u  VA 0x%08X (+0x%X) = 0x%08X  from RVA=0x%llX\n",
+                    w->label, ++g_evt_seq, w->reports, g_pend_va, g_pend_va - w->va, val,
                     (unsigned long long)(g_pend_rip
                         - (uintptr_t)GetModuleHandleA(NULL)));
             fflush(stderr);
@@ -1154,6 +1165,7 @@ static unsigned __stdcall watchdog_thread_proc(void *arg)
     recomp_icall_failsite_dump();
     recomp_abi_depth_dump();
     recomp_stub_dump();
+    fprintf(stderr, "[D3D8] %lu shim call(s) this run\n", g_d3d8_shim_calls);
     recomp_coverage_dump();
     recomp_alloc_dump();
     fflush(stderr);
